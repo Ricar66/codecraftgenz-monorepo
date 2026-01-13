@@ -23,6 +23,7 @@ const envSchema = z.object({
   // CORS
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   ALLOWED_ORIGINS: z.string().optional(),
+  COOKIE_DOMAIN: z.string().optional(),
 
   // Email (optional in development)
   EMAIL_USER: z.string().email().optional(),
