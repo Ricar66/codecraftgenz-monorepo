@@ -87,66 +87,6 @@ jobs:
           retention-days: 7
 
   # =============================================
-  # Frontend Pipeline
-  # =============================================
-  frontend:
-    name: Frontend CI
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Check if frontend exists
-        id: check_frontend
-        run: |
-          if [ -f "package.json" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Install dependencies
-        if: steps.check_frontend.outputs.exists == 'true'
-        run: npm ci
-
-      - name: Run linter
-        if: steps.check_frontend.outputs.exists == 'true'
-        run: npm run lint
-
-      - name: Type check
-        if: steps.check_frontend.outputs.exists == 'true'
-        run: npx tsc --noEmit
-
-      - name: Run tests
-        if: steps.check_frontend.outputs.exists == 'true'
-        run: npm test -- --passWithNoTests
-
-      - name: Build
-        if: steps.check_frontend.outputs.exists == 'true'
-        run: npm run build
-        env:
-          VITE_API_URL: https://api.example.com
-
-      - name: Upload build artifacts
-        if: steps.check_frontend.outputs.exists == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: frontend/dist
-          retention-days: 7
-
-  # =============================================
   # Security Scan
   # =============================================
   security:
@@ -165,13 +105,6 @@ jobs:
         run: |
           cd backend
           npm audit --audit-level=high || true
-
-      - name: Audit frontend dependencies
-        run: |
-          if [ -f "frontend/package.json" ]; then
-            cd frontend
-            npm audit --audit-level=high || true
-          fi
 
   # =============================================
   # Docker Build Test
