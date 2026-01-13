@@ -56,7 +56,7 @@ export const appService = {
         name: project.nome,
         description: project.descricao,
         thumbUrl: project.thumbUrl,
-        price: options.price ?? Number(project.preco) ?? 0,
+        price: options.price ?? Number(project.preco) || 0,
         status: options.status ?? 'draft',
         creatorId,
         version: '1.0.0',

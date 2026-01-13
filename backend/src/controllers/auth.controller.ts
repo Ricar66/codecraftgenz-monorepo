@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service.js';
 import { sendSuccess } from '../utils/response.js';
-import { env, isProd } from '../config/env.js';
+import { isProd } from '../config/env.js';
 import type {
   LoginInput,
   RegisterInput,

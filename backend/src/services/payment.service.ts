@@ -118,7 +118,6 @@ export const paymentService = {
       throw AppError.internal('Mercado Pago não configurado');
     }
 
-    const preferenceId = `PREF-${crypto.randomUUID()}`;
     const paymentId = `PAY-${crypto.randomUUID()}`;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
