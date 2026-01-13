@@ -30,7 +30,7 @@ export const authController = {
    */
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = req.validated.body as LoginInput;
+      const data = req.validated!.body as LoginInput;
       const result = await authService.login(data);
 
       // Set cookie
@@ -47,7 +47,7 @@ export const authController = {
    */
   async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = req.validated.body as RegisterInput;
+      const data = req.validated!.body as RegisterInput;
       const result = await authService.register(data);
 
       // Set cookie
@@ -62,7 +62,7 @@ export const authController = {
   /**
    * POST /api/v1/auth/logout
    */
-  async logout(req: Request, res: Response): Promise<void> {
+  async logout(_req: Request, res: Response): Promise<void> {
     res.clearCookie('token');
     sendSuccess(res, { message: 'Logout realizado com sucesso' });
   },
@@ -84,7 +84,7 @@ export const authController = {
    */
   async requestPasswordReset(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { email } = req.validated.body as PasswordResetRequestInput;
+      const { email } = req.validated!.body as PasswordResetRequestInput;
       await authService.requestPasswordReset(email);
 
       // Always return success to prevent email enumeration
@@ -101,7 +101,7 @@ export const authController = {
    */
   async confirmPasswordReset(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { token, password } = req.validated.body as PasswordResetConfirmInput;
+      const { token, password } = req.validated!.body as PasswordResetConfirmInput;
       await authService.confirmPasswordReset(token, password);
 
       sendSuccess(res, { message: 'Senha alterada com sucesso' });
@@ -115,7 +115,7 @@ export const authController = {
    */
   async changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { currentPassword, newPassword } = req.validated.body as ChangePasswordInput;
+      const { currentPassword, newPassword } = req.validated!.body as ChangePasswordInput;
       await authService.changePassword(req.user!.id, currentPassword, newPassword);
 
       sendSuccess(res, { message: 'Senha alterada com sucesso' });

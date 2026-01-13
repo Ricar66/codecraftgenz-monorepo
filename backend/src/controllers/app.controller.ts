@@ -36,8 +36,11 @@ export const appController = {
   async createFromProject(req: Request, res: Response) {
     const projectId = Number(req.params.projectId);
     const creatorId = req.user!.id;
-    const { price, status } = req.validated?.body ?? {};
-    const app = await appService.createFromProject(projectId, creatorId, { price, status });
+    const body = req.validated?.body as { price?: number; status?: string } | undefined;
+    const app = await appService.createFromProject(projectId, creatorId, {
+      price: body?.price,
+      status: body?.status
+    });
     res.status(201).json(success(app));
   },
 

@@ -71,7 +71,7 @@ export const appRepository = {
       where: {
         name: {
           equals: name,
-          mode: 'insensitive',
+          mode: 'insensitive' as const,
         },
       },
     });

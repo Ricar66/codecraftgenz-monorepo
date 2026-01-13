@@ -81,13 +81,18 @@ export function sendError(
   message: string,
   details?: unknown
 ): Response {
+  const errorObj: { code: string; message: string; details?: unknown } = {
+    code,
+    message,
+  };
+
+  if (details !== undefined) {
+    errorObj.details = details;
+  }
+
   const response: ApiResponse = {
     success: false,
-    error: {
-      code,
-      message,
-      ...(details && { details }),
-    },
+    error: errorObj,
   };
 
   return res.status(statusCode).json(response);

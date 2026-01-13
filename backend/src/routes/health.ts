@@ -9,7 +9,7 @@ const router = Router();
  * GET /api/v1/health
  * Basic health check
  */
-router.get('/', (req, res) => {
+router.get('/', (_req, res) => {
   sendSuccess(res, {
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -22,7 +22,7 @@ router.get('/', (req, res) => {
  * GET /api/v1/health/db
  * Database health check
  */
-router.get('/db', async (req, res) => {
+router.get('/db', async (_req, res) => {
   try {
     // Test database connection
     await prisma.$queryRaw`SELECT 1`;
@@ -41,7 +41,7 @@ router.get('/db', async (req, res) => {
  * GET /api/v1/health/ready
  * Readiness probe (for Kubernetes/Docker)
  */
-router.get('/ready', async (req, res) => {
+router.get('/ready', async (_req, res) => {
   try {
     // Check all dependencies
     await prisma.$queryRaw`SELECT 1`;
@@ -61,7 +61,7 @@ router.get('/ready', async (req, res) => {
  * GET /api/v1/health/live
  * Liveness probe (for Kubernetes/Docker)
  */
-router.get('/live', (req, res) => {
+router.get('/live', (_req, res) => {
   sendSuccess(res, { status: 'alive' });
 });
 

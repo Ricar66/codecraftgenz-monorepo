@@ -43,13 +43,13 @@ describe('response utils', () => {
     it('should calculate totalPages correctly', () => {
       const result = paginated([], 1, 10, 100);
 
-      expect(result.meta.totalPages).toBe(10);
+      expect(result.meta?.totalPages).toBe(10);
     });
 
     it('should handle edge case of zero total', () => {
       const result = paginated([], 1, 10, 0);
 
-      expect(result.meta.totalPages).toBe(0);
+      expect(result.meta?.totalPages).toBe(0);
     });
   });
 });

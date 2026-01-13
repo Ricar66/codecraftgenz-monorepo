@@ -11,13 +11,13 @@ export const paymentController = {
   },
 
   async getById(req: Request, res: Response) {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const payment = await paymentService.getById(id);
     res.json(success(payment));
   },
 
   async updateStatus(req: Request, res: Response) {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const data = req.validated?.body as UpdatePaymentInput;
     const payment = await paymentService.updateStatus(id, data);
     res.json(success(payment));
@@ -67,7 +67,7 @@ export const paymentController = {
   },
 
   async getAppPaymentById(req: Request, res: Response) {
-    const { pid } = req.params;
+    const pid = req.params.pid as string;
     const payment = await paymentService.getById(pid);
     res.json(success(payment));
   },
