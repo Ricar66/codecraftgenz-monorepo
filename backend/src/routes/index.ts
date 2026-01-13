@@ -13,6 +13,7 @@ import mentorRoutes from './mentors.js';
 import inscricaoRoutes from './inscricoes.js';
 import financeRoutes from './finances.js';
 import configRoutes from './config.js';
+import dashboardRoutes from './dashboard.js';
 
 const router = Router();
 
@@ -34,5 +35,6 @@ router.use('/api/mentores', mentorRoutes);
 router.use('/api/inscricoes', inscricaoRoutes);
 router.use('/api/financas', financeRoutes);
 router.use('/api/config', configRoutes);
+router.use('/api/dashboard', dashboardRoutes);
 
 export default router;
