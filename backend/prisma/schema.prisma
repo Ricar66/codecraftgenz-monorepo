@@ -74,6 +74,7 @@ model Project {
   mentor      Mentor?   @relation(fields: [mentorId], references: [id], onDelete: SetNull)
   apps        App[]
   inscricoes  Inscricao[]
+  finances    Finance[]
 
   @@map("projetos")
 }
@@ -234,6 +235,28 @@ model RankingTop3 {
   @@map("ranking_top3")
 }
 
+model RankingAudit {
+  id          Int       @id @default(autoincrement())
+  action      String
+  crafterId   Int?
+  userId      Int?
+  oldValue    String?
+  newValue    String?
+  details     String?
+  createdAt   DateTime  @default(now())
+
+  @@map("ranking_audit")
+}
+
+model RankingSettings {
+  id          Int       @id @default(autoincrement())
+  filtersJson String?
+  settingsJson String?
+  updatedAt   DateTime  @updatedAt
+
+  @@map("ranking_settings")
+}
+
 // =============================================
 // MENTORS
 // =============================================
@@ -325,6 +348,26 @@ model ChallengeSubmission {
 
   @@unique([desafioId, oderId])
   @@map("challenge_submissions")
+}
+
+// =============================================
+// FINANCE
+// =============================================
+
+model Finance {
+  id          Int       @id @default(autoincrement())
+  item        String
+  valor       Decimal   @db.Decimal(10, 2)
+  status      String?   @default("pending")
+  type        String?   @default("other")
+  projectId   Int?
+  progress    Int?      @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@map("financas")
 }
 
 // =============================================

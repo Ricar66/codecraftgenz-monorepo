@@ -52,4 +52,20 @@ export const crafterController = {
     const result = await crafterService.updateTop3(top3);
     res.json(success(result));
   },
+
+  async getTop3(_req: Request, res: Response) {
+    const top3 = await crafterService.getTop3();
+    res.json(success(top3));
+  },
+
+  async getAudit(_req: Request, res: Response) {
+    const audit = await crafterService.getAudit();
+    res.json(success(audit));
+  },
+
+  async updateFilters(req: Request, res: Response) {
+    const filters = req.body as Record<string, unknown>;
+    const result = await crafterService.updateFilters(filters);
+    res.json(success(result));
+  },
 };
