@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
-import { z, ZodSchema } from 'zod';
+import { z, ZodSchema, ZodObject, ZodRawShape } from 'zod';
 
 /**
  * Request validation schema structure
+ * Can be either a structured object with body/query/params
+ * or a ZodObject that contains body/query/params as properties
  */
-interface ValidationSchema {
-  body?: ZodSchema;
-  query?: ZodSchema;
-  params?: ZodSchema;
-}
+type ValidationSchema =
+  | { body?: ZodSchema; query?: ZodSchema; params?: ZodSchema }
+  | ZodObject<ZodRawShape>;
 
 /**
  * Validated request data
@@ -19,50 +19,56 @@ export interface ValidatedRequest {
   params?: unknown;
 }
 
-// Extend Express Request to include validated data
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-    interface Request {
-      validated: ValidatedRequest;
-    }
-  }
-}
-
 /**
  * Validation Middleware Factory
  * Creates a middleware that validates request body, query, and params using Zod schemas
  *
  * @example
  * ```ts
- * const createUserSchema = {
+ * const createUserSchema = z.object({
  *   body: z.object({
  *     email: z.string().email(),
  *     password: z.string().min(8),
  *   }),
- * };
+ * });
  *
  * router.post('/users', validate(createUserSchema), createUser);
  * ```
  */
 export function validate(schema: ValidationSchema) {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       const validated: ValidatedRequest = {};
 
-      // Validate body if schema provided
-      if (schema.body) {
-        validated.body = await schema.body.parseAsync(req.body);
-      }
+      // Check if schema is a ZodObject with shape
+      if (schema instanceof ZodObject) {
+        const shape = schema.shape as Record<string, ZodSchema | undefined>;
 
-      // Validate query if schema provided
-      if (schema.query) {
-        validated.query = await schema.query.parseAsync(req.query);
-      }
+        // Validate body if schema has body property
+        if (shape.body) {
+          validated.body = await shape.body.parseAsync(req.body);
+        }
 
-      // Validate params if schema provided
-      if (schema.params) {
-        validated.params = await schema.params.parseAsync(req.params);
+        // Validate query if schema has query property
+        if (shape.query) {
+          validated.query = await shape.query.parseAsync(req.query);
+        }
+
+        // Validate params if schema has params property
+        if (shape.params) {
+          validated.params = await shape.params.parseAsync(req.params);
+        }
+      } else {
+        // Traditional object structure
+        if (schema.body) {
+          validated.body = await schema.body.parseAsync(req.body);
+        }
+        if (schema.query) {
+          validated.query = await schema.query.parseAsync(req.query);
+        }
+        if (schema.params) {
+          validated.params = await schema.params.parseAsync(req.params);
+        }
       }
 
       // Attach validated data to request

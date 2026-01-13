@@ -56,4 +56,20 @@ export class AppError extends Error {
   static tooManyRequests(message = 'Muitas requisições'): AppError {
     return new AppError(429, 'TOO_MANY_REQUESTS', message);
   }
+
+  /**
+   * Serialize error to JSON
+   */
+  toJSON(): { code: string; message: string; details?: unknown } {
+    const json: { code: string; message: string; details?: unknown } = {
+      code: this.code,
+      message: this.message,
+    };
+
+    if (this.details !== undefined) {
+      json.details = this.details;
+    }
+
+    return json;
+  }
 }

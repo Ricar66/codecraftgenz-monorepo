@@ -10,7 +10,7 @@ export const defaultLimiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
+  handler: (_req, res) => {
     sendError(res, 429, 'TOO_MANY_REQUESTS', 'Muitas requisições, tente novamente em 15 minutos');
   },
 });
@@ -24,7 +24,7 @@ export const authLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
+  handler: (_req, res) => {
     sendError(res, 429, 'TOO_MANY_REQUESTS', 'Muitas tentativas de login, tente novamente em 15 minutos');
   },
   keyGenerator: (req) => {
@@ -43,7 +43,7 @@ export const sensitiveLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
+  handler: (_req, res) => {
     sendError(res, 429, 'TOO_MANY_REQUESTS', 'Muitas requisições para esta operação, tente novamente em 1 hora');
   },
 });
@@ -57,7 +57,7 @@ export const apiLimiter = rateLimit({
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
+  handler: (_req, res) => {
     sendError(res, 429, 'TOO_MANY_REQUESTS', 'Limite de requisições excedido');
   },
 });

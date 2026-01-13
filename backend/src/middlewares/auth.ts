@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
 import { prisma } from '../db/prisma.js';
+import type { ValidatedRequest } from './validate.js';
 
 /**
  * JWT Payload type
@@ -12,8 +13,8 @@ export interface JwtPayload {
   email: string;
   role: string;
   name: string;
-  iat: number;
-  exp: number;
+  iat?: number;
+  exp?: number;
 }
 
 // Extend Express Request to include user and validated data
@@ -22,11 +23,7 @@ declare global {
   namespace Express {
     interface Request {
       user?: JwtPayload;
-      validated?: {
-        body?: unknown;
-        query?: unknown;
-        params?: unknown;
-      };
+      validated?: ValidatedRequest;
     }
   }
 }
@@ -57,7 +54,7 @@ function extractToken(req: Request): string | null {
  */
 export async function authenticate(
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
@@ -114,7 +111,7 @@ export async function authenticate(
  */
 export async function optionalAuth(
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
@@ -143,7 +140,7 @@ export async function optionalAuth(
  * router.delete('/users/:id', authenticate, authorize('ADMIN'), deleteUser);
  */
 export function authorize(...allowedRoles: string[]) {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {
       next(AppError.unauthorized('Autenticação necessária'));
       return;
@@ -163,8 +160,8 @@ export function authorize(...allowedRoles: string[]) {
  */
 export function generateToken(payload: Omit<JwtPayload, 'iat' | 'exp'>): string {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN,
-  });
+    expiresIn: env.JWT_EXPIRES_IN as string,
+  } as jwt.SignOptions);
 }
 
 /**
@@ -173,7 +170,7 @@ export function generateToken(payload: Omit<JwtPayload, 'iat' | 'exp'>): string 
  */
 export function authorizeAdmin(
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): void {
   if (!req.user) {
