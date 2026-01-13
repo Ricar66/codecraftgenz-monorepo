@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: codecraftgenz-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-codecraftgenz}
+      MYSQL_USER: ${MYSQL_USER:-codecraft}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-codecraftpassword}
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - codecraftgenz-network
+
+  # Backend API
+  api:
+    build:
+      context: ../backend
+      dockerfile: ../infra/Dockerfile.backend
+    container_name: codecraftgenz-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 8080
+      DATABASE_URL: mysql://${MYSQL_USER:-codecraft}:${MYSQL_PASSWORD:-codecraftpassword}@db:3306/${MYSQL_DATABASE:-codecraftgenz}
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-minimum-32-characters}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+      MP_ENV: ${MP_ENV:-sandbox}
+      MERCADO_PAGO_PUBLIC_KEY: ${MERCADO_PAGO_PUBLIC_KEY:-}
+      MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
+      MERCADO_PAGO_WEBHOOK_SECRET: ${MERCADO_PAGO_WEBHOOK_SECRET:-}
+    ports:
+      - '8080:8080'
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - codecraftgenz-network
+
+  # Database migrations (run once)
+  migrate:
+    build:
+      context: ../backend
+      dockerfile: ../infra/Dockerfile.backend
+    container_name: codecraftgenz-migrate
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-codecraft}:${MYSQL_PASSWORD:-codecraftpassword}@db:3306/${MYSQL_DATABASE:-codecraftgenz}
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        sleep 5 &&
+        echo 'Running migrations...' &&
+        npx prisma migrate deploy &&
+        echo 'Running seed...' &&
+        npm run db:seed &&
+        echo 'Migration complete!'
+      "
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - codecraftgenz-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  codecraftgenz-network:
+    driver: bridge
