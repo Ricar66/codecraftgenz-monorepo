@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
+import helmet, { hsts } from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { env, isProd } from './config/env.js';
@@ -54,7 +54,7 @@ app.use(
 
 // HSTS in production
 if (isProd) {
-  app.use(helmet.hsts({ maxAge: 15552000 }));
+  app.use(hsts({ maxAge: 15552000 }));
 }
 
 // Compression
