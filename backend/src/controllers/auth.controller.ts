@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service.js';
 import { sendSuccess } from '../utils/response.js';
-import { isProd } from '../config/env.js';
+import { isProd, env } from '../config/env.js';
 import type {
   LoginInput,
   RegisterInput,
@@ -16,7 +16,8 @@ import type {
 const cookieOptions = {
   httpOnly: true,
   secure: isProd,
-  sameSite: isProd ? ('strict' as const) : ('lax' as const),
+  sameSite: isProd ? ('none' as const) : ('lax' as const),
+  domain: isProd ? env.COOKIE_DOMAIN : undefined,
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
