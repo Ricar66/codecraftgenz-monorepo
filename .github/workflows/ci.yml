@@ -63,8 +63,8 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Run migrations
-        run: npx prisma migrate deploy
+      - name: Setup database
+        run: npx prisma db push --skip-generate
         env:
           DATABASE_URL: mysql://root:testpassword@localhost:3306/codecraftgenz_test
 

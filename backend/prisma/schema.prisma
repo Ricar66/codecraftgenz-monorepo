@@ -1,7 +1,7 @@
 // =============================================
 // PRISMA SCHEMA - CodeCraft Gen-Z
 // =============================================
-// Database: PostgreSQL (Render) / MySQL (local)
+// Database: MySQL (Hostinger)
 // =============================================
 
 generator client {
@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 

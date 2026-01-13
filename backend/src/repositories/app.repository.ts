@@ -67,12 +67,10 @@ export const appRepository = {
   },
 
   async findByName(name: string) {
+    // MySQL é case-insensitive por padrão com collation utf8mb4_general_ci
     return prisma.app.findFirst({
       where: {
-        name: {
-          equals: name,
-          mode: 'insensitive' as const,
-        },
+        name: name,
       },
     });
   },
