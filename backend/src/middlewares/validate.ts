@@ -21,6 +21,7 @@ export interface ValidatedRequest {
 
 // Extend Express Request to include validated data
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       validated: ValidatedRequest;

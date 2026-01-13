@@ -18,6 +18,7 @@ export interface JwtPayload {
 
 // Extend Express Request to include user and validated data
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: JwtPayload;

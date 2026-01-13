@@ -32,7 +32,7 @@ router.get('/db', async (req, res) => {
       database: 'connected',
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch {
     sendError(res, 503, 'DATABASE_ERROR', 'Falha na conexão com o banco de dados');
   }
 });
