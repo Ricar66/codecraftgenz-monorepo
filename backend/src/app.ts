@@ -1,12 +1,9 @@
 import express from 'express';
 import cors from 'cors';
-import helmetModule from 'helmet';
+import helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { env, isProd } from './config/env.js';
-
-// Handle ESM/CJS interop for helmet
-const helmet = (helmetModule as unknown as { default?: typeof helmetModule }).default ?? helmetModule;
 import { logger } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import { defaultLimiter } from './middlewares/rateLimiter.js';
@@ -57,7 +54,7 @@ app.use(
 
 // HSTS in production
 if (isProd) {
-  app.use(helmetModule.hsts({ maxAge: 15552000 }));
+  app.use(helmet.hsts({ maxAge: 15552000 }));
 }
 
 // Compression
