@@ -15,6 +15,8 @@ const router = Router();
 // Rotas públicas
 router.get('/', crafterController.getAll);
 router.get('/ranking', crafterController.getRanking);
+router.get('/top3', crafterController.getTop3);
+router.get('/audit', authenticate, authorizeAdmin, crafterController.getAudit);
 router.get('/:id', validate(crafterIdSchema), crafterController.getById);
 
 // Rotas admin
@@ -43,7 +45,7 @@ router.delete(
 );
 
 router.put(
-  '/ranking/points/:crafterId',
+  '/points/:crafterId',
   authenticate,
   authorizeAdmin,
   validate(updatePointsSchema),
@@ -51,11 +53,18 @@ router.put(
 );
 
 router.put(
-  '/ranking/top3',
+  '/top3',
   authenticate,
   authorizeAdmin,
   validate(updateTop3Schema),
   crafterController.updateTop3
+);
+
+router.put(
+  '/filters',
+  authenticate,
+  authorizeAdmin,
+  crafterController.updateFilters
 );
 
 export default router;

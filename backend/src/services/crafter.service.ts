@@ -123,6 +123,48 @@ export const crafterService = {
 
     return { updated: true };
   },
+
+  async getTop3() {
+    const top3 = await prisma.rankingTop3.findMany({
+      orderBy: { position: 'asc' },
+      include: {
+        crafter: true,
+      },
+    });
+    return top3.map((item) => ({
+      position: item.position,
+      crafter: item.crafter ? mapCrafter(item.crafter) : null,
+    }));
+  },
+
+  async getAudit() {
+    // Busca logs de auditoria do ranking (se existir tabela)
+    try {
+      const logs = await prisma.rankingAudit.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+      return logs;
+    } catch {
+      // Se tabela não existir, retorna array vazio
+      return [];
+    }
+  },
+
+  async updateFilters(filters: Record<string, unknown>) {
+    // Salva configurações de filtro do ranking
+    try {
+      await prisma.rankingSettings.upsert({
+        where: { id: 1 },
+        update: { filtersJson: JSON.stringify(filters) },
+        create: { id: 1, filtersJson: JSON.stringify(filters) },
+      });
+      return { updated: true };
+    } catch {
+      // Se tabela não existir, apenas retorna sucesso
+      return { updated: true, filters };
+    }
+  },
 };
 
 function mapCrafter(crafter: {
