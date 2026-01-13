@@ -1,0 +1,347 @@
+// =============================================
+// PRISMA SCHEMA - CodeCraft Gen-Z
+// =============================================
+// Database: PostgreSQL (Render) / MySQL (local)
+// =============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================
+// USERS & AUTHENTICATION
+// =============================================
+
+model User {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique 
+  name          String    
+  passwordHash  String    
+  role          String    @default("viewer") 
+  status        String    @default("ativo") 
+  mfaEnabled    Boolean   @default(false)
+  mfaSecret     String?   
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  apps          App[]
+  payments      Payment[]
+  licenses      License[]
+  passwordResets PasswordReset[]
+  feedbacks     Feedback[]
+  crafter       Crafter?
+  challengeSubmissions ChallengeSubmission[]
+
+  @@map("users")
+}
+
+model PasswordReset {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  email     String    
+  tokenHash String    @unique 
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_resets")
+}
+
+// =============================================
+// PROJECTS
+// =============================================
+
+model Project {
+  id          Int       @id @default(autoincrement())
+  nome        String    
+  descricao   String?   
+  status      String    @default("ativo") 
+  preco       Decimal   @default(0) @db.Decimal(10, 2)
+  progresso   Int       @default(0)
+  thumbUrl    String?   
+  mentorId    Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  mentor      Mentor?   @relation(fields: [mentorId], references: [id], onDelete: SetNull)
+  apps        App[]
+  inscricoes  Inscricao[]
+
+  @@map("projetos")
+}
+
+// =============================================
+// APPS & MARKETPLACE
+// =============================================
+
+model App {
+  id              Int       @id @default(autoincrement())
+  name            String    
+  description     String?   
+  shortDescription String?  
+  price           Decimal   @default(0) @db.Decimal(10, 2)
+  category        String?   
+  tags            String?   
+  thumbUrl        String?   
+  screenshots     String?   
+  executableUrl   String?   
+  version         String    @default("1.0.0") 
+  status          String    @default("draft") 
+  featured        Boolean   @default(false)
+  downloadCount   Int       @default(0)
+
+  creatorId       Int
+  projectId       Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  creator         User      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  project         Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  purchases       Payment[]
+  licenses        License[]
+  feedbacks       Feedback[]
+
+  @@map("apps")
+}
+
+// =============================================
+// PAYMENTS
+// =============================================
+
+model Payment {
+  id              String    @id 
+  appId           Int
+  userId          Int?
+  preferenceId    String?   
+  status          String    @default("pending") 
+  amount          Decimal   @db.Decimal(10, 2)
+  currency        String    @default("BRL") 
+  payerEmail      String?   
+  payerName       String?   
+  mpResponseJson  String?   
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  app             App       @relation(fields: [appId], references: [id], onDelete: Cascade)
+  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([appId, status])
+  @@index([payerEmail])
+  @@map("app_payments")
+}
+
+// =============================================
+// LICENSES
+// =============================================
+
+model License {
+  id              Int       @id @default(autoincrement())
+  appId           Int
+  userId          Int?
+  email           String    
+  hardwareId      String?   
+  licenseKey      String?   
+  appName         String?   
+  activatedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  app             App       @relation(fields: [appId], references: [id], onDelete: Cascade)
+  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  activations     LicenseActivation[]
+
+  @@index([appId, email])
+  @@index([appId, email, hardwareId])
+  @@map("user_licenses")
+}
+
+model LicenseActivation {
+  id          Int       @id @default(autoincrement())
+  appId       Int
+  email       String?   
+  hardwareId  String?   
+  licenseId   Int?
+  action      String    
+  status      String    
+  message     String?   
+  ip          String?   
+  userAgent   String?   
+  createdAt   DateTime  @default(now())
+
+  license     License?  @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+
+  @@index([appId, email])
+  @@index([hardwareId])
+  @@map("license_activations")
+}
+
+// =============================================
+// CRAFTERS & TEAMS
+// =============================================
+
+model Crafter {
+  id          Int       @id @default(autoincrement())
+  nome        String    
+  email       String?   
+  bio         String?   
+  avatarUrl   String?   
+  githubUrl   String?   
+  linkedinUrl String?   
+  skillsJson  String?   
+  pontos      Int       @default(0)
+  equipeId    Int?
+  userId      Int?      @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  equipe      Equipe?   @relation(fields: [equipeId], references: [id], onDelete: SetNull)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  rankingTop3 RankingTop3[]
+
+  @@map("crafters")
+}
+
+model Equipe {
+  id          Int       @id @default(autoincrement())
+  nome        String    
+  descricao   String?   
+  logoUrl     String?   
+  status      String    @default("ativo") 
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  membros     Crafter[]
+
+  @@map("equipes")
+}
+
+model RankingTop3 {
+  id          Int       @id @default(autoincrement())
+  crafterId   Int
+  position    Int
+  createdAt   DateTime  @default(now())
+
+  crafter     Crafter   @relation(fields: [crafterId], references: [id], onDelete: Cascade)
+
+  @@map("ranking_top3")
+}
+
+// =============================================
+// MENTORS
+// =============================================
+
+model Mentor {
+  id          Int       @id @default(autoincrement())
+  nome        String    
+  email       String?   
+  bio         String?   
+  especialidade String? 
+  avatarUrl   String?   
+  linkedinUrl String?   
+  githubUrl   String?   
+  disponivel  Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  projetos    Project[]
+
+  @@map("mentores")
+}
+
+// =============================================
+// INSCRIPTIONS
+// =============================================
+
+model Inscricao {
+  id          Int       @id @default(autoincrement())
+  nome        String    
+  email       String    
+  telefone    String?   
+  mensagem    String?   
+  projetoId   Int?
+  tipo        String    @default("geral") 
+  status      String    @default("pendente") 
+  notas       String?   
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  projeto     Project?  @relation(fields: [projetoId], references: [id], onDelete: SetNull)
+
+  @@map("inscricoes")
+}
+
+// =============================================
+// CHALLENGES
+// =============================================
+
+model Desafio {
+  id          Int       @id @default(autoincrement())
+  name        String    
+  objective   String?   
+  description String?   
+  difficulty  String    @default("medio") 
+  deadline    DateTime?
+  reward      Decimal?  @db.Decimal(10, 2)
+  basePoints  Int       @default(100)
+  tagsJson    String?   
+  deliveryType String   @default("link") 
+  thumbUrl    String?   
+  status      String    @default("active") 
+  visible     Boolean   @default(true)
+  createdBy   Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  submissions ChallengeSubmission[]
+
+  @@map("desafios")
+}
+
+model ChallengeSubmission {
+  id            Int       @id @default(autoincrement())
+  desafioId     Int
+  oderId        Int
+  deliveryUrl   String?   
+  deliveryText  String?   
+  notes         String?   
+  status        String    @default("subscribed") 
+  score         Int?
+  reviewFeedback String?  
+  submittedAt   DateTime?
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  desafio       Desafio   @relation(fields: [desafioId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [oderId], references: [id], onDelete: Cascade)
+
+  @@unique([desafioId, oderId])
+  @@map("challenge_submissions")
+}
+
+// =============================================
+// FEEDBACK
+// =============================================
+
+model Feedback {
+  id          Int       @id @default(autoincrement())
+  userId      Int?
+  appId       Int?
+  rating      Int
+  comment     String?   
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  app         App?      @relation(fields: [appId], references: [id], onDelete: SetNull)
+
+  @@map("feedbacks")
+}
