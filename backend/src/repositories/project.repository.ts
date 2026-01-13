@@ -36,10 +36,10 @@ export const projectRepository = {
     });
   },
 
-  async create(data: CreateProjectInput) {
+  async create(data: CreateProjectInput & { titulo?: string; owner?: string; tecnologias?: string[] }) {
     return prisma.project.create({
       data: {
-        nome: data.nome,
+        nome: data.nome || data.titulo || '',
         descricao: data.descricao,
         status: data.status ?? 'ativo',
         preco: data.preco ?? 0,
@@ -50,11 +50,11 @@ export const projectRepository = {
     });
   },
 
-  async update(id: number, data: UpdateProjectInput) {
+  async update(id: number, data: UpdateProjectInput & { titulo?: string; owner?: string; tecnologias?: string[] }) {
     return prisma.project.update({
       where: { id },
       data: {
-        nome: data.nome,
+        nome: data.nome || data.titulo,
         descricao: data.descricao,
         status: data.status,
         preco: data.preco,
