@@ -26,24 +26,38 @@ app.use(
 );
 
 // CORS
-const corsOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim());
+const normalize = (o: string) => {
+  const s = o.trim().replace(/`/g, '');
+  try {
+    const u = new URL(s);
+    return u.origin.toLowerCase().replace(/\/+$/, '');
+  } catch {
+    return s.toLowerCase().replace(/\/+$/, '');
+  }
+};
+const hostEqual = (a: string, b: string) => {
+  try {
+    const ua = new URL(a);
+    const ub = new URL(b);
+    const ha = ua.hostname.toLowerCase();
+    const hb = ub.hostname.toLowerCase();
+    return ha === hb || ha === `www.${hb}` || `www.${ha}` === hb;
+  } catch {
+    return false;
+  }
+};
+const configuredOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
+const extraOrigins = [env.FRONTEND_URL].filter(Boolean);
+const allowedOrigins = [...configuredOrigins, ...extraOrigins].map(normalize);
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (server-to-server, Postman, etc.)
       if (!origin) return callback(null, true);
-
-      // Allow configured origins
-      if (corsOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      // Allow localhost in development
-      if (!isProd && /^https?:\/\/localhost(:\d+)?$/.test(origin)) {
-        return callback(null, true);
-      }
-
-      logger.warn({ origin }, 'CORS blocked');
+      const o = normalize(origin);
+      if (allowedOrigins.includes(o)) return callback(null, true);
+      if (allowedOrigins.some((a) => hostEqual(o, a))) return callback(null, true);
+      if (!isProd && /^https?:\/\/localhost(:\d+)?$/.test(o)) return callback(null, true);
+      logger.warn({ origin: o }, 'CORS blocked');
       return callback(new Error('CORS origin not allowed'), false);
     },
     credentials: true,
