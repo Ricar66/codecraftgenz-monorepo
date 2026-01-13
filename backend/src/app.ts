@@ -47,7 +47,10 @@ const hostEqual = (a: string, b: string) => {
   }
 };
 const configuredOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
-const extraOrigins = [env.FRONTEND_URL].filter(Boolean);
+const extraOrigins = [
+  env.FRONTEND_URL,
+  ...(env.ALLOWED_ORIGINS ? env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()) : []),
+].filter(Boolean);
 const allowedOrigins = [...configuredOrigins, ...extraOrigins].map(normalize);
 app.use(
   cors({
