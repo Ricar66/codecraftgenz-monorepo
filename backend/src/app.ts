@@ -7,6 +7,7 @@ import { env, isProd } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import { defaultLimiter } from './middlewares/rateLimiter.js';
+import { noCache } from './middlewares/cache.js';
 import routes from './routes/index.js';
 
 // Create Express app
@@ -86,6 +87,10 @@ app.use(cookieParser());
 
 // Rate limiting
 app.use(defaultLimiter);
+
+// Cache-Control: no-cache para todas as rotas de API
+// Isso garante que o navegador sempre busque dados atualizados
+app.use('/api', noCache);
 
 // Request logging
 app.use((req, res, next) => {
