@@ -1,19 +1,55 @@
 import { z } from 'zod';
 
+// Aceita URLs normais ou data URIs (base64)
+const urlOrDataUri = z.string().refine(
+  (val) => {
+    if (!val) return true;
+    // Aceita data URIs
+    if (val.startsWith('data:')) return true;
+    // Aceita URLs
+    try {
+      new URL(val);
+      return true;
+    } catch {
+      // Aceita paths relativos
+      return val.startsWith('/') || val.startsWith('./');
+    }
+  },
+  { message: 'URL ou data URI inválido' }
+);
+
+// Status aceitos (português e inglês)
+const appStatus = z.string().transform((val) => {
+  const statusMap: Record<string, string> = {
+    'disponível': 'published',
+    'disponivel': 'published',
+    'published': 'published',
+    'publicado': 'published',
+    'rascunho': 'draft',
+    'draft': 'draft',
+    'arquivado': 'archived',
+    'archived': 'archived',
+    'available': 'published',
+    'ready': 'published',
+    'finalizado': 'published',
+  };
+  return statusMap[val.toLowerCase()] || val;
+});
+
 export const createAppSchema = z.object({
   body: z.object({
     name: z.string().min(1, 'Nome é obrigatório').max(256),
-    description: z.string().max(4000).optional(),
-    short_description: z.string().max(512).optional(),
-    price: z.number().min(0).default(0),
-    category: z.string().max(64).optional(),
-    tags: z.array(z.string()).optional(),
-    thumb_url: z.string().url().optional(),
-    screenshots: z.array(z.string().url()).optional(),
-    executable_url: z.string().optional(),
+    description: z.string().max(4000).optional().nullable(),
+    short_description: z.string().max(512).optional().nullable(),
+    price: z.union([z.number(), z.string().transform(Number)]).pipe(z.number().min(0)).default(0),
+    category: z.string().max(64).optional().nullable(),
+    tags: z.union([z.array(z.string()), z.string()]).optional().nullable(),
+    thumb_url: urlOrDataUri.optional().nullable(),
+    screenshots: z.union([z.array(z.string()), z.string()]).optional().nullable(),
+    executable_url: z.string().optional().nullable(),
     version: z.string().max(32).default('1.0.0'),
-    status: z.enum(['draft', 'published', 'archived']).default('draft'),
-    featured: z.boolean().default(false),
+    status: appStatus.default('draft'),
+    featured: z.union([z.boolean(), z.string().transform((v) => v === 'true' || v === '1')]).default(false),
   }),
 });
 
@@ -23,17 +59,17 @@ export const updateAppSchema = z.object({
   }),
   body: z.object({
     name: z.string().min(1).max(256).optional(),
-    description: z.string().max(4000).optional(),
-    short_description: z.string().max(512).optional(),
-    price: z.number().min(0).optional(),
-    category: z.string().max(64).optional(),
-    tags: z.array(z.string()).optional(),
-    thumb_url: z.string().url().optional(),
-    screenshots: z.array(z.string().url()).optional(),
-    executable_url: z.string().optional(),
+    description: z.string().max(4000).optional().nullable(),
+    short_description: z.string().max(512).optional().nullable(),
+    price: z.union([z.number(), z.string().transform(Number)]).pipe(z.number().min(0)).optional(),
+    category: z.string().max(64).optional().nullable(),
+    tags: z.union([z.array(z.string()), z.string()]).optional().nullable(),
+    thumb_url: urlOrDataUri.optional().nullable(),
+    screenshots: z.union([z.array(z.string()), z.string()]).optional().nullable(),
+    executable_url: z.string().optional().nullable(),
     version: z.string().max(32).optional(),
-    status: z.enum(['draft', 'published', 'archived']).optional(),
-    featured: z.boolean().optional(),
+    status: appStatus.optional(),
+    featured: z.union([z.boolean(), z.string().transform((v) => v === 'true' || v === '1')]).optional(),
   }),
 });
 
