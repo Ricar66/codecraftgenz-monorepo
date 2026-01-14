@@ -28,7 +28,7 @@ export const licenseController = {
       app_id: Number(req.body?.app_id || req.query?.app_id),
       app_name: req.body?.app_name || req.query?.app_name,
       email: req.body?.email || req.query?.email,
-      hardware_id: req.body?.hardware_id || req.query?.hardware_id || req.body?.pc_id || req.query?.pc_id,
+      hardware_id: req.body?.hardware_id || req.query?.hardware_id || req.body?.pc_id || req.query?.pc_id || req.body?.id_pc || req.query?.id_pc,
     };
 
     const ip = req.ip;
