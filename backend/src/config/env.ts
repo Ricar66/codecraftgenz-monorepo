@@ -32,12 +32,19 @@ const envSchema = z.object({
   // Mercado Pago (optional in development)
   MP_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
   MERCADO_PAGO_PUBLIC_KEY: z.string().optional(),
+  MP_PUBLIC_KEY: z.string().optional(),
   MP_ACCESS_TOKEN: z.string().optional(),
   MP_WEBHOOK_SECRET: z.string().optional(),
   MP_SUCCESS_URL: z.string().optional(),
   MP_FAILURE_URL: z.string().optional(),
   MP_PENDING_URL: z.string().optional(),
   MP_WEBHOOK_URL: z.string().optional(),
+
+  // Downloads
+  DOWNLOADS_DIR: z.string().optional(),
+
+  // Chave RSA para assinatura de licenças
+  PRIVATE_KEY_PEM: z.string().optional(),
 
   // Admin
   ADMIN_RESET_TOKEN: z.string().optional(),

@@ -9,30 +9,33 @@ const router = Router();
  * POST /api/feedbacks - Enviar feedback público (formulário de contato)
  * Rate limited para evitar spam
  */
-router.post('/', rateLimiter.sensitive, async (req, res) => {
+router.post('/', rateLimiter.sensitive, async (req, res): Promise<void> => {
   const { nome, email, mensagem, origem } = req.body;
 
   // Honeypot check - campos ocultos preenchidos = bot
   if (req.body.website || req.body.phone_number) {
     // Retorna sucesso falso para confundir bots
-    return res.status(200).json(success({ id: 'honeypot-detected' }));
+    res.status(200).json(success({ id: 'honeypot-detected' }));
+    return;
   }
 
   // Validação básica
   if (!nome || !email || !mensagem) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Nome, email e mensagem são obrigatórios',
     });
+    return;
   }
 
   // Validação de email básica
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Email inválido',
     });
+    return;
   }
 
   try {

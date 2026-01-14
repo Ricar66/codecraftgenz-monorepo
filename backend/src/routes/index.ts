@@ -15,6 +15,9 @@ import financeRoutes from './finances.js';
 import configRoutes from './config.js';
 import dashboardRoutes from './dashboard.js';
 import feedbackRoutes from './feedbacks.js';
+import downloadRoutes from './downloads.js';
+import integrationRoutes from './integrations.js';
+import testRoutes from './test.js';
 
 const router = Router();
 
@@ -38,5 +41,8 @@ router.use('/api/financas', financeRoutes);
 router.use('/api/config', configRoutes);
 router.use('/api/dashboard', dashboardRoutes);
 router.use('/api/feedbacks', feedbackRoutes);
+router.use('/api/downloads', downloadRoutes);
+router.use('/api', integrationRoutes); // Mercado Livre OAuth
+router.use('/api/test', testRoutes); // Test routes (blocked in production)
 
 export default router;

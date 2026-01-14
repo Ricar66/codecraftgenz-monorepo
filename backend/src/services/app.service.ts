@@ -2,6 +2,10 @@ import { appRepository } from '../repositories/app.repository.js';
 import { AppError } from '../utils/AppError.js';
 import type { CreateAppInput, UpdateAppInput, FeedbackInput } from '../schemas/app.schema.js';
 import { prisma } from '../db/prisma.js';
+import { env } from '../config/env.js';
+import { logger } from '../utils/logger.js';
+import fs from 'fs/promises';
+import path from 'path';
 
 export const appService = {
   async getAll() {
@@ -140,6 +144,69 @@ export const appService = {
     });
 
     return apps;
+  },
+
+  async uploadExecutable(appId: number, file: { originalname: string; buffer: Buffer; size: number }) {
+    const app = await appRepository.findById(appId);
+    if (!app) {
+      throw AppError.notFound('App');
+    }
+
+    // Diretório de downloads
+    const downloadsDir = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
+
+    // Garantir que o diretório existe
+    await fs.mkdir(downloadsDir, { recursive: true });
+
+    // Nome do arquivo: app-{id}-{version}.{ext}
+    const ext = path.extname(file.originalname).toLowerCase();
+    const safeName = `app-${appId}-${app.version}${ext}`;
+    const filePath = path.join(downloadsDir, safeName);
+
+    // Salvar arquivo
+    await fs.writeFile(filePath, file.buffer);
+
+    // URL relativa para download
+    const executableUrl = `/downloads/${safeName}`;
+
+    // Atualizar app com URL do executável
+    await prisma.app.update({
+      where: { id: appId },
+      data: { executableUrl },
+    });
+
+    logger.info({ appId, file: safeName, size: file.size }, 'Executável carregado');
+
+    return {
+      file_name: safeName,
+      file_size: file.size,
+      executable_url: executableUrl,
+    };
+  },
+
+  async devInsert(data: Record<string, unknown>, creatorId: number) {
+    // Inserção rápida para desenvolvimento
+    const app = await prisma.app.create({
+      data: {
+        name: String(data.name || 'App Dev'),
+        description: data.description ? String(data.description) : null,
+        shortDescription: data.shortDescription ? String(data.shortDescription) : null,
+        price: Number(data.price || 0),
+        category: data.category ? String(data.category) : null,
+        tags: data.tags ? JSON.stringify(data.tags) : null,
+        thumbUrl: data.thumbUrl ? String(data.thumbUrl) : null,
+        screenshots: data.screenshots ? JSON.stringify(data.screenshots) : null,
+        executableUrl: data.executableUrl ? String(data.executableUrl) : null,
+        version: String(data.version || '1.0.0'),
+        status: String(data.status || 'draft'),
+        featured: Boolean(data.featured),
+        creatorId,
+      },
+    });
+
+    logger.info({ appId: app.id, name: app.name }, 'App inserido via dev endpoint');
+
+    return mapApp(app);
   },
 };
 

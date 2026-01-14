@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { paymentService } from '../services/payment.service.js';
 import { success, paginated } from '../utils/response.js';
-import type { PurchaseInput, UpdatePaymentInput, SearchPaymentsQuery } from '../schemas/payment.schema.js';
+import type { PurchaseInput, DirectPaymentInput, UpdatePaymentInput, SearchPaymentsQuery } from '../schemas/payment.schema.js';
 
 export const paymentController = {
   async search(req: Request, res: Response) {
@@ -70,5 +70,23 @@ export const paymentController = {
     const pid = req.params.pid as string;
     const payment = await paymentService.getById(pid);
     res.json(success(payment));
+  },
+
+  async directPayment(req: Request, res: Response) {
+    const appId = Number(req.params.id);
+    const data = req.validated?.body as DirectPaymentInput;
+    const userId = req.user?.id;
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.ip || '';
+    const idempotencyKey = req.headers['x-idempotency-key'] as string | undefined;
+    const deviceId = (req.headers['x-device-id'] || req.headers['x-mp-device-id']) as string | undefined;
+    const trackingId = req.headers['x-tracking-id'] as string | undefined;
+
+    const result = await paymentService.createDirectPayment(appId, data, userId, {
+      ip,
+      idempotencyKey,
+      deviceId,
+      trackingId,
+    });
+    res.status(201).json(success(result));
   },
 };

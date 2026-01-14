@@ -3,12 +3,18 @@ import cors from 'cors';
 import helmet, { hsts } from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
 import { env, isProd } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import { defaultLimiter } from './middlewares/rateLimiter.js';
 import { noCache } from './middlewares/cache.js';
 import routes from './routes/index.js';
+
+// Diretório de downloads
+const DOWNLOADS_DIR = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
 
 // Create Express app
 const app = express();
@@ -107,6 +113,58 @@ app.use((req, res, next) => {
   });
 
   next();
+});
+
+// Rota de download (sem /api, compatibilidade com server.js antigo)
+app.get('/downloads/:file', async (req, res) => {
+  try {
+    const ua = String(req.headers['user-agent'] || 'unknown');
+    const ip = req.ip || '';
+    const safeName = path.basename(String(req.params.file || '').trim());
+    const filePath = path.join(DOWNLOADS_DIR, safeName);
+
+    if (!fs.existsSync(filePath)) {
+      logger.warn({ ip, ua, file: safeName }, 'DOWNLOAD 404');
+      res.status(404).json({ error: 'Arquivo não encontrado', file: safeName });
+      return;
+    }
+
+    const stat = fs.statSync(filePath);
+    const size = stat.size;
+    const ext = path.extname(safeName).toLowerCase();
+    const mimeMap: Record<string, string> = {
+      '.exe': 'application/x-msdownload',
+      '.msi': 'application/x-msi',
+      '.zip': 'application/zip',
+      '.7z': 'application/x-7z-compressed',
+    };
+    const ctype = mimeMap[ext] || 'application/octet-stream';
+
+    res.setHeader('Content-Type', ctype);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+    res.setHeader('Content-Length', String(size));
+    res.setHeader('Cache-Control', 'private, max-age=86400, no-transform');
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    const hash = crypto.createHash('sha256');
+    const stream = fs.createReadStream(filePath);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('end', () => {
+      try {
+        const sha256 = hash.digest('hex');
+        res.setHeader('X-File-SHA256', sha256);
+        logger.info({ file: safeName, size, sha256, ip, ua }, 'DOWNLOAD OK');
+      } catch (e) { void e; }
+    });
+    stream.on('error', (err) => {
+      logger.error({ file: safeName, message: err?.message || String(err) }, 'DOWNLOAD STREAM ERROR');
+      if (!res.headersSent) res.status(500).end();
+    });
+    stream.pipe(res);
+  } catch (err) {
+    logger.error({ error: err }, 'DOWNLOAD ERROR');
+    res.status(500).json({ error: 'Falha ao enviar arquivo para download' });
+  }
 });
 
 // Routes
