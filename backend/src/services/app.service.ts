@@ -127,7 +127,7 @@ export const appService = {
 
   async getHistory() {
     const apps = await prisma.app.findMany({
-      where: { status: 'published' },
+      where: { status: { in: ['published', 'available', 'finalizado', 'ready'] } },
       select: {
         id: true,
         name: true,
