@@ -18,7 +18,7 @@ export const appRepository = {
 
   async findPublic() {
     return prisma.app.findMany({
-      where: { status: 'published' },
+      where: { status: { in: ['published', 'available', 'finalizado', 'ready'] } },
       include: {
         creator: {
           select: { id: true, name: true },
