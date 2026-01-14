@@ -5,7 +5,7 @@ import { logger } from '../utils/logger.js';
 import { prisma } from '../db/prisma.js';
 import type { ActivateDeviceInput, VerifyLicenseInput } from '../schemas/license.schema.js';
 
-const MAX_DEVICES_PER_LICENSE = 3;
+const MAX_DEVICES_PER_LICENSE = 1;
 
 export const licenseService = {
   async activateDevice(data: ActivateDeviceInput, ip?: string, userAgent?: string) {
