@@ -1,0 +1,114 @@
+import { Router } from 'express';
+import { prisma } from '../db/prisma.js';
+import { success } from '../utils/response.js';
+import { rateLimiter } from '../middlewares/rateLimiter.js';
+
+const router = Router();
+
+/**
+ * POST /api/feedbacks - Enviar feedback público (formulário de contato)
+ * Rate limited para evitar spam
+ */
+router.post('/', rateLimiter.sensitive, async (req, res) => {
+  const { nome, email, mensagem, origem } = req.body;
+
+  // Honeypot check - campos ocultos preenchidos = bot
+  if (req.body.website || req.body.phone_number) {
+    // Retorna sucesso falso para confundir bots
+    return res.status(200).json(success({ id: 'honeypot-detected' }));
+  }
+
+  // Validação básica
+  if (!nome || !email || !mensagem) {
+    return res.status(400).json({
+      success: false,
+      error: 'Nome, email e mensagem são obrigatórios',
+    });
+  }
+
+  // Validação de email básica
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Email inválido',
+    });
+  }
+
+  try {
+    const feedback = await prisma.feedback.create({
+      data: {
+        rating: 5, // Default para feedback de contato
+        comment: JSON.stringify({
+          origem: origem || 'site',
+          nome,
+          email,
+          mensagem,
+          timestamp: new Date().toISOString(),
+        }),
+      },
+    });
+
+    res.json(success({ id: feedback.id, message: 'Feedback enviado com sucesso' }));
+  } catch (error) {
+    console.error('Erro ao salvar feedback:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno ao processar feedback',
+    });
+  }
+});
+
+/**
+ * GET /api/feedbacks - Buscar feedbacks (admin)
+ * Usado para listar feedbacks de contato
+ */
+router.get('/', async (req, res) => {
+  const { limit = '20', origem } = req.query;
+
+  try {
+    const feedbacks = await prisma.feedback.findMany({
+      where: origem
+        ? { comment: { contains: `"origem":"${origem}"` } }
+        : undefined,
+      take: Math.min(Number(limit), 100),
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        rating: true,
+        comment: true,
+        createdAt: true,
+      },
+    });
+
+    // Parse JSON comments
+    const parsed = feedbacks.map((f) => {
+      try {
+        const data = JSON.parse(f.comment || '{}');
+        return {
+          id: f.id,
+          rating: f.rating,
+          ...data,
+          createdAt: f.createdAt,
+        };
+      } catch {
+        return {
+          id: f.id,
+          rating: f.rating,
+          comment: f.comment,
+          createdAt: f.createdAt,
+        };
+      }
+    });
+
+    res.json(success(parsed));
+  } catch (error) {
+    console.error('Erro ao buscar feedbacks:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno ao buscar feedbacks',
+    });
+  }
+});
+
+export default router;
