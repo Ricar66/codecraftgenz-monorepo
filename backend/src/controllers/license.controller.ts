@@ -1,7 +1,9 @@
 import type { Request, Response } from 'express';
 import { licenseService } from '../services/license.service.js';
-import { success } from '../utils/response.js';
+import { success, sendError } from '../utils/response.js';
 import type { ActivateDeviceInput, VerifyLicenseInput } from '../schemas/license.schema.js';
+import crypto from 'crypto';
+import { env } from '../config/env.js';
 
 export const licenseController = {
   async activateDevice(req: Request, res: Response) {
@@ -60,5 +62,61 @@ export const licenseController = {
     const email = req.user!.email;
     const result = await licenseService.getDownloadUrl(appId, email);
     res.json(success(result));
+  },
+
+  /**
+   * POST /api/licenses/activate
+   * Ativação de licença com autenticação (gera assinatura RSA se disponível)
+   */
+  async activateAuthenticated(req: Request, res: Response): Promise<void> {
+    const { appId, hardwareId } = req.body;
+    const userId = req.user?.id;
+    const userEmail = req.user?.email;
+
+    if (!appId || !hardwareId) {
+      sendError(res, 400, 'INVALID_INPUT', 'appId e hardwareId são obrigatórios');
+      return;
+    }
+
+    if (!userId || !userEmail) {
+      sendError(res, 401, 'UNAUTHORIZED', 'Usuário não autenticado');
+      return;
+    }
+
+    // Verificar se o usuário tem licença válida
+    const hasLicense = await licenseService.checkUserLicense(userId, Number(appId));
+    if (!hasLicense) {
+      sendError(res, 403, 'NO_LICENSE', 'Sem licença válida para este app');
+      return;
+    }
+
+    // Gerar assinatura
+    let signature: string;
+    const privateKeyPem = env.PRIVATE_KEY_PEM || process.env.PRIVATE_KEY_PEM || '';
+
+    if (privateKeyPem) {
+      try {
+        const sign = crypto.createSign('RSA-SHA256');
+        sign.update(String(hardwareId));
+        sign.update(String(userId));
+        signature = sign.sign(privateKeyPem, 'base64');
+      } catch {
+        // Fallback para assinatura simples
+        signature = 'LIC-' + Buffer.from(hardwareId + userId).toString('base64');
+      }
+    } else {
+      signature = 'LIC-' + Buffer.from(hardwareId + userId).toString('base64');
+    }
+
+    // Registrar ativação
+    await licenseService.registerActivation({
+      userId,
+      appId: Number(appId),
+      email: userEmail,
+      hardwareId: String(hardwareId),
+      licenseKey: signature,
+    });
+
+    res.json(success({ license_key: signature }));
   },
 };

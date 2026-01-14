@@ -21,6 +21,14 @@ router.post(
   licenseController.activateDevice
 );
 
+// Ativação de licença com autenticação (gera assinatura RSA)
+router.post(
+  '/licenses/activate',
+  authenticate,
+  rateLimiter.sensitive,
+  licenseController.activateAuthenticated
+);
+
 router.post(
   '/verify-license',
   rateLimiter.sensitive,

@@ -278,4 +278,90 @@ export const licenseService = {
       app_name: app.name,
     };
   },
+
+  async getLicenseKeyByEmail(appId: number, email: string): Promise<string | null> {
+    const licenses = await licenseRepository.findByAppAndEmail(appId, email);
+    if (licenses.length === 0) {
+      return null;
+    }
+    return licenses[0].licenseKey;
+  },
+
+  async checkUserLicense(userId: number, appId: number): Promise<boolean> {
+    // Verificar se o usuário tem pagamento aprovado ou é owner do app
+    const payment = await prisma.payment.findFirst({
+      where: {
+        userId,
+        appId,
+        status: 'approved',
+      },
+    });
+
+    if (payment) return true;
+
+    // Verificar se é creator do app
+    const app = await prisma.app.findFirst({
+      where: {
+        id: appId,
+        creatorId: userId,
+      },
+    });
+
+    return !!app;
+  },
+
+  async registerActivation(data: {
+    userId: number;
+    appId: number;
+    email: string;
+    hardwareId: string;
+    licenseKey: string;
+  }) {
+    // Verificar se já existe ativação para este hardware
+    const existing = await licenseRepository.findByAppEmailAndHardware(
+      data.appId,
+      data.email,
+      data.hardwareId
+    );
+
+    if (existing) {
+      // Atualizar licença existente
+      await prisma.license.update({
+        where: { id: existing.id },
+        data: {
+          licenseKey: data.licenseKey,
+          updatedAt: new Date(),
+        },
+      });
+      return existing;
+    }
+
+    // Criar nova licença
+    const app = await prisma.app.findUnique({
+      where: { id: data.appId },
+      select: { name: true },
+    });
+
+    const license = await licenseRepository.create({
+      appId: data.appId,
+      email: data.email,
+      userId: data.userId,
+      hardwareId: data.hardwareId,
+      appName: app?.name,
+      licenseKey: data.licenseKey,
+    });
+
+    // Registrar log de ativação
+    await licenseRepository.logActivation({
+      appId: data.appId,
+      email: data.email,
+      hardwareId: data.hardwareId,
+      licenseId: license.id,
+      action: 'activate',
+      status: 'success',
+      message: 'Licença ativada via autenticação',
+    });
+
+    return license;
+  },
 };

@@ -3,7 +3,7 @@ import { licenseService } from './license.service.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { env } from '../config/env.js';
-import type { PurchaseInput, SearchPaymentsQuery, UpdatePaymentInput } from '../schemas/payment.schema.js';
+import type { PurchaseInput, DirectPaymentInput, SearchPaymentsQuery, UpdatePaymentInput } from '../schemas/payment.schema.js';
 import { prisma } from '../db/prisma.js';
 import crypto from 'crypto';
 
@@ -278,6 +278,209 @@ export const paymentService = {
       limit,
       total,
       totalPages: Math.ceil(total / limit),
+    };
+  },
+
+  async createDirectPayment(
+    appId: number,
+    data: DirectPaymentInput,
+    userId?: number,
+    options?: {
+      ip?: string;
+      idempotencyKey?: string;
+      deviceId?: string;
+      trackingId?: string;
+    }
+  ) {
+    const app = await prisma.app.findUnique({
+      where: { id: appId },
+    });
+
+    if (!app) {
+      throw AppError.notFound('App');
+    }
+
+    if (app.status !== 'published') {
+      throw AppError.badRequest('Este app não está disponível para compra');
+    }
+
+    const payerEmail = data.payer.email;
+
+    // Verificar se já tem compra aprovada
+    const existingApproved = await paymentRepository.countApprovedByEmailAndApp(
+      payerEmail,
+      appId
+    );
+
+    if (existingApproved > 0) {
+      throw AppError.conflict('Você já possui este app');
+    }
+
+    // Se app é gratuito, aprovar diretamente
+    const amount = Number(app.price || 0);
+    if (amount === 0) {
+      const paymentId = `FREE-${crypto.randomUUID()}`;
+      await paymentRepository.create({
+        id: paymentId,
+        appId,
+        userId,
+        status: 'approved',
+        amount: 0,
+        currency: 'BRL',
+        payerEmail,
+        payerName: `${data.payer.first_name || ''} ${data.payer.last_name || ''}`.trim() || undefined,
+      });
+
+      await licenseService.provisionLicense(appId, payerEmail, userId);
+
+      return {
+        success: true,
+        payment_id: paymentId,
+        status: 'approved',
+        license_key: await licenseService.getLicenseKeyByEmail(appId, payerEmail),
+      };
+    }
+
+    // Verificar configuração do Mercado Pago
+    if (!env.MP_ACCESS_TOKEN) {
+      throw AppError.internal('Mercado Pago não configurado');
+    }
+
+    const paymentId = `DIRECT-${crypto.randomUUID()}`;
+    const idempotencyKey = options?.idempotencyKey || `app-${appId}-user-${userId || 'anon'}-${Date.now()}`;
+
+    // Determinar processing mode
+    const processingMode = (process.env.MERCADO_PAGO_PROCESSING_MODE || 'aggregator').toLowerCase();
+    const finalProcessingMode = ['aggregator', 'gateway'].includes(processingMode) ? processingMode : 'aggregator';
+
+    // Montar items para additional_info
+    const items = [
+      {
+        id: `APP-${appId}`,
+        title: app.name,
+        description: app.shortDescription || app.description?.substring(0, 200) || 'Aplicativo CodeCraft',
+        picture_url: app.thumbUrl || undefined,
+        category_id: 'software',
+        quantity: 1,
+        unit_price: amount,
+        type: 'software',
+      },
+    ];
+
+    // Montar payload de pagamento
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: Record<string, any> = {
+      description: data.description || `Pagamento do app ${app.name}`,
+      external_reference: data.external_reference || String(paymentId),
+      transaction_amount: amount,
+      payment_method_id: data.payment_method_id,
+      ...(data.installments && data.installments > 0 ? { installments: data.installments } : {}),
+      ...(data.issuer_id ? { issuer_id: data.issuer_id } : {}),
+      ...(data.token ? { token: data.token } : {}),
+      payer: {
+        email: payerEmail,
+        ...(data.payer.first_name ? { first_name: data.payer.first_name } : {}),
+        ...(data.payer.last_name ? { last_name: data.payer.last_name } : {}),
+        ...(data.payer.identification?.type && data.payer.identification?.number
+          ? { identification: data.payer.identification }
+          : {}),
+      },
+      additional_info: {
+        ...(data.additional_info || {}),
+        items,
+        payer: {
+          first_name: data.payer.first_name,
+          last_name: data.payer.last_name,
+        },
+        ip_address: options?.ip || '',
+      },
+      binary_mode: data.binary_mode ?? false,
+      processing_mode: finalProcessingMode,
+      capture: data.capture ?? true,
+      metadata: { source: 'codecraft', ...(data.metadata || {}) },
+      notification_url: env.MP_WEBHOOK_URL,
+    };
+
+    // Chamar API de pagamentos do Mercado Pago
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${env.MP_ACCESS_TOKEN}`,
+      'Content-Type': 'application/json',
+      'X-Idempotency-Key': idempotencyKey,
+    };
+
+    if (options?.deviceId) {
+      headers['X-Device-Id'] = options.deviceId;
+    }
+    if (options?.trackingId) {
+      headers['X-Tracking-Id'] = options.trackingId;
+    }
+
+    let mpResponse;
+    try {
+      const resp = await fetch('https://api.mercadopago.com/v1/payments', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const text = await resp.text();
+      try {
+        mpResponse = JSON.parse(text);
+      } catch {
+        mpResponse = { raw: text };
+      }
+
+      if (!resp.ok) {
+        logger.warn({ status: resp.status, error: mpResponse }, 'Falha ao criar pagamento direto');
+        throw AppError.badRequest(
+          mpResponse?.message || 'Falha ao processar pagamento',
+          { mp_status: resp.status, details: mpResponse }
+        );
+      }
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      logger.error({ error }, 'Erro de rede ao criar pagamento direto');
+      throw AppError.internal('Falha de rede ao processar pagamento');
+    }
+
+    // Extrair dados principais
+    const mpPaymentId = String(mpResponse.id || mpResponse.payment_id || paymentId);
+    const status = mpResponse.status || 'pending';
+    const statusDetail = mpResponse.status_detail || null;
+
+    // Persistir no banco
+    await paymentRepository.create({
+      id: paymentId,
+      appId,
+      userId,
+      preferenceId: mpPaymentId,
+      status: mapMpStatus(status),
+      amount,
+      currency: mpResponse.currency_id || 'BRL',
+      payerEmail,
+      payerName: `${data.payer.first_name || ''} ${data.payer.last_name || ''}`.trim() || undefined,
+      mpResponseJson: JSON.stringify(mpResponse),
+    });
+
+    // Se aprovado, provisionar licença
+    if (status === 'approved') {
+      await licenseService.provisionLicense(appId, payerEmail, userId);
+      logger.info({ paymentId, appId, email: payerEmail }, 'Licença provisionada via pagamento direto');
+    }
+
+    // Retornar resposta completa
+    return {
+      success: true,
+      payment_id: paymentId,
+      mp_payment_id: mpPaymentId,
+      status,
+      status_detail: statusDetail,
+      result: mpResponse,
+      // Dados para PIX
+      point_of_interaction: mpResponse.point_of_interaction,
+      qr_code: mpResponse.point_of_interaction?.transaction_data?.qr_code,
+      qr_code_base64: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64,
+      ticket_url: mpResponse.point_of_interaction?.transaction_data?.ticket_url,
     };
   },
 };

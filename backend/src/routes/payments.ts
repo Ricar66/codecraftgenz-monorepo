@@ -5,6 +5,7 @@ import { validate } from '../middlewares/validate.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
 import {
   purchaseSchema,
+  directPaymentSchema,
   updatePaymentSchema,
   searchPaymentsSchema,
 } from '../schemas/payment.schema.js';
@@ -29,6 +30,14 @@ router.get(
 );
 
 router.get('/apps/:id/payment/last', paymentController.getLastByApp);
+
+// Pagamento direto (cartão, PIX, boleto - sem redirecionamento)
+router.post(
+  '/apps/:id/payment/direct',
+  rateLimiter.sensitive,
+  validate(directPaymentSchema),
+  paymentController.directPayment
+);
 
 // Rotas admin
 router.get(
