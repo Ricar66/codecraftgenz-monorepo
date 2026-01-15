@@ -24,11 +24,29 @@ export const licenseController = {
 
   async compatLicenseCheck(req: Request, res: Response) {
     // Compatibilidade com formato antigo (GET e POST)
+    const appIdRaw = req.body?.app_id || req.query?.app_id;
+    const email = req.body?.email || req.query?.email;
+    const hardwareId = req.body?.hardware_id || req.query?.hardware_id || req.body?.pc_id || req.query?.pc_id || req.body?.id_pc || req.query?.id_pc;
+
+    // Validar parâmetros obrigatórios
+    if (!appIdRaw || isNaN(Number(appIdRaw))) {
+      res.json({ success: false, valid: false, message: 'app_id é obrigatório e deve ser um número' });
+      return;
+    }
+    if (!email) {
+      res.json({ success: false, valid: false, message: 'email é obrigatório' });
+      return;
+    }
+    if (!hardwareId) {
+      res.json({ success: false, valid: false, message: 'hardware_id/id_pc é obrigatório' });
+      return;
+    }
+
     const data: VerifyLicenseInput = {
-      app_id: Number(req.body?.app_id || req.query?.app_id),
+      app_id: Number(appIdRaw),
       app_name: req.body?.app_name || req.query?.app_name,
-      email: req.body?.email || req.query?.email,
-      hardware_id: req.body?.hardware_id || req.query?.hardware_id || req.body?.pc_id || req.query?.pc_id || req.body?.id_pc || req.query?.id_pc,
+      email: String(email),
+      hardware_id: String(hardwareId),
     };
 
     const ip = req.ip;
