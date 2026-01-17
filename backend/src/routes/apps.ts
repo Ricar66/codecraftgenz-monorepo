@@ -1,6 +1,7 @@
 import { Router, Request } from 'express';
 import multer, { FileFilterCallback } from 'multer';
 import { appController } from '../controllers/app.controller.js';
+import { paymentController } from '../controllers/payment.controller.js';
 import { authenticate, authorizeAdmin } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validate.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
@@ -11,6 +12,10 @@ import {
   feedbackSchema,
   createFromProjectSchema,
 } from '../schemas/app.schema.js';
+import {
+  purchaseSchema,
+  directPaymentSchema,
+} from '../schemas/payment.schema.js';
 
 const router = Router();
 
@@ -104,5 +109,35 @@ router.post(
 // Webhook do Mercado Pago (para apps)
 router.post('/webhook', rateLimiter.sensitive, appController.webhook);
 router.get('/webhook', appController.webhookVerify);
+
+// =============================================
+// ROTAS DE PAGAMENTO (compatibilidade com server.js)
+// =============================================
+
+// Compra via preferência MP (redireciona para checkout)
+router.post(
+  '/:id/purchase',
+  rateLimiter.sensitive,
+  validate(purchaseSchema),
+  paymentController.purchase
+);
+
+// Status da compra
+router.get(
+  '/:id/purchase/status',
+  rateLimiter.sensitive,
+  paymentController.getPurchaseStatus
+);
+
+// Último pagamento do app
+router.get('/:id/payment/last', paymentController.getLastByApp);
+
+// Pagamento direto (cartão, PIX, boleto - sem redirecionamento)
+router.post(
+  '/:id/payment/direct',
+  rateLimiter.sensitive,
+  validate(directPaymentSchema),
+  paymentController.directPayment
+);
 
 export default router;
