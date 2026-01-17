@@ -71,8 +71,16 @@ app.use(
       return callback(new Error('CORS origin not allowed'), false);
     },
     credentials: true,
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'x-csrf-token',
+      'x-device-id',
+      'x-mp-device-id',
+      'x-tracking-id',
+      'x-idempotency-key',
+    ],
   })
 );
 
