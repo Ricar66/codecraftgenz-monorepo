@@ -73,12 +73,19 @@ router.post(
   licenseController.downloadByEmail
 );
 
-// Download autenticado
+// Download por payment_id (para retorno do MP)
+router.post(
+  '/apps/:id/download/by-payment',
+  rateLimiter.sensitive,
+  licenseController.downloadByPaymentId
+);
+
+// Download público (aceita email ou payment_id no body)
+// Remove autenticação para permitir download após pagamento MP
 router.post(
   '/apps/:id/download',
-  authenticate,
   rateLimiter.sensitive,
-  licenseController.downloadAuthenticated
+  licenseController.downloadPublic
 );
 
 export default router;
