@@ -79,15 +79,8 @@ export const paymentService = {
       throw AppError.badRequest('Este app não está disponível para compra');
     }
 
-    // Verificar se já tem compra aprovada
-    const existingApproved = await paymentRepository.countApprovedByEmailAndApp(
-      data.email,
-      appId
-    );
-
-    if (existingApproved > 0) {
-      throw AppError.conflict('Você já possui este app');
-    }
+    // Nota: Removida verificação de compra duplicada para permitir
+    // múltiplas compras (ex: para outras máquinas ou presentes)
 
     // Se app é gratuito, aprovar diretamente
     if (Number(app.price) === 0) {
@@ -306,15 +299,8 @@ export const paymentService = {
 
     const payerEmail = data.payer.email;
 
-    // Verificar se já tem compra aprovada
-    const existingApproved = await paymentRepository.countApprovedByEmailAndApp(
-      payerEmail,
-      appId
-    );
-
-    if (existingApproved > 0) {
-      throw AppError.conflict('Você já possui este app');
-    }
+    // Nota: Removida verificação de compra duplicada para permitir
+    // múltiplas compras (ex: para outras máquinas ou presentes)
 
     // Se app é gratuito, aprovar diretamente
     const amount = Number(app.price || 0);
