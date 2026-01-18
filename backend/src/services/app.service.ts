@@ -4,7 +4,6 @@ import type { CreateAppInput, UpdateAppInput, FeedbackInput } from '../schemas/a
 import { prisma } from '../db/prisma.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
-import { storageService } from './storage.service.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -157,46 +156,23 @@ export const appService = {
     const ext = path.extname(file.originalname).toLowerCase();
     const safeName = `app-${appId}-${app.version}${ext}`;
 
-    // Determinar content-type baseado na extensão
-    const mimeTypes: Record<string, string> = {
-      '.exe': 'application/x-msdownload',
-      '.msi': 'application/x-msi',
-      '.zip': 'application/zip',
-      '.7z': 'application/x-7z-compressed',
-    };
-    const contentType = mimeTypes[ext] || 'application/octet-stream';
+    // Diretório de downloads (usa disco persistente do Render: /var/downloads)
+    const downloadsDir = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
+    await fs.mkdir(downloadsDir, { recursive: true });
 
-    let executableUrl: string;
+    const filePath = path.join(downloadsDir, safeName);
+    await fs.writeFile(filePath, file.buffer);
 
-    // Tentar upload para Supabase primeiro (recomendado para produção)
-    if (storageService.isConfigured()) {
-      const publicUrl = await storageService.upload(safeName, file.buffer, contentType);
-
-      if (publicUrl) {
-        executableUrl = publicUrl;
-        logger.info({ appId, file: safeName, size: file.size, storage: 'supabase' }, 'Executável enviado para Supabase');
-      } else {
-        throw AppError.internal('Falha ao enviar arquivo para storage');
-      }
-    } else {
-      // Fallback: salvar localmente (apenas para desenvolvimento)
-      logger.warn('Supabase não configurado, salvando arquivo localmente (não recomendado em produção)');
-
-      const downloadsDir = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
-      await fs.mkdir(downloadsDir, { recursive: true });
-
-      const filePath = path.join(downloadsDir, safeName);
-      await fs.writeFile(filePath, file.buffer);
-
-      executableUrl = `/downloads/${safeName}`;
-      logger.info({ appId, file: safeName, size: file.size, storage: 'local' }, 'Executável salvo localmente');
-    }
+    // URL relativa para download
+    const executableUrl = `/downloads/${safeName}`;
 
     // Atualizar app com URL do executável
     await prisma.app.update({
       where: { id: appId },
       data: { executableUrl },
     });
+
+    logger.info({ appId, file: safeName, size: file.size, path: filePath }, 'Executável salvo no disco');
 
     return {
       file_name: safeName,
