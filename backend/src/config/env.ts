@@ -43,6 +43,10 @@ const envSchema = z.object({
   // Downloads
   DOWNLOADS_DIR: z.string().optional(),
 
+  // Supabase Storage (para arquivos grandes como executáveis)
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_KEY: z.string().optional(),
+
   // Chave RSA para assinatura de licenças
   PRIVATE_KEY_PEM: z.string().optional(),
 
