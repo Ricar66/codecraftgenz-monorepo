@@ -279,6 +279,50 @@ export const licenseService = {
     };
   },
 
+  async getDownloadUrlByPaymentId(appId: number, paymentId: string) {
+    // Buscar pagamento pelo payment_id
+    // O paymentId pode ser:
+    // - O ID interno (ex: PAY-xxx, DIRECT-xxx, FREE-xxx)
+    // - O preferenceId que armazena o ID do MP em pagamentos diretos
+    // - O ID numérico do MP
+    const payment = await prisma.payment.findFirst({
+      where: {
+        appId,
+        OR: [
+          { id: paymentId },                    // ID interno (PAY-xxx, DIRECT-xxx)
+          { preferenceId: paymentId },          // ID da preferência ou ID do MP em pagamentos diretos
+          { id: { contains: paymentId } },      // Busca parcial se for parte do ID
+        ],
+        status: 'approved',
+      },
+      include: {
+        app: {
+          select: { executableUrl: true, name: true },
+        },
+      },
+    });
+
+    if (!payment) {
+      throw AppError.forbidden('Pagamento não encontrado ou não aprovado');
+    }
+
+    if (!payment.app || !payment.app.executableUrl) {
+      throw AppError.notFound('Download não disponível para este app');
+    }
+
+    // Incrementar contador de downloads
+    await prisma.app.update({
+      where: { id: appId },
+      data: { downloadCount: { increment: 1 } },
+    });
+
+    return {
+      download_url: payment.app.executableUrl,
+      app_name: payment.app.name,
+      email: payment.payerEmail,
+    };
+  },
+
   async getLicenseKeyByEmail(appId: number, email: string): Promise<string | null> {
     const licenses = await licenseRepository.findByAppAndEmail(appId, email);
     if (licenses.length === 0) {

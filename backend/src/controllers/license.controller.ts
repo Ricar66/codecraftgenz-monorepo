@@ -83,6 +83,49 @@ export const licenseController = {
   },
 
   /**
+   * POST /api/apps/:id/download/by-payment
+   * Download usando payment_id como prova de compra (sem autenticação)
+   */
+  async downloadByPaymentId(req: Request, res: Response): Promise<void> {
+    const appId = Number(req.params.id);
+    const { payment_id } = req.body;
+
+    if (!payment_id) {
+      sendError(res, 400, 'INVALID_INPUT', 'payment_id é obrigatório');
+      return;
+    }
+
+    const result = await licenseService.getDownloadUrlByPaymentId(appId, String(payment_id));
+    res.json(success(result));
+  },
+
+  /**
+   * POST /api/apps/:id/download (público)
+   * Aceita email ou payment_id no body, ou usa autenticação
+   */
+  async downloadPublic(req: Request, res: Response): Promise<void> {
+    const appId = Number(req.params.id);
+    const { email, payment_id } = req.body || {};
+
+    // Se tem payment_id, usa ele
+    if (payment_id) {
+      const result = await licenseService.getDownloadUrlByPaymentId(appId, String(payment_id));
+      res.json(success(result));
+      return;
+    }
+
+    // Se tem email, usa ele
+    if (email) {
+      const result = await licenseService.getDownloadUrl(appId, String(email));
+      res.json(success(result));
+      return;
+    }
+
+    // Senão, precisa de autenticação ou dados
+    sendError(res, 400, 'INVALID_INPUT', 'Informe email ou payment_id para download');
+  },
+
+  /**
    * POST /api/licenses/activate
    * Ativação de licença com autenticação (gera assinatura RSA se disponível)
    */
