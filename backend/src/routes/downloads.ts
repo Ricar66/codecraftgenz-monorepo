@@ -10,7 +10,8 @@ import crypto from 'crypto';
 const router = Router();
 
 // Diretório de downloads (configurável via env ou default)
-const DOWNLOADS_DIR = env.DOWNLOADS_DIR || path.join(process.cwd(), 'downloads');
+// Em produção no Render, os arquivos estão em public/downloads dentro do projeto
+const DOWNLOADS_DIR = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
 
 /**
  * GET /api/downloads/:file
