@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.build.json && npm run db:generate",
     "start": "node dist/server.js",
-    "render:build": "npm install && npm run db:generate && npm run build",
+    "render:build": "git lfs install && git lfs pull && npm install && npm run db:generate && npm run build",
     "render:start": "npm run db:migrate:deploy && npm run start",
     "lint": "eslint src --ext .ts",
     "test": "vitest run",
