@@ -66,7 +66,7 @@ router.post('/', rateLimiter.sensitive, async (req, res): Promise<void> => {
  * GET /api/feedbacks/latest - Buscar últimos 5 feedbacks para carrossel
  * Rota pública otimizada para a página inicial
  */
-router.get('/latest', async (req, res) => {
+router.get('/latest', async (_req, res) => {
   try {
     const feedbacks = await prisma.feedback.findMany({
       take: 5,
