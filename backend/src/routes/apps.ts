@@ -2,6 +2,7 @@ import { Router, Request } from 'express';
 import multer, { FileFilterCallback } from 'multer';
 import { appController } from '../controllers/app.controller.js';
 import { paymentController } from '../controllers/payment.controller.js';
+import { licenseController } from '../controllers/license.controller.js';
 import { authenticate, authorizeAdmin } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validate.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
@@ -16,6 +17,7 @@ import {
   purchaseSchema,
   directPaymentSchema,
 } from '../schemas/payment.schema.js';
+import { downloadByEmailSchema } from '../schemas/license.schema.js';
 
 const router = Router();
 
@@ -138,6 +140,32 @@ router.post(
   rateLimiter.sensitive,
   validate(directPaymentSchema),
   paymentController.directPayment
+);
+
+// =============================================
+// ROTAS DE DOWNLOAD (público após pagamento)
+// =============================================
+
+// Download por email
+router.post(
+  '/:id/download/by-email',
+  rateLimiter.sensitive,
+  validate(downloadByEmailSchema),
+  licenseController.downloadByEmail
+);
+
+// Download por payment_id (para retorno do MP)
+router.post(
+  '/:id/download/by-payment',
+  rateLimiter.sensitive,
+  licenseController.downloadByPaymentId
+);
+
+// Download público (aceita email ou payment_id no body)
+router.post(
+  '/:id/download',
+  rateLimiter.sensitive,
+  licenseController.downloadPublic
 );
 
 export default router;
