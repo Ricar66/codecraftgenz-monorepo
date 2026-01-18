@@ -40,12 +40,8 @@ const envSchema = z.object({
   MP_PENDING_URL: z.string().optional(),
   MP_WEBHOOK_URL: z.string().optional(),
 
-  // Downloads
+  // Downloads (disco persistente do Render: /var/downloads)
   DOWNLOADS_DIR: z.string().optional(),
-
-  // Supabase Storage (para arquivos grandes como executáveis)
-  SUPABASE_URL: z.string().url().optional(),
-  SUPABASE_SERVICE_KEY: z.string().optional(),
 
   // Chave RSA para assinatura de licenças
   PRIVATE_KEY_PEM: z.string().optional(),
