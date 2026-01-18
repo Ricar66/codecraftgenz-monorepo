@@ -63,6 +63,57 @@ router.post('/', rateLimiter.sensitive, async (req, res): Promise<void> => {
 });
 
 /**
+ * GET /api/feedbacks/latest - Buscar últimos 5 feedbacks para carrossel
+ * Rota pública otimizada para a página inicial
+ */
+router.get('/latest', async (req, res) => {
+  try {
+    const feedbacks = await prisma.feedback.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        rating: true,
+        comment: true,
+        createdAt: true,
+      },
+    });
+
+    // Parse JSON comments e formatar para o frontend
+    const parsed = feedbacks.map((f) => {
+      try {
+        const data = JSON.parse(f.comment || '{}');
+        return {
+          id: f.id,
+          nome: data.nome || 'Anônimo',
+          mensagem: data.mensagem || data.comment || f.comment,
+          email: data.email,
+          origem: data.origem || 'site',
+          rating: f.rating,
+          data_criacao: f.createdAt,
+        };
+      } catch {
+        return {
+          id: f.id,
+          nome: 'Anônimo',
+          mensagem: f.comment,
+          rating: f.rating,
+          data_criacao: f.createdAt,
+        };
+      }
+    });
+
+    res.json(success(parsed));
+  } catch (error) {
+    console.error('Erro ao buscar últimos feedbacks:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno ao buscar feedbacks',
+    });
+  }
+});
+
+/**
  * GET /api/feedbacks - Buscar feedbacks (admin)
  * Usado para listar feedbacks de contato
  */
