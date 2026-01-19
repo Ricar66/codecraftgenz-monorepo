@@ -92,8 +92,8 @@ export const paymentService = {
         status: 'approved',
         amount: 0,
         currency: 'BRL',
-        payerEmail: data?.email || null,
-        payerName: data?.name || null,
+        payerEmail: data?.email || undefined,
+        payerName: data?.name || undefined,
       });
 
       // Só provisiona licença se tiver email (para rastrear)
@@ -172,8 +172,8 @@ export const paymentService = {
       status: 'pending',
       amount: Number(app.price),
       currency: 'BRL',
-      payerEmail: data?.email || null,
-      payerName: data?.name || null,
+      payerEmail: data?.email || undefined,
+      payerName: data?.name || undefined,
       mpResponseJson: JSON.stringify(mpResponse),
     });
 
