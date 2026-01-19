@@ -75,6 +75,8 @@ app.use(
     allowedHeaders: [
       'Content-Type',
       'Authorization',
+      'Cache-Control',
+      'Pragma',
       'x-csrf-token',
       'x-device-id',
       'x-mp-device-id',
