@@ -35,7 +35,8 @@ export const paymentController = {
     const appId = Number(req.params.id);
     const email = req.query.email as string | undefined;
     const preferenceId = req.query.preference_id as string | undefined;
-    const result = await paymentService.getPurchaseStatus(appId, email, preferenceId);
+    const paymentId = req.query.payment_id as string | undefined;
+    const result = await paymentService.getPurchaseStatus(appId, email, preferenceId, paymentId);
     res.json(success(result));
   },
 
