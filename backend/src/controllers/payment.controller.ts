@@ -1,6 +1,9 @@
 import type { Request, Response } from 'express';
+import crypto from 'crypto';
 import { paymentService } from '../services/payment.service.js';
 import { success, paginated } from '../utils/response.js';
+import { logger } from '../utils/logger.js';
+import { env } from '../config/env.js';
 import type { PurchaseInput, DirectPaymentInput, UpdatePaymentInput, SearchPaymentsQuery } from '../schemas/payment.schema.js';
 
 export const paymentController = {
@@ -41,6 +44,55 @@ export const paymentController = {
   },
 
   async webhook(req: Request, res: Response) {
+    // Validar assinatura do Mercado Pago (se configurado)
+    const webhookSecret = env.MP_WEBHOOK_SECRET;
+    if (webhookSecret) {
+      const xSignature = req.headers['x-signature'] as string;
+      const xRequestId = req.headers['x-request-id'] as string;
+
+      if (!xSignature || !xRequestId) {
+        logger.warn({ headers: Object.keys(req.headers) }, 'Webhook sem assinatura - rejeitado');
+        res.status(401).json({ error: 'Assinatura ausente' });
+        return;
+      }
+
+      // Extrair ts e v1 do header x-signature
+      // Formato: ts=xxx,v1=xxx
+      const parts = xSignature.split(',');
+      const tsMatch = parts.find(p => p.startsWith('ts='));
+      const v1Match = parts.find(p => p.startsWith('v1='));
+
+      const ts = tsMatch?.split('=')[1];
+      const v1 = v1Match?.split('=')[1];
+
+      if (!ts || !v1) {
+        logger.warn({ xSignature }, 'Formato de assinatura inválido');
+        res.status(401).json({ error: 'Formato de assinatura inválido' });
+        return;
+      }
+
+      // Montar template para verificação
+      // O template é: id:[data.id];request-id:[x-request-id];ts:[ts];
+      const dataId = req.body?.data?.id;
+      const template = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+
+      // Gerar HMAC SHA256 com o webhook secret
+      const expectedSignature = crypto
+        .createHmac('sha256', webhookSecret)
+        .update(template)
+        .digest('hex');
+
+      if (v1 !== expectedSignature) {
+        logger.warn({ expected: expectedSignature, received: v1 }, 'Assinatura de webhook inválida');
+        res.status(401).json({ error: 'Assinatura inválida' });
+        return;
+      }
+
+      logger.info({ requestId: xRequestId }, 'Assinatura de webhook validada');
+    } else {
+      logger.warn('MP_WEBHOOK_SECRET não configurado - webhook aceito sem validação');
+    }
+
     const { type, data } = req.body;
     const dataId = data?.id ? String(data.id) : null;
 
