@@ -157,23 +157,42 @@ export const appService = {
       .replace(/[^a-zA-Z0-9._-]/g, '_') // substitui caracteres especiais por _
       .replace(/__+/g, '_'); // remove underscores duplicados
 
-    // Diretório de downloads (usa disco persistente do Render: /var/downloads)
-    const downloadsDir = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
-    await fs.mkdir(downloadsDir, { recursive: true });
+    let executableUrl = '';
 
-    const filePath = path.join(downloadsDir, originalName);
-    await fs.writeFile(filePath, file.buffer);
+    // Tentar upload via FTP para Hostinger (prioridade)
+    try {
+      const { isFtpConfigured, uploadToHostinger } = await import('./ftp.service.js');
 
-    // URL relativa para download
-    const executableUrl = `/downloads/${originalName}`;
+      if (isFtpConfigured()) {
+        logger.info({ appId, file: originalName }, 'FTP configurado - enviando para Hostinger...');
+        executableUrl = await uploadToHostinger(originalName, file.buffer);
+        logger.info({ appId, file: originalName, url: executableUrl }, 'Upload FTP concluído');
+      } else {
+        logger.info({ appId }, 'FTP não configurado - salvando localmente');
+      }
+    } catch (ftpError) {
+      logger.warn({ error: ftpError, appId }, 'Erro no upload FTP - fallback para disco local');
+    }
+
+    // Fallback: salvar no disco local do Render
+    if (!executableUrl) {
+      const downloadsDir = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
+      await fs.mkdir(downloadsDir, { recursive: true });
+
+      const filePath = path.join(downloadsDir, originalName);
+      await fs.writeFile(filePath, file.buffer);
+
+      // URL relativa para download
+      executableUrl = `/downloads/${originalName}`;
+
+      logger.info({ appId, file: originalName, size: file.size, path: filePath }, 'Executável salvo no disco local');
+    }
 
     // Atualizar app com URL do executável
     await prisma.app.update({
       where: { id: appId },
       data: { executableUrl },
     });
-
-    logger.info({ appId, file: originalName, size: file.size, path: filePath }, 'Executável salvo no disco');
 
     return {
       file_name: originalName,

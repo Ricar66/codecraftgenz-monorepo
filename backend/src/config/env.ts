@@ -43,6 +43,14 @@ const envSchema = z.object({
   // Downloads (disco persistente do Render: /var/downloads)
   DOWNLOADS_DIR: z.string().optional(),
 
+  // FTP Hostinger (para upload de executáveis)
+  FTP_HOST: z.string().optional(),
+  FTP_USER: z.string().optional(),
+  FTP_PASSWORD: z.string().optional(),
+  FTP_PORT: z.string().transform(Number).optional(),
+  FTP_REMOTE_PATH: z.string().optional(),
+  FTP_PUBLIC_URL: z.string().optional(),
+
   // Chave RSA para assinatura de licenças
   PRIVATE_KEY_PEM: z.string().optional(),
 
