@@ -152,19 +152,20 @@ export const appService = {
       throw AppError.notFound('App');
     }
 
-    // Nome do arquivo: app-{id}-{version}.{ext}
-    const ext = path.extname(file.originalname).toLowerCase();
-    const safeName = `app-${appId}-${app.version}${ext}`;
+    // Sanitiza o nome original do arquivo (remove caracteres perigosos)
+    const originalName = file.originalname
+      .replace(/[^a-zA-Z0-9._-]/g, '_') // substitui caracteres especiais por _
+      .replace(/__+/g, '_'); // remove underscores duplicados
 
     // Diretório de downloads (usa disco persistente do Render: /var/downloads)
     const downloadsDir = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
     await fs.mkdir(downloadsDir, { recursive: true });
 
-    const filePath = path.join(downloadsDir, safeName);
+    const filePath = path.join(downloadsDir, originalName);
     await fs.writeFile(filePath, file.buffer);
 
     // URL relativa para download
-    const executableUrl = `/downloads/${safeName}`;
+    const executableUrl = `/downloads/${originalName}`;
 
     // Atualizar app com URL do executável
     await prisma.app.update({
@@ -172,10 +173,10 @@ export const appService = {
       data: { executableUrl },
     });
 
-    logger.info({ appId, file: safeName, size: file.size, path: filePath }, 'Executável salvo no disco');
+    logger.info({ appId, file: originalName, size: file.size, path: filePath }, 'Executável salvo no disco');
 
     return {
-      file_name: safeName,
+      file_name: originalName,
       file_size: file.size,
       executable_url: executableUrl,
     };
