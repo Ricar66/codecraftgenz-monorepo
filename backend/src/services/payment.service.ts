@@ -165,14 +165,56 @@ export const paymentService = {
     };
   },
 
-  async getPurchaseStatus(appId: number, email?: string, preferenceId?: string) {
+  async getPurchaseStatus(appId: number, email?: string, preferenceId?: string, paymentId?: string) {
+    // Helper para obter download_url do app
+    const getAppDownloadUrl = async () => {
+      const app = await prisma.app.findUnique({
+        where: { id: appId },
+        select: { executableUrl: true },
+      });
+      return app?.executableUrl || null;
+    };
+
+    // Buscar por payment_id interno (DIRECT-xxx, FREE-xxx, PAY-xxx)
+    if (paymentId) {
+      const payment = await paymentRepository.findById(paymentId);
+      if (payment && payment.appId === appId) {
+        const result: {
+          status: string;
+          payment_id: string;
+          email?: string | null;
+          download_url?: string | null;
+        } = {
+          status: payment.status,
+          payment_id: payment.id,
+          email: payment.payerEmail,
+        };
+        // Se aprovado, inclui download_url
+        if (payment.status === 'approved') {
+          result.download_url = await getAppDownloadUrl();
+        }
+        return result;
+      }
+    }
+
     if (preferenceId) {
       const payment = await paymentRepository.findByPreferenceId(preferenceId);
       if (payment) {
-        return {
+        const result: {
+          status: string;
+          payment_id: string;
+          email?: string | null;
+          download_url?: string | null;
+        } = {
           status: payment.status,
           payment_id: payment.id,
+          email: payment.payerEmail,
         };
+        // Se aprovado, inclui download_url
+        if (payment.status === 'approved') {
+          result.download_url = await getAppDownloadUrl();
+        }
+        return result;
       }
     }
 
@@ -183,6 +225,8 @@ export const paymentService = {
         return {
           status: 'approved',
           payment_id: approved.id,
+          email: approved.payerEmail,
+          download_url: await getAppDownloadUrl(),
         };
       }
 
@@ -191,6 +235,7 @@ export const paymentService = {
         return {
           status: 'pending',
           payment_id: pending.id,
+          email: pending.payerEmail,
         };
       }
     }
