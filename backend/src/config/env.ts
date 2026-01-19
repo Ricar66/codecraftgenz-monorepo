@@ -47,7 +47,7 @@ const envSchema = z.object({
   FTP_HOST: z.string().optional(),
   FTP_USER: z.string().optional(),
   FTP_PASSWORD: z.string().optional(),
-  FTP_PORT: z.string().transform(Number).optional(),
+  FTP_PORT: z.coerce.number().optional(),
   FTP_REMOTE_PATH: z.string().optional(),
   FTP_PUBLIC_URL: z.string().optional(),
 

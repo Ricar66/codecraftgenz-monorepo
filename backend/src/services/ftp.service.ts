@@ -11,17 +11,34 @@ const FTP_CONFIG = {
   host: env.FTP_HOST || '',
   user: env.FTP_USER || '',
   password: env.FTP_PASSWORD || '',
-  port: Number(env.FTP_PORT) || 21,
+  port: env.FTP_PORT ?? 21,
   secure: false, // FTP padrão (não FTPS)
   remotePath: env.FTP_REMOTE_PATH || '/public_html/downloads',
   publicUrl: env.FTP_PUBLIC_URL || 'https://codecraftgenz.com.br/downloads',
 };
 
+// Log de inicialização para debug
+logger.info({
+  ftpHost: FTP_CONFIG.host ? `${FTP_CONFIG.host.substring(0, 10)}...` : '(não configurado)',
+  ftpUser: FTP_CONFIG.user ? `${FTP_CONFIG.user.substring(0, 5)}...` : '(não configurado)',
+  ftpPort: FTP_CONFIG.port,
+  ftpRemotePath: FTP_CONFIG.remotePath,
+  ftpPublicUrl: FTP_CONFIG.publicUrl,
+}, 'Configuração FTP carregada');
+
 /**
  * Verifica se o FTP está configurado
  */
 export const isFtpConfigured = (): boolean => {
-  return !!(FTP_CONFIG.host && FTP_CONFIG.user && FTP_CONFIG.password);
+  const configured = !!(FTP_CONFIG.host && FTP_CONFIG.user && FTP_CONFIG.password);
+  logger.info({
+    configured,
+    hasHost: !!FTP_CONFIG.host,
+    hasUser: !!FTP_CONFIG.user,
+    hasPassword: !!FTP_CONFIG.password,
+    host: FTP_CONFIG.host ? FTP_CONFIG.host.substring(0, 10) + '...' : '(vazio)',
+  }, 'Verificação de configuração FTP');
+  return configured;
 };
 
 /**
@@ -82,7 +99,16 @@ export const uploadToHostinger = async (
     return publicUrl;
 
   } catch (error) {
-    logger.error({ error, fileName }, 'Erro no upload FTP');
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : undefined;
+    logger.error({
+      error: errMsg,
+      stack: errStack,
+      fileName,
+      host: FTP_CONFIG.host,
+      port: FTP_CONFIG.port,
+      remotePath: FTP_CONFIG.remotePath,
+    }, 'Erro no upload FTP');
     throw error;
   } finally {
     client.close();

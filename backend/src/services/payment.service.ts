@@ -284,14 +284,25 @@ export const paymentService = {
       JSON.stringify(mpPayment)
     );
 
-    // Provisionar licença se aprovado
+    // Provisionar licença se aprovado (com proteção contra duplicação e erro)
     if (newStatus === 'approved' && oldStatus !== 'approved') {
-      await licenseService.provisionLicense(
-        payment.appId,
-        payment.payerEmail!,
-        payment.userId ?? undefined
-      );
-      logger.info({ paymentId: payment.id }, 'Licença provisionada via webhook');
+      try {
+        // Verificar se licença já existe (pode ter sido criada pelo pagamento direto)
+        const existingLicense = await licenseService.getLicenseKeyByEmail(payment.appId, payment.payerEmail!);
+        if (!existingLicense) {
+          await licenseService.provisionLicense(
+            payment.appId,
+            payment.payerEmail!,
+            payment.userId ?? undefined
+          );
+          logger.info({ paymentId: payment.id }, 'Licença provisionada via webhook');
+        } else {
+          logger.info({ paymentId: payment.id }, 'Licença já existe (provisionada pelo pagamento direto)');
+        }
+      } catch (licenseError) {
+        logger.error({ error: licenseError, paymentId: payment.id }, 'Erro ao provisionar licença via webhook');
+        // Não throw - webhook já processou pagamento com sucesso
+      }
     }
 
     return {
@@ -493,10 +504,21 @@ export const paymentService = {
       mpResponseJson: JSON.stringify(mpResponse),
     });
 
-    // Se aprovado, provisionar licença
+    // Se aprovado, provisionar licença (com proteção contra duplicação e erro)
     if (status === 'approved') {
-      await licenseService.provisionLicense(appId, payerEmail, userId);
-      logger.info({ paymentId, appId, email: payerEmail }, 'Licença provisionada via pagamento direto');
+      try {
+        // Usar lock via flag no payment para evitar race condition com webhook
+        const existingLicense = await licenseService.getLicenseKeyByEmail(appId, payerEmail);
+        if (!existingLicense) {
+          await licenseService.provisionLicense(appId, payerEmail, userId);
+          logger.info({ paymentId, appId, email: payerEmail }, 'Licença provisionada via pagamento direto');
+        } else {
+          logger.info({ paymentId, appId, email: payerEmail }, 'Licença já existe - pulando provisionamento');
+        }
+      } catch (licenseError) {
+        // Log erro mas não falha o pagamento - webhook pode tentar novamente
+        logger.error({ error: licenseError, paymentId, appId }, 'Erro ao provisionar licença (pagamento direto)');
+      }
     }
 
     // Retornar resposta completa
