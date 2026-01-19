@@ -1,15 +1,16 @@
 import { z } from 'zod';
 
-// Schema para compra padrão (preferência MP)
+// Schema para compra padrão (preferência MP / Wallet)
+// Email é opcional pois no Wallet o usuário loga diretamente no Mercado Pago
 export const purchaseSchema = z.object({
   params: z.object({
     id: z.string().transform(Number),
   }),
   body: z.object({
-    email: z.string().email('Email inválido'),
+    email: z.string().email('Email inválido').optional(),
     name: z.string().min(1).optional(),
     paymentMethod: z.string().optional(), // pix, credit_card, etc
-  }),
+  }).optional().default({}),
 });
 
 // Schema para pagamento direto (cartão, PIX, boleto)

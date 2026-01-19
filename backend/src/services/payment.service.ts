@@ -92,11 +92,14 @@ export const paymentService = {
         status: 'approved',
         amount: 0,
         currency: 'BRL',
-        payerEmail: data.email,
-        payerName: data.name,
+        payerEmail: data?.email || null,
+        payerName: data?.name || null,
       });
 
-      await licenseService.provisionLicense(appId, data.email, userId);
+      // Só provisiona licença se tiver email (para rastrear)
+      if (data?.email) {
+        await licenseService.provisionLicense(appId, data.email, userId);
+      }
 
       return {
         payment_id: payment.id,
@@ -121,7 +124,8 @@ export const paymentService = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const preference = new (Preference as any)(mpClient);
 
-    const preferenceData = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const preferenceData: Record<string, any> = {
       items: [
         {
           id: String(app.id),
@@ -132,10 +136,6 @@ export const paymentService = {
           unit_price: Number(app.price),
         },
       ],
-      payer: {
-        email: data.email,
-        name: data.name,
-      },
       back_urls: {
         success: env.MP_SUCCESS_URL?.replace(':id', String(appId)),
         failure: env.MP_FAILURE_URL?.replace(':id', String(appId)),
@@ -145,6 +145,14 @@ export const paymentService = {
       external_reference: paymentId,
       notification_url: env.MP_WEBHOOK_URL,
     };
+
+    // Adiciona payer somente se tiver email (opcional para Wallet)
+    if (data?.email) {
+      preferenceData.payer = {
+        email: data.email,
+        ...(data.name ? { name: data.name } : {}),
+      };
+    }
 
     const mpResponse = await preference.create({ body: preferenceData });
 
@@ -164,8 +172,8 @@ export const paymentService = {
       status: 'pending',
       amount: Number(app.price),
       currency: 'BRL',
-      payerEmail: data.email,
-      payerName: data.name,
+      payerEmail: data?.email || null,
+      payerName: data?.name || null,
       mpResponseJson: JSON.stringify(mpResponse),
     });
 
