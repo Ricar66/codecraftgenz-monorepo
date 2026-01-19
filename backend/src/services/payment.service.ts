@@ -108,6 +108,11 @@ export const paymentService = {
 
     // Criar preferência no Mercado Pago
     if (!mpClient || !Preference) {
+      logger.error({
+        hasMpClient: !!mpClient,
+        hasPreference: !!Preference,
+        hasAccessToken: !!env.MP_ACCESS_TOKEN,
+      }, 'Mercado Pago não configurado para criar preferência');
       throw AppError.internal('Mercado Pago não configurado');
     }
 
@@ -142,6 +147,14 @@ export const paymentService = {
     };
 
     const mpResponse = await preference.create({ body: preferenceData });
+
+    logger.info({
+      appId,
+      paymentId,
+      preferenceId: mpResponse.id,
+      initPoint: mpResponse.init_point ? 'presente' : 'AUSENTE',
+      sandboxInitPoint: mpResponse.sandbox_init_point ? 'presente' : 'AUSENTE',
+    }, 'Preferência MP criada');
 
     await paymentRepository.create({
       id: paymentId,
