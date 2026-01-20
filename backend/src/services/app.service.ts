@@ -157,38 +157,36 @@ export const appService = {
       .replace(/[^a-zA-Z0-9._-]/g, '_') // substitui caracteres especiais por _
       .replace(/__+/g, '_'); // remove underscores duplicados
 
-    let executableUrl = '';
+    // SEMPRE salvar localmente no disco do Render (é o método principal)
+    // O Render persiste arquivos em /var/downloads se configurado como disco persistente
+    const downloadsDir = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
+    await fs.mkdir(downloadsDir, { recursive: true });
 
-    // Tentar upload via FTP para Hostinger (prioridade)
+    const filePath = path.join(downloadsDir, originalName);
+    await fs.writeFile(filePath, file.buffer);
+
+    logger.info({ appId, file: originalName, size: file.size, path: filePath }, 'Executável salvo no disco local');
+
+    // URL para download via API do backend
+    // Em produção: https://codecraftgenz-monorepo.onrender.com/api/downloads/arquivo.exe
+    // Em desenvolvimento: /api/downloads/arquivo.exe
+    const executableUrl = `/api/downloads/${encodeURIComponent(originalName)}`;
+
+    // OPCIONAL: Também fazer upload para FTP como backup (não bloqueia)
     try {
       const { isFtpConfigured, uploadToHostinger } = await import('./ftp.service.js');
 
       if (isFtpConfigured()) {
-        logger.info({ appId, file: originalName }, 'FTP configurado - enviando para Hostinger...');
-        executableUrl = await uploadToHostinger(originalName, file.buffer);
-        logger.info({ appId, file: originalName, url: executableUrl }, 'Upload FTP concluído');
-      } else {
-        logger.info({ appId }, 'FTP não configurado - salvando localmente');
+        logger.info({ appId, file: originalName }, 'FTP configurado - enviando backup para Hostinger...');
+        const ftpUrl = await uploadToHostinger(originalName, file.buffer);
+        logger.info({ appId, file: originalName, url: ftpUrl }, 'Backup FTP concluído');
       }
     } catch (ftpError) {
-      logger.warn({ error: ftpError, appId }, 'Erro no upload FTP - fallback para disco local');
+      // FTP é backup, não falhar se der erro
+      logger.warn({ error: ftpError, appId }, 'Erro no backup FTP (ignorando)');
     }
 
-    // Fallback: salvar no disco local do Render
-    if (!executableUrl) {
-      const downloadsDir = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
-      await fs.mkdir(downloadsDir, { recursive: true });
-
-      const filePath = path.join(downloadsDir, originalName);
-      await fs.writeFile(filePath, file.buffer);
-
-      // URL relativa para download
-      executableUrl = `/downloads/${originalName}`;
-
-      logger.info({ appId, file: originalName, size: file.size, path: filePath }, 'Executável salvo no disco local');
-    }
-
-    // Atualizar app com URL do executável
+    // Atualizar app com URL do executável (aponta para o backend)
     await prisma.app.update({
       where: { id: appId },
       data: { executableUrl },
