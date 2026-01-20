@@ -1,5 +1,6 @@
 import { paymentRepository } from '../repositories/payment.repository.js';
 import { licenseService } from './license.service.js';
+import { userService } from './user.service.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { env } from '../config/env.js';
@@ -79,6 +80,21 @@ export const paymentService = {
       throw AppError.badRequest('Este app não está disponível para compra');
     }
 
+    // Resolver userId: se não passou e tem email, cria/vincula guest
+    let resolvedUserId = userId;
+    if (!resolvedUserId && data?.email) {
+      try {
+        const { user, isNewGuest } = await userService.findOrCreateGuestUser(
+          data.email,
+          data.name
+        );
+        resolvedUserId = user.id;
+        logger.info({ userId: user.id, email: data.email, isNewGuest }, 'Usuário resolvido para compra');
+      } catch (err) {
+        logger.warn({ error: err, email: data?.email }, 'Falha ao resolver usuário para compra');
+      }
+    }
+
     // Nota: Removida verificação de compra duplicada para permitir
     // múltiplas compras (ex: para outras máquinas ou presentes)
 
@@ -88,7 +104,7 @@ export const paymentService = {
       const payment = await paymentRepository.create({
         id: paymentId,
         appId,
-        userId,
+        userId: resolvedUserId,
         status: 'approved',
         amount: 0,
         currency: 'BRL',
@@ -98,7 +114,7 @@ export const paymentService = {
 
       // Só provisiona licença se tiver email (para rastrear)
       if (data?.email) {
-        await licenseService.provisionLicense(appId, data.email, userId);
+        await licenseService.provisionLicense(appId, data.email, resolvedUserId);
       }
 
       return {
@@ -167,7 +183,7 @@ export const paymentService = {
     await paymentRepository.create({
       id: paymentId,
       appId,
-      userId,
+      userId: resolvedUserId,
       preferenceId: mpResponse.id,
       status: 'pending',
       amount: Number(app.price),
@@ -375,6 +391,22 @@ export const paymentService = {
     }
 
     const payerEmail = data.payer.email;
+    const payerName = `${data.payer.first_name || ''} ${data.payer.last_name || ''}`.trim() || undefined;
+
+    // Resolver userId: se não passou, cria/vincula guest pelo email
+    let resolvedUserId = userId;
+    if (!resolvedUserId) {
+      try {
+        const { user, isNewGuest } = await userService.findOrCreateGuestUser(
+          payerEmail,
+          payerName
+        );
+        resolvedUserId = user.id;
+        logger.info({ userId: user.id, email: payerEmail, isNewGuest }, 'Usuário resolvido para pagamento direto');
+      } catch (err) {
+        logger.warn({ error: err, email: payerEmail }, 'Falha ao resolver usuário para pagamento direto');
+      }
+    }
 
     // Nota: Removida verificação de compra duplicada para permitir
     // múltiplas compras (ex: para outras máquinas ou presentes)
@@ -386,15 +418,15 @@ export const paymentService = {
       await paymentRepository.create({
         id: paymentId,
         appId,
-        userId,
+        userId: resolvedUserId,
         status: 'approved',
         amount: 0,
         currency: 'BRL',
         payerEmail,
-        payerName: `${data.payer.first_name || ''} ${data.payer.last_name || ''}`.trim() || undefined,
+        payerName,
       });
 
-      await licenseService.provisionLicense(appId, payerEmail, userId);
+      await licenseService.provisionLicense(appId, payerEmail, resolvedUserId);
 
       return {
         success: true,
@@ -410,7 +442,7 @@ export const paymentService = {
     }
 
     const paymentId = `DIRECT-${crypto.randomUUID()}`;
-    const idempotencyKey = options?.idempotencyKey || `app-${appId}-user-${userId || 'anon'}-${Date.now()}`;
+    const idempotencyKey = options?.idempotencyKey || `app-${appId}-user-${resolvedUserId || 'anon'}-${Date.now()}`;
 
     // Determinar processing mode
     const processingMode = (process.env.MERCADO_PAGO_PROCESSING_MODE || 'aggregator').toLowerCase();
@@ -515,13 +547,13 @@ export const paymentService = {
     await paymentRepository.create({
       id: paymentId,
       appId,
-      userId,
+      userId: resolvedUserId,
       preferenceId: mpPaymentId,
       status: mapMpStatus(status),
       amount,
       currency: mpResponse.currency_id || 'BRL',
       payerEmail,
-      payerName: `${data.payer.first_name || ''} ${data.payer.last_name || ''}`.trim() || undefined,
+      payerName,
       mpResponseJson: JSON.stringify(mpResponse),
     });
 
@@ -531,7 +563,7 @@ export const paymentService = {
         // Usar lock via flag no payment para evitar race condition com webhook
         const existingLicense = await licenseService.getLicenseKeyByEmail(appId, payerEmail);
         if (!existingLicense) {
-          await licenseService.provisionLicense(appId, payerEmail, userId);
+          await licenseService.provisionLicense(appId, payerEmail, resolvedUserId);
           logger.info({ paymentId, appId, email: payerEmail }, 'Licença provisionada via pagamento direto');
         } else {
           logger.info({ paymentId, appId, email: payerEmail }, 'Licença já existe - pulando provisionamento');

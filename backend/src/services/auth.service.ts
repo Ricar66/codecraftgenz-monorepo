@@ -4,6 +4,7 @@ import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { generateToken } from '../middlewares/auth.js';
 import { logger } from '../utils/logger.js';
+import { userService } from './user.service.js';
 import type { LoginInput, RegisterInput } from '../schemas/auth.schema.js';
 
 const SALT_ROUNDS = 10;
@@ -22,17 +23,43 @@ export const authService = {
     });
 
     if (!user) {
-      throw AppError.unauthorized('Email ou senha inválidos');
+      throw AppError.unauthorized('Email ou senha invalidos');
     }
 
     if (user.status !== 'ativo') {
       throw AppError.forbidden('Conta desativada ou suspensa');
     }
 
+    // Se o usuario e guest, nao pode fazer login (precisa criar senha)
+    if (user.isGuest) {
+      throw AppError.badRequest('Esta conta foi criada automaticamente. Por favor, defina uma senha usando "Esqueci minha senha".');
+    }
+
     const isValidPassword = await bcrypt.compare(data.password, user.passwordHash);
 
     if (!isValidPassword) {
-      throw AppError.unauthorized('Email ou senha inválidos');
+      throw AppError.unauthorized('Email ou senha invalidos');
+    }
+
+    // Verificar se existem compras de usuarios guest com mesmo email
+    // que precisam ser vinculadas a este usuario
+    try {
+      const guestUsers = await prisma.user.findMany({
+        where: {
+          email: data.email,
+          isGuest: true,
+          id: { not: user.id },
+        },
+      });
+
+      // Se encontrou usuarios guest com mesmo email, faz o merge
+      for (const guestUser of guestUsers) {
+        await userService.mergeGuestIntoUser(guestUser.id, user.id);
+        logger.info({ guestUserId: guestUser.id, userId: user.id }, 'Guest user merged on login');
+      }
+    } catch (mergeError) {
+      // Log erro mas nao falha o login
+      logger.warn({ error: mergeError, userId: user.id }, 'Falha ao fazer merge de guest users no login');
     }
 
     const token = generateToken({
@@ -64,23 +91,42 @@ export const authService = {
       where: { email: data.email },
     });
 
+    let user;
+
     if (existingUser) {
-      throw AppError.conflict('Email já cadastrado');
+      // Se existe e e guest, converte para usuario regular
+      if (existingUser.isGuest) {
+        const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
+        user = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            name: data.name,
+            passwordHash: hashedPassword,
+            isGuest: false,
+          },
+        });
+        logger.info({ userId: user.id }, 'Guest user converted to regular on register');
+      } else {
+        throw AppError.conflict('Email ja cadastrado');
+      }
+    } else {
+      // Hash password
+      const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
+
+      // Create user
+      user = await prisma.user.create({
+        data: {
+          email: data.email,
+          passwordHash: hashedPassword,
+          name: data.name,
+          role: 'viewer',
+          status: 'ativo',
+          isGuest: false,
+        },
+      });
+
+      logger.info({ userId: user.id }, 'User registered');
     }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
-
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email: data.email,
-        passwordHash: hashedPassword,
-        name: data.name,
-        role: 'viewer',
-        status: 'ativo',
-      },
-    });
 
     // Generate token
     const token = generateToken({
@@ -89,8 +135,6 @@ export const authService = {
       role: user.role,
       name: user.name,
     });
-
-    logger.info({ userId: user.id }, 'User registered');
 
     return {
       token,
