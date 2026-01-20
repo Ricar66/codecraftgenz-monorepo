@@ -19,6 +19,7 @@ interface PurchaseEmailData {
 
 /**
  * Cria o transporter do nodemailer
+ * Detecta automaticamente se é Gmail ou Hostinger baseado no email
  */
 function createTransporter() {
   if (!env.EMAIL_USER || !env.EMAIL_PASS) {
@@ -26,6 +27,21 @@ function createTransporter() {
     return null;
   }
 
+  const isGmail = env.EMAIL_USER.toLowerCase().includes('@gmail.com');
+
+  if (isGmail) {
+    // Gmail requer "App Password" (não a senha normal)
+    // Configurar em: Google Account > Security > 2-Step Verification > App passwords
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: env.EMAIL_USER,
+        pass: env.EMAIL_PASS,
+      },
+    });
+  }
+
+  // Hostinger ou outro provedor
   return nodemailer.createTransport({
     host: 'smtp.hostinger.com',
     port: 465,
