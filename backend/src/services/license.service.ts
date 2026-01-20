@@ -3,6 +3,7 @@ import { paymentRepository } from '../repositories/payment.repository.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { prisma } from '../db/prisma.js';
+import { emailService } from './email.service.js';
 import type { ActivateDeviceInput, VerifyLicenseInput } from '../schemas/license.schema.js';
 
 const MAX_DEVICES_PER_LICENSE = 1;
@@ -178,7 +179,17 @@ export const licenseService = {
     };
   },
 
-  async provisionLicense(appId: number, email: string, userId?: number) {
+  async provisionLicense(
+    appId: number,
+    email: string,
+    userId?: number,
+    options?: {
+      customerName?: string;
+      paymentId?: string;
+      price?: number;
+      sendEmail?: boolean;
+    }
+  ) {
     const app = await prisma.app.findUnique({
       where: { id: appId },
     });
@@ -204,6 +215,27 @@ export const licenseService = {
     });
 
     logger.info({ appId, email, licenseId: license.id }, 'Licença provisionada');
+
+    // Enviar email de confirmação de compra (não bloqueia se falhar)
+    const shouldSendEmail = options?.sendEmail !== false;
+    if (shouldSendEmail && app.executableUrl) {
+      try {
+        await emailService.sendPurchaseConfirmation({
+          customerName: options?.customerName || email.split('@')[0],
+          customerEmail: email,
+          appName: app.name,
+          appVersion: app.version || undefined,
+          price: options?.price ?? (Number(app.price) || 0),
+          paymentId: options?.paymentId || license.id.toString(),
+          downloadUrl: app.executableUrl,
+          licenseKey: license.licenseKey || undefined,
+          purchaseDate: new Date(),
+        });
+        logger.info({ appId, email }, 'Email de compra enviado');
+      } catch (emailError) {
+        logger.warn({ appId, email, error: emailError }, 'Falha ao enviar email de compra');
+      }
+    }
 
     return license;
   },
