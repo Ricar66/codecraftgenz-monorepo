@@ -242,4 +242,101 @@ router.post('/email/test', async (req, res) => {
   }
 });
 
+/**
+ * POST /health/ftp/test
+ * Test FTP upload by sending a small test file
+ */
+router.post('/ftp/test', async (req, res) => {
+  const { admin_token } = req.body;
+
+  // Em produção, requer token de admin
+  if (isProd && admin_token !== env.ADMIN_RESET_TOKEN) {
+    sendError(res, 403, 'FORBIDDEN', 'Token de admin requerido em produção');
+    return;
+  }
+
+  if (!isFtpConfigured()) {
+    sendError(res, 503, 'FTP_NOT_CONFIGURED', 'FTP não está configurado');
+    return;
+  }
+
+  try {
+    const { uploadToHostinger, deleteFromHostinger } = await import('../services/ftp.service.js');
+
+    // Criar arquivo de teste
+    const testFileName = `ftp-test-${Date.now()}.txt`;
+    const testContent = Buffer.from(`FTP Test - ${new Date().toISOString()}\nThis file can be safely deleted.`);
+
+    // Upload
+    const publicUrl = await uploadToHostinger(testFileName, testContent);
+
+    // Deletar após sucesso
+    await deleteFromHostinger(testFileName);
+
+    sendSuccess(res, {
+      status: 'ok',
+      message: 'FTP upload test successful',
+      test_file: testFileName,
+      public_url: publicUrl,
+      uploaded_and_deleted: true,
+    });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    sendError(res, 500, 'FTP_TEST_FAILED', `Erro no teste FTP: ${errMsg}`);
+  }
+});
+
+/**
+ * GET /health/ftp/list
+ * List files in the downloads directory (for debugging)
+ */
+router.get('/ftp/list', async (req, res) => {
+  const { admin_token } = req.query;
+
+  // Em produção, requer token de admin
+  if (isProd && admin_token !== env.ADMIN_RESET_TOKEN) {
+    sendError(res, 403, 'FORBIDDEN', 'Token de admin requerido em produção');
+    return;
+  }
+
+  if (!isFtpConfigured()) {
+    sendError(res, 503, 'FTP_NOT_CONFIGURED', 'FTP não está configurado');
+    return;
+  }
+
+  try {
+    const ftp = await import('basic-ftp');
+    const client = new ftp.Client();
+
+    await client.access({
+      host: env.FTP_HOST!,
+      user: env.FTP_USER!,
+      password: env.FTP_PASSWORD!,
+      port: env.FTP_PORT ?? 21,
+      secure: false,
+    });
+
+    const remotePath = env.FTP_REMOTE_PATH || '/public_html/downloads';
+    await client.cd(remotePath);
+    const list = await client.list();
+    client.close();
+
+    const files = list.map(f => ({
+      name: f.name,
+      size: f.size,
+      type: f.type === 1 ? 'file' : 'directory',
+      modified: f.modifiedAt?.toISOString(),
+    }));
+
+    sendSuccess(res, {
+      path: remotePath,
+      files_count: files.length,
+      files,
+    });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    sendError(res, 500, 'FTP_LIST_FAILED', `Erro ao listar FTP: ${errMsg}`);
+  }
+});
+
 export default router;
