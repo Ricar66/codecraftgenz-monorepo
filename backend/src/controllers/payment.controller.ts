@@ -142,4 +142,17 @@ export const paymentController = {
     });
     res.status(201).json(success(result));
   },
+
+  async resendConfirmationEmail(req: Request, res: Response) {
+    const appId = Number(req.params.id);
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      res.status(400).json({ success: false, error: { message: 'Email é obrigatório' } });
+      return;
+    }
+
+    const result = await paymentService.resendConfirmationEmail(appId, email);
+    res.json(success(result));
+  },
 };

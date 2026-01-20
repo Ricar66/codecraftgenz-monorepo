@@ -446,6 +446,65 @@ export const paymentService = {
     };
   },
 
+  /**
+   * Reenvia o email de confirmação de compra
+   */
+  async resendConfirmationEmail(appId: number, email: string) {
+    // Buscar pagamento aprovado para esse app e email
+    const payments = await paymentRepository.findByAppAndEmail(appId, email);
+    const approvedPayment = payments.find(p => p.status === 'approved');
+
+    if (!approvedPayment) {
+      throw AppError.notFound('Nenhuma compra aprovada encontrada para este email');
+    }
+
+    // Buscar dados do app
+    const app = await prisma.app.findUnique({
+      where: { id: appId },
+      select: { name: true, version: true, executableUrl: true },
+    });
+
+    if (!app) {
+      throw AppError.notFound('App');
+    }
+
+    // Buscar chave de licença
+    const licenseKey = await licenseService.getLicenseKeyByEmail(appId, email) || undefined;
+
+    // Construir URL de download
+    const baseUrl = env.FRONTEND_URL || 'https://codecraftgenz.com.br';
+    const downloadUrl = app.executableUrl
+      ? (app.executableUrl.startsWith('http')
+          ? app.executableUrl
+          : `${baseUrl}/api/downloads/${app.executableUrl.replace(/^\/+/, '')}`)
+      : `${baseUrl}/apps/${appId}/sucesso?payment_id=${approvedPayment.id}`;
+
+    // Enviar email
+    const sent = await emailService.sendPurchaseConfirmation({
+      customerName: approvedPayment.payerName || email.split('@')[0],
+      customerEmail: email,
+      appName: app.name,
+      appVersion: app.version || undefined,
+      price: Number(approvedPayment.amount),
+      paymentId: approvedPayment.id,
+      downloadUrl,
+      licenseKey,
+      purchaseDate: approvedPayment.createdAt,
+    });
+
+    if (!sent) {
+      throw AppError.internal('Falha ao enviar email. Verifique as configurações de email.');
+    }
+
+    logger.info({ paymentId: approvedPayment.id, email }, 'Email de confirmação reenviado');
+
+    return {
+      sent: true,
+      payment_id: approvedPayment.id,
+      email,
+    };
+  },
+
   async createDirectPayment(
     appId: number,
     data: DirectPaymentInput,

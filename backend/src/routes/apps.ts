@@ -168,4 +168,11 @@ router.post(
   licenseController.downloadPublic
 );
 
+// Reenviar email de confirmação de compra
+router.post(
+  '/:id/resend-email',
+  rateLimiter.sensitive,
+  paymentController.resendConfirmationEmail
+);
+
 export default router;
