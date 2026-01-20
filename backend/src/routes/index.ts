@@ -1,46 +1,24 @@
 import { Router } from 'express';
 
-console.log('[Routes] Carregando rotas...');
-
 import healthRoutes from './health.js';
-console.log('[Routes] ✅ health');
 import authRoutes from './auth.js';
-console.log('[Routes] ✅ auth');
 import userRoutes from './users.js';
-console.log('[Routes] ✅ users');
 import projectRoutes from './projects.js';
-console.log('[Routes] ✅ projects');
 import appRoutes from './apps.js';
-console.log('[Routes] ✅ apps');
 import paymentRoutes from './payments.js';
-console.log('[Routes] ✅ payments');
 import licenseRoutes from './licenses.js';
-console.log('[Routes] ✅ licenses');
 import challengeRoutes from './challenges.js';
-console.log('[Routes] ✅ challenges');
 import crafterRoutes from './crafters.js';
-console.log('[Routes] ✅ crafters');
 import teamRoutes from './teams.js';
-console.log('[Routes] ✅ teams');
 import mentorRoutes from './mentors.js';
-console.log('[Routes] ✅ mentors');
 import inscricaoRoutes from './inscricoes.js';
-console.log('[Routes] ✅ inscricoes');
 import financeRoutes from './finances.js';
-console.log('[Routes] ✅ finances');
 import configRoutes from './config.js';
-console.log('[Routes] ✅ config');
 import dashboardRoutes from './dashboard.js';
-console.log('[Routes] ✅ dashboard');
 import feedbackRoutes from './feedbacks.js';
-console.log('[Routes] ✅ feedbacks');
 import downloadRoutes from './downloads.js';
-console.log('[Routes] ✅ downloads');
 import integrationRoutes from './integrations.js';
-console.log('[Routes] ✅ integrations');
 import testRoutes from './test.js';
-console.log('[Routes] ✅ test');
-console.log('[Routes] Todas as rotas carregadas!');
 
 const router = Router();
 
