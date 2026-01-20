@@ -1,6 +1,7 @@
 import { paymentRepository } from '../repositories/payment.repository.js';
 import { licenseService } from './license.service.js';
 import { userService } from './user.service.js';
+import { emailService } from './email.service.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { env } from '../config/env.js';
@@ -126,6 +127,7 @@ export const paymentService = {
       });
 
       // Só provisiona licenças se tiver email (para rastrear)
+      let licenseKey: string | undefined;
       if (data?.email) {
         // Provisiona múltiplas licenças conforme quantity
         for (let i = 0; i < quantity; i++) {
@@ -135,6 +137,20 @@ export const paymentService = {
             price: 0,
           });
         }
+        // Obter chave de licença para o email
+        licenseKey = await licenseService.getLicenseKeyByEmail(appId, data.email) || undefined;
+
+        // Enviar email de confirmação (app gratuito)
+        sendPurchaseEmail({
+          appId,
+          appName: app.name,
+          appVersion: app.version,
+          paymentId,
+          payerEmail: data.email,
+          payerName: data.name,
+          price: 0,
+          licenseKey,
+        });
       }
 
       return {
@@ -356,6 +372,7 @@ export const paymentService = {
 
     // Provisionar licença se aprovado (com proteção contra duplicação e erro)
     if (newStatus === 'approved' && oldStatus !== 'approved') {
+      let licenseKey: string | undefined;
       try {
         // Verificar se licença já existe (pode ter sido criada pelo pagamento direto)
         const existingLicense = await licenseService.getLicenseKeyByEmail(payment.appId, payment.payerEmail!);
@@ -374,9 +391,33 @@ export const paymentService = {
         } else {
           logger.info({ paymentId: payment.id }, 'Licença já existe (provisionada pelo pagamento direto)');
         }
+        // Obter chave de licença para o email
+        licenseKey = await licenseService.getLicenseKeyByEmail(payment.appId, payment.payerEmail!) || undefined;
       } catch (licenseError) {
         logger.error({ error: licenseError, paymentId: payment.id }, 'Erro ao provisionar licença via webhook');
         // Não throw - webhook já processou pagamento com sucesso
+      }
+
+      // Enviar email de confirmação (webhook aprovado)
+      try {
+        const app = await prisma.app.findUnique({
+          where: { id: payment.appId },
+          select: { name: true, version: true },
+        });
+        if (app && payment.payerEmail) {
+          sendPurchaseEmail({
+            appId: payment.appId,
+            appName: app.name,
+            appVersion: app.version,
+            paymentId: payment.id,
+            payerEmail: payment.payerEmail,
+            payerName: payment.payerName || undefined,
+            price: Number(payment.amount),
+            licenseKey,
+          });
+        }
+      } catch (emailError) {
+        logger.error({ error: emailError, paymentId: payment.id }, 'Erro ao enviar email via webhook');
       }
     }
 
@@ -614,7 +655,8 @@ export const paymentService = {
       mpResponseJson: JSON.stringify(mpResponse),
     });
 
-    // Se aprovado, provisionar licenças (com proteção contra duplicação e erro)
+    // Se aprovado, provisionar licenças e enviar email
+    let licenseKey: string | undefined;
     if (status === 'approved') {
       try {
         // Provisiona múltiplas licenças conforme quantity
@@ -626,10 +668,25 @@ export const paymentService = {
           });
         }
         logger.info({ paymentId, appId, email: payerEmail, quantity }, 'Licenças provisionadas via pagamento direto');
+
+        // Obter chave de licença para o email
+        licenseKey = await licenseService.getLicenseKeyByEmail(appId, payerEmail) || undefined;
       } catch (licenseError) {
         // Log erro mas não falha o pagamento - webhook pode tentar novamente
         logger.error({ error: licenseError, paymentId, appId }, 'Erro ao provisionar licença (pagamento direto)');
       }
+
+      // Enviar email de confirmação (pagamento direto aprovado)
+      sendPurchaseEmail({
+        appId,
+        appName: app.name,
+        appVersion: app.version,
+        paymentId,
+        payerEmail,
+        payerName,
+        price: totalAmount,
+        licenseKey,
+      });
     }
 
     // Retornar resposta completa
@@ -703,4 +760,52 @@ function mapMpStatus(mpStatus: string): string {
     charged_back: 'refunded',
   };
   return statusMap[mpStatus] || 'pending';
+}
+
+/**
+ * Envia email de confirmação de compra
+ * Não lança erro se falhar - apenas loga
+ */
+async function sendPurchaseEmail(options: {
+  appId: number;
+  appName: string;
+  appVersion?: string;
+  paymentId: string;
+  payerEmail: string;
+  payerName?: string;
+  price: number;
+  licenseKey?: string;
+}) {
+  try {
+    // Buscar URL de download do app
+    const app = await prisma.app.findUnique({
+      where: { id: options.appId },
+      select: { executableUrl: true, version: true },
+    });
+
+    // Construir URL de download
+    const baseUrl = env.FRONTEND_URL || 'https://codecraftgenz.com.br';
+    const downloadUrl = app?.executableUrl
+      ? (app.executableUrl.startsWith('http')
+          ? app.executableUrl
+          : `${baseUrl}/api/downloads/${app.executableUrl.replace(/^\/+/, '')}`)
+      : `${baseUrl}/apps/${options.appId}/sucesso?payment_id=${options.paymentId}`;
+
+    await emailService.sendPurchaseConfirmation({
+      customerName: options.payerName || options.payerEmail.split('@')[0],
+      customerEmail: options.payerEmail,
+      appName: options.appName,
+      appVersion: options.appVersion || app?.version || undefined,
+      price: options.price,
+      paymentId: options.paymentId,
+      downloadUrl,
+      licenseKey: options.licenseKey,
+      purchaseDate: new Date(),
+    });
+
+    logger.info({ paymentId: options.paymentId, email: options.payerEmail }, 'Email de confirmação enviado');
+  } catch (error) {
+    logger.error({ error, paymentId: options.paymentId }, 'Falha ao enviar email de confirmação');
+    // Não propaga erro - email é secundário
+  }
 }
