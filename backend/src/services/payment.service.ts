@@ -835,6 +835,12 @@ async function sendPurchaseEmail(options: {
   price: number;
   licenseKey?: string;
 }) {
+  logger.info({
+    paymentId: options.paymentId,
+    email: options.payerEmail,
+    appName: options.appName,
+  }, '[EMAIL] Iniciando envio de email de confirmação de compra');
+
   try {
     // Buscar URL de download do app
     const app = await prisma.app.findUnique({
@@ -850,7 +856,13 @@ async function sendPurchaseEmail(options: {
           : `${baseUrl}/api/downloads/${app.executableUrl.replace(/^\/+/, '')}`)
       : `${baseUrl}/apps/${options.appId}/sucesso?payment_id=${options.paymentId}`;
 
-    await emailService.sendPurchaseConfirmation({
+    logger.info({
+      paymentId: options.paymentId,
+      downloadUrl,
+      hasExecutableUrl: !!app?.executableUrl,
+    }, '[EMAIL] URL de download construída');
+
+    const emailSent = await emailService.sendPurchaseConfirmation({
       customerName: options.payerName || options.payerEmail.split('@')[0],
       customerEmail: options.payerEmail,
       appName: options.appName,
@@ -862,9 +874,13 @@ async function sendPurchaseEmail(options: {
       purchaseDate: new Date(),
     });
 
-    logger.info({ paymentId: options.paymentId, email: options.payerEmail }, 'Email de confirmação enviado');
+    if (emailSent) {
+      logger.info({ paymentId: options.paymentId, email: options.payerEmail }, '[EMAIL] Email de confirmação ENVIADO com sucesso');
+    } else {
+      logger.error({ paymentId: options.paymentId, email: options.payerEmail }, '[EMAIL] Email de confirmação NÃO FOI ENVIADO - verifique as credenciais EMAIL_USER e EMAIL_PASS');
+    }
   } catch (error) {
-    logger.error({ error, paymentId: options.paymentId }, 'Falha ao enviar email de confirmação');
+    logger.error({ error, paymentId: options.paymentId, email: options.payerEmail }, '[EMAIL] ERRO ao enviar email de confirmação');
     // Não propaga erro - email é secundário
   }
 }

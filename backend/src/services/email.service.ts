@@ -23,9 +23,15 @@ interface PurchaseEmailData {
  */
 function createTransporter() {
   if (!env.EMAIL_USER || !env.EMAIL_PASS) {
-    logger.warn('Email credentials not configured. Emails will not be sent.');
+    logger.error({
+      hasEmailUser: !!env.EMAIL_USER,
+      hasEmailPass: !!env.EMAIL_PASS,
+      emailUserPartial: env.EMAIL_USER ? `${env.EMAIL_USER.substring(0, 3)}...` : 'não definido',
+    }, 'ERRO CRITICO: Credenciais de email não configuradas. EMAIL_USER e EMAIL_PASS são obrigatórios para envio de emails.');
     return null;
   }
+
+  logger.info({ emailUser: env.EMAIL_USER }, 'Criando transporter de email');
 
   const isGmail = env.EMAIL_USER.toLowerCase().includes('@gmail.com');
 
