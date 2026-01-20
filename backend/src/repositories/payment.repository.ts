@@ -80,6 +80,9 @@ export const paymentRepository = {
     preferenceId?: string;
     status: string;
     amount: number;
+    unitPrice?: number;
+    quantity?: number;
+    installments?: number;
     currency?: string;
     payerEmail?: string;
     payerName?: string;
@@ -93,6 +96,9 @@ export const paymentRepository = {
         preferenceId: data.preferenceId,
         status: data.status,
         amount: data.amount,
+        unitPrice: data.unitPrice,
+        quantity: data.quantity ?? 1,
+        installments: data.installments ?? 1,
         currency: data.currency ?? 'BRL',
         payerEmail: data.payerEmail,
         payerName: data.payerName,

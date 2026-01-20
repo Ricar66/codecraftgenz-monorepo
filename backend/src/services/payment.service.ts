@@ -103,8 +103,13 @@ export const paymentService = {
     // Nota: Removida verificação de compra duplicada para permitir
     // múltiplas compras (ex: para outras máquinas ou presentes)
 
+    // Quantidade de licenças (1-10)
+    const quantity = Math.min(10, Math.max(1, data?.quantity || 1));
+    const unitPrice = Number(app.price);
+    const totalAmount = unitPrice * quantity;
+
     // Se app é gratuito, aprovar diretamente
-    if (Number(app.price) === 0) {
+    if (unitPrice === 0) {
       const paymentId = `FREE-${crypto.randomUUID()}`;
       const payment = await paymentRepository.create({
         id: paymentId,
@@ -112,23 +117,30 @@ export const paymentService = {
         userId: resolvedUserId,
         status: 'approved',
         amount: 0,
+        unitPrice: 0,
+        quantity,
+        installments: 1,
         currency: 'BRL',
         payerEmail: data?.email || undefined,
         payerName: data?.name || undefined,
       });
 
-      // Só provisiona licença se tiver email (para rastrear)
+      // Só provisiona licenças se tiver email (para rastrear)
       if (data?.email) {
-        await licenseService.provisionLicense(appId, data.email, resolvedUserId, {
-          customerName: data.name,
-          paymentId,
-          price: 0,
-        });
+        // Provisiona múltiplas licenças conforme quantity
+        for (let i = 0; i < quantity; i++) {
+          await licenseService.provisionLicense(appId, data.email, resolvedUserId, {
+            customerName: data.name,
+            paymentId,
+            price: 0,
+          });
+        }
       }
 
       return {
         payment_id: payment.id,
         status: 'approved',
+        quantity,
         init_point: null,
         sandbox_init_point: null,
       };
@@ -154,11 +166,11 @@ export const paymentService = {
       items: [
         {
           id: String(app.id),
-          title: app.name,
+          title: quantity > 1 ? `${app.name} (${quantity} licenças)` : app.name,
           description: app.shortDescription || app.description?.substring(0, 200) || '',
-          quantity: 1,
+          quantity: quantity, // Quantidade de licenças
           currency_id: 'BRL',
-          unit_price: Number(app.price),
+          unit_price: unitPrice,
         },
       ],
       back_urls: {
@@ -169,6 +181,10 @@ export const paymentService = {
       auto_return: 'approved',
       external_reference: paymentId,
       notification_url: env.MP_WEBHOOK_URL,
+      // Limita parcelamento a 4x
+      payment_methods: {
+        installments: 4, // Máximo de 4 parcelas
+      },
     };
 
     // Adiciona payer somente se tiver email (opcional para Wallet)
@@ -184,6 +200,8 @@ export const paymentService = {
     logger.info({
       appId,
       paymentId,
+      quantity,
+      totalAmount,
       preferenceId: mpResponse.id,
       initPoint: mpResponse.init_point ? 'presente' : 'AUSENTE',
       sandboxInitPoint: mpResponse.sandbox_init_point ? 'presente' : 'AUSENTE',
@@ -195,7 +213,10 @@ export const paymentService = {
       userId: resolvedUserId,
       preferenceId: mpResponse.id,
       status: 'pending',
-      amount: Number(app.price),
+      amount: totalAmount,
+      unitPrice,
+      quantity,
+      installments: 1, // Será atualizado pelo webhook
       currency: 'BRL',
       payerEmail: data?.email || undefined,
       payerName: data?.name || undefined,
@@ -206,6 +227,9 @@ export const paymentService = {
       payment_id: paymentId,
       preference_id: mpResponse.id,
       status: 'pending',
+      quantity,
+      total_amount: totalAmount,
+      unit_price: unitPrice,
       init_point: mpResponse.init_point,
       sandbox_init_point: mpResponse.sandbox_init_point,
     };
@@ -425,9 +449,14 @@ export const paymentService = {
     // Nota: Removida verificação de compra duplicada para permitir
     // múltiplas compras (ex: para outras máquinas ou presentes)
 
+    // Quantidade de licenças (1-10) e parcelas (1-4)
+    const quantity = Math.min(10, Math.max(1, data.quantity || 1));
+    const installments = Math.min(4, Math.max(1, data.installments || 1));
+    const unitPrice = Number(app.price || 0);
+    const totalAmount = unitPrice * quantity;
+
     // Se app é gratuito, aprovar diretamente
-    const amount = Number(app.price || 0);
-    if (amount === 0) {
+    if (unitPrice === 0) {
       const paymentId = `FREE-${crypto.randomUUID()}`;
       await paymentRepository.create({
         id: paymentId,
@@ -435,21 +464,28 @@ export const paymentService = {
         userId: resolvedUserId,
         status: 'approved',
         amount: 0,
+        unitPrice: 0,
+        quantity,
+        installments: 1,
         currency: 'BRL',
         payerEmail,
         payerName,
       });
 
-      await licenseService.provisionLicense(appId, payerEmail, resolvedUserId, {
-        customerName: payerName,
-        paymentId,
-        price: 0,
-      });
+      // Provisiona múltiplas licenças conforme quantity
+      for (let i = 0; i < quantity; i++) {
+        await licenseService.provisionLicense(appId, payerEmail, resolvedUserId, {
+          customerName: payerName,
+          paymentId,
+          price: 0,
+        });
+      }
 
       return {
         success: true,
         payment_id: paymentId,
         status: 'approved',
+        quantity,
         license_key: await licenseService.getLicenseKeyByEmail(appId, payerEmail),
       };
     }
@@ -470,12 +506,12 @@ export const paymentService = {
     const items = [
       {
         id: `APP-${appId}`,
-        title: app.name,
+        title: quantity > 1 ? `${app.name} (${quantity} licenças)` : app.name,
         description: app.shortDescription || app.description?.substring(0, 200) || 'Aplicativo CodeCraft',
         picture_url: app.thumbUrl || undefined,
         category_id: 'software',
-        quantity: 1,
-        unit_price: amount,
+        quantity: quantity,
+        unit_price: unitPrice,
         type: 'software',
       },
     ];
@@ -483,11 +519,11 @@ export const paymentService = {
     // Montar payload de pagamento
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload: Record<string, any> = {
-      description: data.description || `Pagamento do app ${app.name}`,
+      description: data.description || `Pagamento do app ${app.name}${quantity > 1 ? ` (${quantity} licenças)` : ''}`,
       external_reference: data.external_reference || String(paymentId),
-      transaction_amount: amount,
+      transaction_amount: totalAmount,
       payment_method_id: data.payment_method_id,
-      ...(data.installments && data.installments > 0 ? { installments: data.installments } : {}),
+      installments: installments,
       ...(data.issuer_id ? { issuer_id: data.issuer_id } : {}),
       ...(data.token ? { token: data.token } : {}),
       payer: {
@@ -568,28 +604,28 @@ export const paymentService = {
       userId: resolvedUserId,
       preferenceId: mpPaymentId,
       status: mapMpStatus(status),
-      amount,
+      amount: totalAmount,
+      unitPrice,
+      quantity,
+      installments,
       currency: mpResponse.currency_id || 'BRL',
       payerEmail,
       payerName,
       mpResponseJson: JSON.stringify(mpResponse),
     });
 
-    // Se aprovado, provisionar licença (com proteção contra duplicação e erro)
+    // Se aprovado, provisionar licenças (com proteção contra duplicação e erro)
     if (status === 'approved') {
       try {
-        // Usar lock via flag no payment para evitar race condition com webhook
-        const existingLicense = await licenseService.getLicenseKeyByEmail(appId, payerEmail);
-        if (!existingLicense) {
+        // Provisiona múltiplas licenças conforme quantity
+        for (let i = 0; i < quantity; i++) {
           await licenseService.provisionLicense(appId, payerEmail, resolvedUserId, {
             customerName: payerName,
             paymentId,
-            price: amount,
+            price: unitPrice,
           });
-          logger.info({ paymentId, appId, email: payerEmail }, 'Licença provisionada via pagamento direto');
-        } else {
-          logger.info({ paymentId, appId, email: payerEmail }, 'Licença já existe - pulando provisionamento');
         }
+        logger.info({ paymentId, appId, email: payerEmail, quantity }, 'Licenças provisionadas via pagamento direto');
       } catch (licenseError) {
         // Log erro mas não falha o pagamento - webhook pode tentar novamente
         logger.error({ error: licenseError, paymentId, appId }, 'Erro ao provisionar licença (pagamento direto)');
@@ -603,6 +639,10 @@ export const paymentService = {
       mp_payment_id: mpPaymentId,
       status,
       status_detail: statusDetail,
+      quantity,
+      installments,
+      total_amount: totalAmount,
+      unit_price: unitPrice,
       result: mpResponse,
       // Dados para PIX
       point_of_interaction: mpResponse.point_of_interaction,
