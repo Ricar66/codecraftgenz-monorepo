@@ -119,16 +119,19 @@ model App {
 // =============================================
 
 model Payment {
-  id              String    @id 
+  id              String    @id
   appId           Int
   userId          Int?
-  preferenceId    String?   
-  status          String    @default("pending") 
+  preferenceId    String?
+  status          String    @default("pending")
   amount          Decimal   @db.Decimal(10, 2)
-  currency        String    @default("BRL") 
-  payerEmail      String?   
-  payerName       String?   
-  mpResponseJson  String?   
+  unitPrice       Decimal?  @db.Decimal(10, 2)  // Preço unitário por licença
+  quantity        Int       @default(1)          // Quantidade de licenças (1-10)
+  installments    Int       @default(1)          // Número de parcelas (1-4)
+  currency        String    @default("BRL")
+  payerEmail      String?
+  payerName       String?
+  mpResponseJson  String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

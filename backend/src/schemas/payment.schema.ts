@@ -10,6 +10,7 @@ export const purchaseSchema = z.object({
     email: z.string().email('Email inválido').optional(),
     name: z.string().min(1).optional(),
     paymentMethod: z.string().optional(), // pix, credit_card, etc
+    quantity: z.number().int().min(1).max(10).optional().default(1), // Quantidade de licenças (1-10)
   }).optional().default({}),
 });
 
@@ -22,7 +23,8 @@ export const directPaymentSchema = z.object({
     // Dados do pagamento
     token: z.string().optional(), // Token do cartão (MP.js)
     payment_method_id: z.string(), // master, visa, pix, ticket, etc
-    installments: z.number().int().positive().optional(),
+    installments: z.number().int().min(1).max(4).optional().default(1), // Parcelas (1-4)
+    quantity: z.number().int().min(1).max(10).optional().default(1), // Quantidade de licenças (1-10)
     description: z.string().optional(),
     binary_mode: z.boolean().optional(),
     capture: z.boolean().optional(),
