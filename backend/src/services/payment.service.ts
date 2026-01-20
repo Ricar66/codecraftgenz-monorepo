@@ -60,7 +60,12 @@ export const paymentService = {
       await licenseService.provisionLicense(
         payment.appId,
         payment.payerEmail!,
-        payment.userId ?? undefined
+        payment.userId ?? undefined,
+        {
+          customerName: payment.payerName || undefined,
+          paymentId: payment.id,
+          price: Number(payment.amount),
+        }
       );
     }
 
@@ -114,7 +119,11 @@ export const paymentService = {
 
       // Só provisiona licença se tiver email (para rastrear)
       if (data?.email) {
-        await licenseService.provisionLicense(appId, data.email, resolvedUserId);
+        await licenseService.provisionLicense(appId, data.email, resolvedUserId, {
+          customerName: data.name,
+          paymentId,
+          price: 0,
+        });
       }
 
       return {
@@ -330,7 +339,12 @@ export const paymentService = {
           await licenseService.provisionLicense(
             payment.appId,
             payment.payerEmail!,
-            payment.userId ?? undefined
+            payment.userId ?? undefined,
+            {
+              customerName: payment.payerName || undefined,
+              paymentId: payment.id,
+              price: Number(payment.amount),
+            }
           );
           logger.info({ paymentId: payment.id }, 'Licença provisionada via webhook');
         } else {
@@ -426,7 +440,11 @@ export const paymentService = {
         payerName,
       });
 
-      await licenseService.provisionLicense(appId, payerEmail, resolvedUserId);
+      await licenseService.provisionLicense(appId, payerEmail, resolvedUserId, {
+        customerName: payerName,
+        paymentId,
+        price: 0,
+      });
 
       return {
         success: true,
@@ -563,7 +581,11 @@ export const paymentService = {
         // Usar lock via flag no payment para evitar race condition com webhook
         const existingLicense = await licenseService.getLicenseKeyByEmail(appId, payerEmail);
         if (!existingLicense) {
-          await licenseService.provisionLicense(appId, payerEmail, resolvedUserId);
+          await licenseService.provisionLicense(appId, payerEmail, resolvedUserId, {
+            customerName: payerName,
+            paymentId,
+            price: amount,
+          });
           logger.info({ paymentId, appId, email: payerEmail }, 'Licença provisionada via pagamento direto');
         } else {
           logger.info({ paymentId, appId, email: payerEmail }, 'Licença já existe - pulando provisionamento');
