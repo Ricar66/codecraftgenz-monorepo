@@ -11,7 +11,9 @@ const MAX_DEVICES_PER_LICENSE = 1;
 export const licenseService = {
   async activateDevice(data: ActivateDeviceInput, ip?: string, userAgent?: string) {
     const appId = Number(data.app_id);
-    const { email, hardware_id } = data;
+    // Normalizar email para minúsculas para evitar problemas de case
+    const email = data.email.toLowerCase().trim();
+    const hardware_id = data.hardware_id;
 
     // Buscar app
     const app = await prisma.app.findUnique({
@@ -132,7 +134,9 @@ export const licenseService = {
 
   async verifyLicense(data: VerifyLicenseInput, ip?: string, userAgent?: string) {
     const appId = Number(data.app_id);
-    const { email, hardware_id } = data;
+    // Normalizar email para minúsculas para evitar problemas de case
+    const email = data.email.toLowerCase().trim();
+    const hardware_id = data.hardware_id;
 
     // Verificar se tem licença ativa para este dispositivo
     const license = await licenseRepository.findByAppEmailAndHardware(
