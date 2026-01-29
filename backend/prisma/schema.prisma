@@ -62,12 +62,13 @@ model PasswordReset {
 
 model Project {
   id          Int       @id @default(autoincrement())
-  nome        String    
-  descricao   String?   
-  status      String    @default("ativo") 
+  nome        String
+  descricao   String?
+  status      String    @default("ativo")
   preco       Decimal   @default(0) @db.Decimal(10, 2)
   progresso   Int       @default(0)
-  thumbUrl    String?   
+  thumbUrl    String?
+  tagsJson    String?   // Tecnologias do projeto em formato JSON
   mentorId    Int?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -383,7 +384,7 @@ model Feedback {
   userId      Int?
   appId       Int?
   rating      Int
-  comment     String?   
+  comment     String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -391,4 +392,27 @@ model Feedback {
   app         App?      @relation(fields: [appId], references: [id], onDelete: SetNull)
 
   @@map("feedbacks")
+}
+
+// =============================================
+// B2B PROPOSALS
+// =============================================
+
+model Proposal {
+  id            String    @id @default(uuid())
+  companyName   String
+  contactName   String
+  email         String
+  phone         String?
+  projectType   String    @default("custom")
+  budgetRange   String?
+  description   String?   @db.Text
+  status        String    @default("new")
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status])
+  @@index([email])
+  @@map("proposals")
 }

@@ -45,6 +45,7 @@ export const projectRepository = {
         preco: data.preco ?? 0,
         progresso: data.progresso ?? 0,
         thumbUrl: data.thumb_url,
+        tagsJson: data.tecnologias ? JSON.stringify(data.tecnologias) : null,
         mentorId: data.mentor_id,
       },
     });
@@ -60,6 +61,7 @@ export const projectRepository = {
         preco: data.preco,
         progresso: data.progresso,
         thumbUrl: data.thumb_url,
+        tagsJson: data.tecnologias ? JSON.stringify(data.tecnologias) : undefined,
         mentorId: data.mentor_id,
       },
     });
