@@ -22,9 +22,6 @@ export const getStats = async (req: Request, res: Response) => {
       craftersCount,
       projectsCount,
       appsCount,
-      proposalsCount,
-      newProposalsCount,
-      recentProposals,
     ] = await Promise.all([
       // Total finances
       prisma.finance.aggregate({
@@ -63,27 +60,6 @@ export const getStats = async (req: Request, res: Response) => {
       prisma.project.count(),
       // Apps count
       prisma.app.count(),
-      // Total proposals
-      prisma.proposal.count(),
-      // New proposals (last 7 days)
-      prisma.proposal.count({
-        where: {
-          createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-        },
-      }),
-      // Recent proposals
-      prisma.proposal.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          companyName: true,
-          contactName: true,
-          projectType: true,
-          status: true,
-          createdAt: true,
-        },
-      }),
     ]);
 
     // Calculate totals
@@ -105,27 +81,6 @@ export const getStats = async (req: Request, res: Response) => {
       }),
     ]);
 
-    // Proposals by status
-    const proposalsByStatus = await prisma.proposal.groupBy({
-      by: ['status'],
-      _count: { id: true },
-    });
-
-    const proposalStats = {
-      new: 0,
-      contacted: 0,
-      negotiating: 0,
-      approved: 0,
-      rejected: 0,
-    };
-
-    proposalsByStatus.forEach((p) => {
-      const status = p.status as keyof typeof proposalStats;
-      if (status in proposalStats) {
-        proposalStats[status] = p._count.id;
-      }
-    });
-
     res.json(
       success({
         finance: {
@@ -145,12 +100,6 @@ export const getStats = async (req: Request, res: Response) => {
         },
         apps: {
           total: appsCount,
-        },
-        proposals: {
-          total: proposalsCount,
-          new: newProposalsCount,
-          byStatus: proposalStats,
-          recent: recentProposals,
         },
         chartData,
         period: periodo,
@@ -208,7 +157,7 @@ async function generateChartData() {
  * GET /api/dashboard/kpis
  * Get key performance indicators
  */
-export const getKPIs = async (req: Request, res: Response) => {
+export const getKPIs = async (_req: Request, res: Response) => {
   try {
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -216,7 +165,7 @@ export const getKPIs = async (req: Request, res: Response) => {
     const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59);
 
     // Current month stats
-    const [currentMonthRevenue, lastMonthRevenue, newUsersThisMonth, newProposalsThisMonth] =
+    const [currentMonthRevenue, lastMonthRevenue, newUsersThisMonth] =
       await Promise.all([
         prisma.finance.aggregate({
           _sum: { valor: true },
@@ -235,9 +184,6 @@ export const getKPIs = async (req: Request, res: Response) => {
         prisma.user.count({
           where: { createdAt: { gte: startOfMonth } },
         }),
-        prisma.proposal.count({
-          where: { createdAt: { gte: startOfMonth } },
-        }),
       ]);
 
     const currentRevenue = Number(currentMonthRevenue._sum.valor) || 0;
@@ -252,7 +198,6 @@ export const getKPIs = async (req: Request, res: Response) => {
           growth: revenueGrowth.toFixed(1),
         },
         newUsers: newUsersThisMonth,
-        newProposals: newProposalsThisMonth,
       })
     );
   } catch (err) {
