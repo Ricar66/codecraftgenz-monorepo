@@ -30,6 +30,19 @@ export function success<T>(data?: T): ApiResponse<T> {
 }
 
 /**
+ * Create error response object (without sending)
+ */
+export function error(message: string, code = 'ERROR'): ApiResponse {
+  return {
+    success: false,
+    error: {
+      code,
+      message,
+    },
+  };
+}
+
+/**
  * Create paginated response object (without sending)
  */
 export function paginated<T>(
