@@ -64,11 +64,22 @@ function mapProject(project: {
   preco: unknown;
   progresso: number;
   thumbUrl: string | null;
+  tagsJson?: string | null;
   mentorId: number | null;
   createdAt: Date;
   updatedAt: Date;
   mentor?: { id: number; nome: string; especialidade?: string | null; bio?: string | null } | null;
 }) {
+  // Parse tecnologias do JSON
+  let tecnologias: string[] = [];
+  if (project.tagsJson) {
+    try {
+      tecnologias = JSON.parse(project.tagsJson);
+    } catch {
+      tecnologias = [];
+    }
+  }
+
   return {
     id: project.id,
     nome: project.nome,
@@ -77,6 +88,7 @@ function mapProject(project: {
     preco: Number(project.preco),
     progresso: project.progresso,
     thumb_url: project.thumbUrl,
+    tecnologias: tecnologias,
     mentor_id: project.mentorId,
     mentor: project.mentor
       ? {
