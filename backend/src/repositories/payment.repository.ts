@@ -10,7 +10,8 @@ export const paymentRepository = {
 
     if (app_id) where.appId = app_id;
     if (status) where.status = status;
-    if (email) where.payerEmail = { contains: email, mode: 'insensitive' };
+    // MySQL: case-insensitive by default (depends on collation), remove 'mode' for compatibility
+    if (email) where.payerEmail = { contains: email };
 
     if (from_date || to_date) {
       where.createdAt = {};
