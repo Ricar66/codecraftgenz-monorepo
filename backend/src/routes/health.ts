@@ -339,4 +339,39 @@ router.get('/ftp/list', async (req, res) => {
   }
 });
 
+/**
+ * POST /health/admin/clear-licenses
+ * Limpa todas as licenças e logs de ativação (CUIDADO!)
+ */
+router.post('/admin/clear-licenses', async (req, res) => {
+  const { admin_token, app_id } = req.body;
+
+  // Sempre requer token de admin
+  if (admin_token !== env.ADMIN_RESET_TOKEN) {
+    sendError(res, 403, 'FORBIDDEN', 'Token de admin requerido');
+    return;
+  }
+
+  try {
+    const where = app_id ? { appId: Number(app_id) } : {};
+
+    // Deletar logs de ativação primeiro (FK)
+    const deletedActivations = await prisma.licenseActivation.deleteMany({ where });
+
+    // Deletar licenças
+    const deletedLicenses = await prisma.license.deleteMany({ where });
+
+    sendSuccess(res, {
+      message: app_id
+        ? `Licenças do app ${app_id} removidas`
+        : 'Todas as licenças removidas',
+      deleted_licenses: deletedLicenses.count,
+      deleted_activations: deletedActivations.count,
+    });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    sendError(res, 500, 'CLEAR_FAILED', `Erro ao limpar licenças: ${errMsg}`);
+  }
+});
+
 export default router;
