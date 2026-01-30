@@ -60,7 +60,8 @@ function createTransporter() {
 }
 
 // URL do logo da empresa (hospedado no site de produção)
-const LOGO_URL = 'https://codecraftgenz.com.br/assets/logoofficial.png';
+// Usando o logo-principal.png que está na raiz do public
+const LOGO_URL = 'https://codecraftgenz.com.br/logo-principal.png';
 
 /**
  * Gera o template HTML do email de compra
@@ -100,7 +101,7 @@ function generatePurchaseEmailHtml(data: PurchaseEmailData): string {
                 <tr>
                   <td style="text-align: center;">
                     <!-- Logo da empresa -->
-                    <img src="${LOGO_URL}" alt="CodeCraft Gen-Z" style="max-width: 280px; height: auto; margin-bottom: 20px;" />
+                    <img src="${LOGO_URL}" alt="CodeCraft Gen-Z" title="CodeCraft Gen-Z" style="max-width: 280px; height: auto; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto;" />
                     <h1 style="margin: 0; color: #00E4F2; font-size: 28px; font-weight: 700;">
                       Compra Confirmada!
                     </h1>
@@ -236,7 +237,7 @@ function generatePurchaseEmailHtml(data: PurchaseEmailData): string {
           <tr>
             <td style="background: linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 100%); padding: 32px 40px; text-align: center; border-top: 1px solid #333;">
               <!-- Logo pequeno no footer -->
-              <img src="${LOGO_URL}" alt="CodeCraft Gen-Z" style="max-width: 150px; height: auto; margin-bottom: 16px; opacity: 0.8;" />
+              <img src="${LOGO_URL}" alt="CodeCraft Gen-Z" title="CodeCraft Gen-Z" style="max-width: 150px; height: auto; margin-bottom: 16px; opacity: 0.9; display: block; margin-left: auto; margin-right: auto;" />
               <p style="margin: 0 0 8px; color: #D12BF2; font-size: 14px; font-weight: 500;">
                 Transformando ideias em código
               </p>
