@@ -340,6 +340,51 @@ router.get('/ftp/list', async (req, res) => {
 });
 
 /**
+ * POST /health/admin/create-payment
+ * Cria um pagamento aprovado para testes (requer admin token)
+ */
+router.post('/admin/create-payment', async (req, res) => {
+  const { admin_token, app_id, email, name, amount = 0 } = req.body;
+
+  if (admin_token !== env.ADMIN_RESET_TOKEN) {
+    sendError(res, 403, 'FORBIDDEN', 'Token de admin requerido');
+    return;
+  }
+
+  if (!app_id || !email) {
+    sendError(res, 400, 'INVALID_INPUT', 'app_id e email são obrigatórios');
+    return;
+  }
+
+  try {
+    const paymentId = `ADMIN-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    const payment = await prisma.payment.create({
+      data: {
+        id: paymentId,
+        appId: Number(app_id),
+        status: 'approved',
+        amount: Number(amount),
+        currency: 'BRL',
+        payerEmail: email.toLowerCase().trim(),
+        payerName: name || 'Admin Test',
+      },
+    });
+
+    sendSuccess(res, {
+      payment_id: payment.id,
+      app_id: payment.appId,
+      email: payment.payerEmail,
+      status: payment.status,
+      message: 'Pagamento aprovado criado com sucesso',
+    });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    sendError(res, 500, 'CREATE_FAILED', `Erro ao criar pagamento: ${errMsg}`);
+  }
+});
+
+/**
  * POST /health/admin/clear-licenses
  * Limpa todas as licenças e logs de ativação (CUIDADO!)
  */
