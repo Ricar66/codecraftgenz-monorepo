@@ -195,13 +195,13 @@ model LicenseActivation {
 
 model Crafter {
   id          Int       @id @default(autoincrement())
-  nome        String    
-  email       String?   
-  bio         String?   
-  avatarUrl   String?   
-  githubUrl   String?   
-  linkedinUrl String?   
-  skillsJson  String?   
+  nome        String
+  email       String?
+  bio         String?   @db.Text
+  avatarUrl   String?   @db.Text  // Allows Base64 data URLs
+  githubUrl   String?
+  linkedinUrl String?
+  skillsJson  String?   @db.Text
   pontos      Int       @default(0)
   equipeId    Int?
   userId      Int?      @unique
@@ -268,13 +268,13 @@ model RankingSettings {
 
 model Mentor {
   id          Int       @id @default(autoincrement())
-  nome        String    
-  email       String?   
-  bio         String?   
-  especialidade String? 
-  avatarUrl   String?   
-  linkedinUrl String?   
-  githubUrl   String?   
+  nome        String
+  email       String?
+  bio         String?   @db.Text
+  especialidade String?
+  avatarUrl   String?   @db.Text  // Allows Base64 data URLs
+  linkedinUrl String?
+  githubUrl   String?
   disponivel  Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
