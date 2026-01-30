@@ -18,6 +18,10 @@ export const getStats = async (req: Request, res: Response) => {
       paidFinances,
       pendingFinances,
       discountFinances,
+      // Mercado Pago payments (apps sales)
+      approvedPayments,
+      pendingPayments,
+      paymentsCount,
       usersCount,
       craftersCount,
       projectsCount,
@@ -52,6 +56,26 @@ export const getStats = async (req: Request, res: Response) => {
           status: { in: ['discount', 'desconto'] },
         },
       }),
+      // Approved Payments from MP (apps sales)
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: {
+          createdAt: { gte: fromDate },
+          status: 'approved',
+        },
+      }),
+      // Pending Payments from MP
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: {
+          createdAt: { gte: fromDate },
+          status: 'pending',
+        },
+      }),
+      // Total payments count
+      prisma.payment.count({
+        where: { createdAt: { gte: fromDate } },
+      }),
       // Users count
       prisma.user.count(),
       // Crafters count
@@ -62,11 +86,20 @@ export const getStats = async (req: Request, res: Response) => {
       prisma.app.count(),
     ]);
 
-    // Calculate totals
-    const totalReceita = Number(totalFinances._sum.valor) || 0;
-    const receitaPaga = Number(paidFinances._sum.valor) || 0;
-    const receitaPendente = Number(pendingFinances._sum.valor) || 0;
+    // Calculate totals (Finance + Payments)
+    const financeTotal = Number(totalFinances._sum.valor) || 0;
+    const financePaid = Number(paidFinances._sum.valor) || 0;
+    const financePending = Number(pendingFinances._sum.valor) || 0;
     const descontos = Number(discountFinances._sum.valor) || 0;
+
+    // Payments from Mercado Pago
+    const paymentsPaid = Number(approvedPayments._sum.amount) || 0;
+    const paymentsPending = Number(pendingPayments._sum.amount) || 0;
+
+    // Combined totals
+    const totalReceita = financeTotal + paymentsPaid + paymentsPending;
+    const receitaPaga = financePaid + paymentsPaid;
+    const receitaPendente = financePending + paymentsPending;
 
     // Generate chart data (last 6 months)
     const chartData = await generateChartData();
@@ -88,6 +121,11 @@ export const getStats = async (req: Request, res: Response) => {
           paid: receitaPaga,
           pending: receitaPendente,
           discounts: descontos,
+        },
+        payments: {
+          total: paymentsCount,
+          approved: paymentsPaid,
+          pending: paymentsPending,
         },
         users: {
           total: usersCount,
@@ -113,6 +151,7 @@ export const getStats = async (req: Request, res: Response) => {
 
 /**
  * Generate monthly chart data for the last 6 months
+ * Includes both Finance records and Payment records (Mercado Pago)
  */
 async function generateChartData() {
   const months: Array<{ month: string; revenue: number; expenses: number }> = [];
@@ -125,8 +164,9 @@ async function generateChartData() {
 
     const monthName = date.toLocaleString('pt-BR', { month: 'short' });
 
-    // Get finances for this month
-    const [paidSum, pendingSum] = await Promise.all([
+    // Get finances and payments for this month
+    const [paidFinanceSum, pendingFinanceSum, approvedPaymentsSum] = await Promise.all([
+      // Paid finances
       prisma.finance.aggregate({
         _sum: { valor: true },
         where: {
@@ -134,6 +174,7 @@ async function generateChartData() {
           status: { in: ['paid', 'pago'] },
         },
       }),
+      // Pending finances
       prisma.finance.aggregate({
         _sum: { valor: true },
         where: {
@@ -141,12 +182,23 @@ async function generateChartData() {
           status: { in: ['pending', 'pendente'] },
         },
       }),
+      // Approved payments from MP
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: {
+          createdAt: { gte: startOfMonth, lte: endOfMonth },
+          status: 'approved',
+        },
+      }),
     ]);
+
+    // Revenue = paid finances + approved payments
+    const revenue = (Number(paidFinanceSum._sum.valor) || 0) + (Number(approvedPaymentsSum._sum.amount) || 0);
 
     months.push({
       month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
-      revenue: Number(paidSum._sum.valor) || 0,
-      expenses: Number(pendingSum._sum.valor) || 0,
+      revenue,
+      expenses: Number(pendingFinanceSum._sum.valor) || 0,
     });
   }
 
@@ -164,30 +216,60 @@ export const getKPIs = async (_req: Request, res: Response) => {
     const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59);
 
-    // Current month stats
-    const [currentMonthRevenue, lastMonthRevenue, newUsersThisMonth] =
-      await Promise.all([
-        prisma.finance.aggregate({
-          _sum: { valor: true },
-          where: {
-            createdAt: { gte: startOfMonth },
-            status: { in: ['paid', 'pago'] },
-          },
-        }),
-        prisma.finance.aggregate({
-          _sum: { valor: true },
-          where: {
-            createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
-            status: { in: ['paid', 'pago'] },
-          },
-        }),
-        prisma.user.count({
-          where: { createdAt: { gte: startOfMonth } },
-        }),
-      ]);
+    // Current month stats (Finance + Payments)
+    const [
+      currentMonthFinance,
+      lastMonthFinance,
+      currentMonthPayments,
+      lastMonthPayments,
+      newUsersThisMonth,
+    ] = await Promise.all([
+      // Current month finances
+      prisma.finance.aggregate({
+        _sum: { valor: true },
+        where: {
+          createdAt: { gte: startOfMonth },
+          status: { in: ['paid', 'pago'] },
+        },
+      }),
+      // Last month finances
+      prisma.finance.aggregate({
+        _sum: { valor: true },
+        where: {
+          createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
+          status: { in: ['paid', 'pago'] },
+        },
+      }),
+      // Current month payments (MP)
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: {
+          createdAt: { gte: startOfMonth },
+          status: 'approved',
+        },
+      }),
+      // Last month payments (MP)
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: {
+          createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
+          status: 'approved',
+        },
+      }),
+      // New users this month
+      prisma.user.count({
+        where: { createdAt: { gte: startOfMonth } },
+      }),
+    ]);
 
-    const currentRevenue = Number(currentMonthRevenue._sum.valor) || 0;
-    const lastRevenue = Number(lastMonthRevenue._sum.valor) || 0;
+    // Combined revenue (Finance + Payments)
+    const currentRevenue =
+      (Number(currentMonthFinance._sum.valor) || 0) +
+      (Number(currentMonthPayments._sum.amount) || 0);
+    const lastRevenue =
+      (Number(lastMonthFinance._sum.valor) || 0) +
+      (Number(lastMonthPayments._sum.amount) || 0);
+
     const revenueGrowth = lastRevenue > 0 ? ((currentRevenue - lastRevenue) / lastRevenue) * 100 : 0;
 
     res.json(
