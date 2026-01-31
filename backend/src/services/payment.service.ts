@@ -56,7 +56,7 @@ export const paymentService = {
 
     const updated = await paymentRepository.updateStatus(id, data.status);
 
-    // Se aprovado, provisionar licença
+    // Se aprovado, provisionar licença (email será enviado pelo fluxo principal, não aqui)
     if (data.status === 'approved' && payment.status !== 'approved') {
       await licenseService.provisionLicense(
         payment.appId,
@@ -66,6 +66,7 @@ export const paymentService = {
           customerName: payment.payerName || undefined,
           paymentId: payment.id,
           price: Number(payment.amount),
+          sendEmail: false, // Email enviado separadamente
         }
       );
     }
@@ -129,18 +130,19 @@ export const paymentService = {
       // Só provisiona licenças se tiver email (para rastrear)
       let licenseKey: string | undefined;
       if (data?.email) {
-        // Provisiona múltiplas licenças conforme quantity
+        // Provisiona múltiplas licenças conforme quantity (email enviado separadamente)
         for (let i = 0; i < quantity; i++) {
           await licenseService.provisionLicense(appId, data.email, resolvedUserId, {
             customerName: data.name,
             paymentId,
             price: 0,
+            sendEmail: false, // Email enviado separadamente abaixo
           });
         }
         // Obter chave de licença para o email
         licenseKey = await licenseService.getLicenseKeyByEmail(appId, data.email) || undefined;
 
-        // Enviar email de confirmação (app gratuito)
+        // Enviar email de confirmação (app gratuito) - ÚNICO email enviado
         sendPurchaseEmail({
           appId,
           appName: app.name,
@@ -385,6 +387,7 @@ export const paymentService = {
               customerName: payment.payerName || undefined,
               paymentId: payment.id,
               price: Number(payment.amount),
+              sendEmail: false, // Email enviado separadamente abaixo
             }
           );
           logger.info({ paymentId: payment.id }, 'Licença provisionada via webhook');
@@ -718,12 +721,13 @@ export const paymentService = {
     let licenseKey: string | undefined;
     if (status === 'approved') {
       try {
-        // Provisiona múltiplas licenças conforme quantity
+        // Provisiona múltiplas licenças conforme quantity (email enviado separadamente)
         for (let i = 0; i < quantity; i++) {
           await licenseService.provisionLicense(appId, payerEmail, resolvedUserId, {
             customerName: payerName,
             paymentId,
             price: unitPrice,
+            sendEmail: false, // Email enviado separadamente abaixo
           });
         }
         logger.info({ paymentId, appId, email: payerEmail, quantity }, 'Licenças provisionadas via pagamento direto');
@@ -735,7 +739,7 @@ export const paymentService = {
         logger.error({ error: licenseError, paymentId, appId }, 'Erro ao provisionar licença (pagamento direto)');
       }
 
-      // Enviar email de confirmação (pagamento direto aprovado)
+      // Enviar email de confirmação (pagamento direto aprovado) - ÚNICO email enviado
       sendPurchaseEmail({
         appId,
         appName: app.name,
