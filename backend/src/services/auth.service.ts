@@ -207,10 +207,12 @@ export const authService = {
 
     logger.info({ userId: user.id }, 'Password reset token created');
 
-    // TODO: Send email with reset link
+    // TODO: Implementar envio de email com link de reset
+    // O token NÃO deve ser retornado na API - apenas enviado por email
     // await emailService.sendPasswordReset(user.email, token);
 
-    return { token }; // In production, don't return token - send via email
+    // Por segurança, não revelamos se o email existe ou não
+    // Retornamos sempre a mesma mensagem
   },
 
   /**
