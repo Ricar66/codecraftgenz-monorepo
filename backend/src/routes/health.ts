@@ -1,9 +1,35 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../db/prisma.js';
 import { sendSuccess, sendError } from '../utils/response.js';
 import { env, isProd } from '../config/env.js';
 import { isFtpConfigured } from '../services/ftp.service.js';
 import { emailService } from '../services/email.service.js';
+import { sensitiveLimiter } from '../middlewares/rateLimiter.js';
+
+/**
+ * Middleware para validar token de admin via header
+ * Mais seguro que passar via body/query
+ */
+function requireAdminToken(req: Request, res: Response, next: NextFunction): void {
+  // Aceita token via header (preferido) ou body (legacy)
+  const headerToken = req.headers['x-admin-token'] as string | undefined;
+  const bodyToken = req.body?.admin_token as string | undefined;
+  const queryToken = req.query?.admin_token as string | undefined;
+
+  const token = headerToken || bodyToken || queryToken;
+
+  if (!token) {
+    sendError(res, 401, 'UNAUTHORIZED', 'Token de admin requerido. Use header x-admin-token');
+    return;
+  }
+
+  if (token !== env.ADMIN_RESET_TOKEN) {
+    sendError(res, 403, 'FORBIDDEN', 'Token de admin inválido');
+    return;
+  }
+
+  next();
+}
 
 // Mercado Pago SDK - importação condicional
 let MercadoPagoConfig: unknown;
@@ -202,17 +228,11 @@ router.get('/email', async (_req, res) => {
 });
 
 /**
- * POST /health/email/test
- * Send a test email (requires admin token in production)
+ * POST /health/admin/test-email
+ * Send a test email (requires admin token via header)
  */
-router.post('/email/test', async (req, res) => {
-  const { to, admin_token } = req.body;
-
-  // Em produção, requer token de admin
-  if (isProd && admin_token !== env.ADMIN_RESET_TOKEN) {
-    sendError(res, 403, 'FORBIDDEN', 'Token de admin requerido em produção');
-    return;
-  }
+router.post('/admin/test-email', sensitiveLimiter, requireAdminToken, async (req, res) => {
+  const { to } = req.body;
 
   if (!to) {
     sendError(res, 400, 'INVALID_INPUT', 'Campo "to" é obrigatório');
@@ -243,18 +263,10 @@ router.post('/email/test', async (req, res) => {
 });
 
 /**
- * POST /health/ftp/test
+ * POST /health/admin/test-ftp
  * Test FTP upload by sending a small test file
  */
-router.post('/ftp/test', async (req, res) => {
-  const { admin_token } = req.body;
-
-  // Em produção, requer token de admin
-  if (isProd && admin_token !== env.ADMIN_RESET_TOKEN) {
-    sendError(res, 403, 'FORBIDDEN', 'Token de admin requerido em produção');
-    return;
-  }
-
+router.post('/admin/test-ftp', sensitiveLimiter, requireAdminToken, async (_req, res) => {
   if (!isFtpConfigured()) {
     sendError(res, 503, 'FTP_NOT_CONFIGURED', 'FTP não está configurado');
     return;
@@ -287,18 +299,10 @@ router.post('/ftp/test', async (req, res) => {
 });
 
 /**
- * GET /health/ftp/list
+ * GET /health/admin/ftp-list
  * List files in the downloads directory (for debugging)
  */
-router.get('/ftp/list', async (req, res) => {
-  const { admin_token } = req.query;
-
-  // Em produção, requer token de admin
-  if (isProd && admin_token !== env.ADMIN_RESET_TOKEN) {
-    sendError(res, 403, 'FORBIDDEN', 'Token de admin requerido em produção');
-    return;
-  }
-
+router.get('/admin/ftp-list', sensitiveLimiter, requireAdminToken, async (_req, res) => {
   if (!isFtpConfigured()) {
     sendError(res, 503, 'FTP_NOT_CONFIGURED', 'FTP não está configurado');
     return;
@@ -341,15 +345,10 @@ router.get('/ftp/list', async (req, res) => {
 
 /**
  * POST /health/admin/create-payment
- * Cria um pagamento aprovado para testes (requer admin token)
+ * Cria um pagamento aprovado para testes (requer admin token via header)
  */
-router.post('/admin/create-payment', async (req, res) => {
-  const { admin_token, app_id, email, name, amount = 0 } = req.body;
-
-  if (admin_token !== env.ADMIN_RESET_TOKEN) {
-    sendError(res, 403, 'FORBIDDEN', 'Token de admin requerido');
-    return;
-  }
+router.post('/admin/create-payment', sensitiveLimiter, requireAdminToken, async (req, res) => {
+  const { app_id, email, name, amount = 0 } = req.body;
 
   if (!app_id || !email) {
     sendError(res, 400, 'INVALID_INPUT', 'app_id e email são obrigatórios');
@@ -388,14 +387,8 @@ router.post('/admin/create-payment', async (req, res) => {
  * POST /health/admin/clear-licenses
  * Limpa todas as licenças e logs de ativação (CUIDADO!)
  */
-router.post('/admin/clear-licenses', async (req, res) => {
-  const { admin_token, app_id } = req.body;
-
-  // Sempre requer token de admin
-  if (admin_token !== env.ADMIN_RESET_TOKEN) {
-    sendError(res, 403, 'FORBIDDEN', 'Token de admin requerido');
-    return;
-  }
+router.post('/admin/clear-licenses', sensitiveLimiter, requireAdminToken, async (req, res) => {
+  const { app_id } = req.body;
 
   try {
     const where = app_id ? { appId: Number(app_id) } : {};
