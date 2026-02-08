@@ -653,6 +653,11 @@ export const paymentService = {
       notification_url: env.MP_WEBHOOK_URL,
     };
 
+    // PIX: adicionar expiração (padrão 24h) para geração correta do QR Code
+    if (data.payment_method_id === 'pix') {
+      payload.date_of_expiration = data.date_of_expiration || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    }
+
     // Chamar API de pagamentos do Mercado Pago
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${env.MP_ACCESS_TOKEN}`,

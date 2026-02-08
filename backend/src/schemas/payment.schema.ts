@@ -29,6 +29,7 @@ export const directPaymentSchema = z.object({
     binary_mode: z.boolean().optional(),
     capture: z.boolean().optional(),
     external_reference: z.string().optional(),
+    date_of_expiration: z.string().optional(), // ISO date for PIX expiration
     issuer_id: z.string().or(z.number()).optional(),
 
     // Dados do pagador
