@@ -44,6 +44,9 @@ function createTransporter() {
         user: env.EMAIL_USER,
         pass: env.EMAIL_PASS,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
   }
 
@@ -56,6 +59,9 @@ function createTransporter() {
       user: env.EMAIL_USER,
       pass: env.EMAIL_PASS,
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 }
 
