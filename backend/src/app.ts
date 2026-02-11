@@ -83,6 +83,7 @@ app.use(
       'x-mp-device-id',
       'x-tracking-id',
       'x-idempotency-key',
+      'x-admin-token',
     ],
   })
 );
