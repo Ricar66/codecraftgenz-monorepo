@@ -236,6 +236,7 @@ function mapApp(app: {
   thumbUrl: string | null;
   screenshots: string | null;
   executableUrl: string | null;
+  platforms: string | null;
   version: string;
   status: string;
   featured: boolean;
@@ -257,6 +258,7 @@ function mapApp(app: {
     thumb_url: app.thumbUrl,
     screenshots: parseJson(app.screenshots, []),
     executable_url: app.executableUrl,
+    platforms: parseJson(app.platforms, ['windows']),
     version: app.version,
     status: app.status,
     featured: app.featured,
@@ -283,6 +285,7 @@ function mapAppDetailed(app: {
   thumbUrl: string | null;
   screenshots: string | null;
   executableUrl: string | null;
+  platforms: string | null;
   version: string;
   status: string;
   featured: boolean;

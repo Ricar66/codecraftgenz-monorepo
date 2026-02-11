@@ -95,9 +95,10 @@ model App {
   tags            String?   
   thumbUrl        String?   
   screenshots     String?   
-  executableUrl   String?   
-  version         String    @default("1.0.0") 
-  status          String    @default("draft") 
+  executableUrl   String?
+  platforms       String?   @default("windows") // JSON: ["windows","macos","linux"]
+  version         String    @default("1.0.0")
+  status          String    @default("draft")
   featured        Boolean   @default(false)
   downloadCount   Int       @default(0)
 
