@@ -4,6 +4,7 @@ import { sendSuccess, sendError } from '../utils/response.js';
 import { env, isProd } from '../config/env.js';
 import { isFtpConfigured } from '../services/ftp.service.js';
 import { emailService } from '../services/email.service.js';
+import { licenseService } from '../services/license.service.js';
 import { sensitiveLimiter } from '../middlewares/rateLimiter.js';
 
 /**
@@ -380,6 +381,44 @@ router.post('/admin/create-payment', sensitiveLimiter, requireAdminToken, async 
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     sendError(res, 500, 'CREATE_FAILED', `Erro ao criar pagamento: ${errMsg}`);
+  }
+});
+
+/**
+ * POST /health/admin/provision-license
+ * Provisiona uma licença para um app (requer admin token via header)
+ */
+router.post('/admin/provision-license', sensitiveLimiter, requireAdminToken, async (req, res) => {
+  const { app_id, email, name, payment_id } = req.body;
+
+  if (!app_id || !email) {
+    sendError(res, 400, 'INVALID_INPUT', 'app_id e email são obrigatórios');
+    return;
+  }
+
+  try {
+    const license = await licenseService.provisionLicense(
+      Number(app_id),
+      email.toLowerCase().trim(),
+      undefined,
+      {
+        customerName: name || undefined,
+        paymentId: payment_id || `ADMIN-${Date.now()}`,
+        price: 0,
+        sendEmail: false,
+      }
+    );
+
+    sendSuccess(res, {
+      license_id: license.id,
+      license_key: license.licenseKey,
+      email: license.email,
+      app_id: license.appId,
+      message: 'Licença provisionada com sucesso',
+    });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    sendError(res, 500, 'PROVISION_FAILED', `Erro ao provisionar licença: ${errMsg}`);
   }
 });
 
