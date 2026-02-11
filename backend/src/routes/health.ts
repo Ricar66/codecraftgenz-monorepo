@@ -385,6 +385,79 @@ router.post('/admin/create-payment', sensitiveLimiter, requireAdminToken, async 
 });
 
 /**
+ * GET /health/admin/licenses
+ * Lista licenças com filtros (requer admin token via header)
+ */
+router.get('/admin/licenses', sensitiveLimiter, requireAdminToken, async (req, res) => {
+  const { app_id, email, page = '1', limit = '50' } = req.query as Record<string, string>;
+
+  try {
+    const where: Record<string, unknown> = {};
+    if (app_id) where.appId = Number(app_id);
+    if (email) where.email = { contains: email.toLowerCase().trim() };
+
+    const pageNum = Math.max(1, Number(page));
+    const take = Math.min(100, Math.max(1, Number(limit)));
+    const skip = (pageNum - 1) * take;
+
+    const [licenses, total] = await Promise.all([
+      prisma.license.findMany({
+        where,
+        include: {
+          app: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      prisma.license.count({ where }),
+    ]);
+
+    sendSuccess(res, {
+      licenses: licenses.map(l => ({
+        id: l.id,
+        app_id: l.appId,
+        app_name: l.app?.name || null,
+        email: l.email,
+        hardware_id: l.hardwareId,
+        license_key: l.licenseKey,
+        activated_at: l.activatedAt,
+        created_at: l.createdAt,
+      })),
+      total,
+      page: pageNum,
+      pages: Math.ceil(total / take),
+    });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    sendError(res, 500, 'LIST_FAILED', `Erro ao listar licenças: ${errMsg}`);
+  }
+});
+
+/**
+ * DELETE /health/admin/licenses/:id
+ * Remove uma licença específica (requer admin token via header)
+ */
+router.delete('/admin/licenses/:id', sensitiveLimiter, requireAdminToken, async (req, res) => {
+  const licenseId = Number(req.params.id);
+
+  if (!licenseId || isNaN(licenseId)) {
+    sendError(res, 400, 'INVALID_INPUT', 'ID da licença é obrigatório');
+    return;
+  }
+
+  try {
+    await prisma.licenseActivation.deleteMany({ where: { licenseId } });
+    await prisma.license.delete({ where: { id: licenseId } });
+
+    sendSuccess(res, { message: 'Licença removida com sucesso', license_id: licenseId });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    sendError(res, 500, 'DELETE_FAILED', `Erro ao remover licença: ${errMsg}`);
+  }
+});
+
+/**
  * POST /health/admin/provision-license
  * Provisiona uma licença para um app (requer admin token via header)
  */
