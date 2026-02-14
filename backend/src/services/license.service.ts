@@ -62,6 +62,34 @@ export const licenseService = {
       };
     }
 
+    // Verificar se tem licença admin-provisionada (sem hardware_id)
+    const unboundLicense = await licenseRepository.findAvailableSlot(appId, email);
+    if (unboundLicense) {
+      // Ativar dispositivo na licença existente (admin-provisionada ou slot livre)
+      const license = await licenseRepository.activateDevice(unboundLicense.id, hardware_id);
+
+      await licenseRepository.logActivation({
+        appId,
+        email,
+        hardwareId: hardware_id,
+        licenseId: license.id,
+        action: 'activate',
+        status: 'success',
+        message: 'Dispositivo ativado em licença existente',
+        ip,
+        userAgent,
+      });
+
+      logger.info({ appId, email, hardwareId: hardware_id }, 'Dispositivo ativado (licença existente)');
+
+      return {
+        success: true,
+        message: 'Dispositivo ativado com sucesso',
+        license_key: license.licenseKey,
+        app_name: app.name,
+      };
+    }
+
     // Verificar se tem compra aprovada
     const approvedCount = await paymentRepository.countApprovedByEmailAndApp(email, appId);
     if (approvedCount === 0) {
@@ -94,7 +122,7 @@ export const licenseService = {
       throw AppError.forbidden(`Limite de ${MAX_DEVICES_PER_LICENSE} dispositivos por licença atingido`);
     }
 
-    // Buscar slot disponível ou criar nova licença
+    // Criar nova licença com o dispositivo
     let license = await licenseRepository.findAvailableSlot(appId, email);
 
     if (license) {
