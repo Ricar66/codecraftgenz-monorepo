@@ -19,6 +19,7 @@ import dashboardRoutes from './dashboard.js';
 import feedbackRoutes from './feedbacks.js';
 import downloadRoutes from './downloads.js';
 import integrationRoutes from './integrations.js';
+import hubRoutes from './hub.js';
 import testRoutes from './test.js';
 
 const router = Router();
@@ -45,6 +46,7 @@ router.use('/api/dashboard', dashboardRoutes);
 // router.use('/api/proposals', proposalRoutes); // TODO: Add proposals routes
 router.use('/api/feedbacks', feedbackRoutes);
 router.use('/api/downloads', downloadRoutes);
+router.use('/api/hub', hubRoutes); // CodeCraft Hub (desktop launcher)
 router.use('/api', integrationRoutes); // Mercado Livre OAuth
 router.use('/api/test', testRoutes); // Test routes (blocked in production)
 
