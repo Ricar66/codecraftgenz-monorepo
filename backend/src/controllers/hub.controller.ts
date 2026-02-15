@@ -9,7 +9,8 @@ export const hubController = {
       const userId = req.user!.id;
       const userEmail = req.user!.email;
 
-      const apps = await hubService.getAppsWithLicenseStatus(userId, userEmail);
+      const userRole = req.user!.role;
+      const apps = await hubService.getAppsWithLicenseStatus(userId, userEmail, userRole);
       res.json(success({ apps }));
     } catch (error) {
       logger.error({ error }, 'Erro ao buscar apps do hub');

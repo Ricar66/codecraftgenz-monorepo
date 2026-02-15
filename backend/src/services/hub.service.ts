@@ -2,7 +2,7 @@ import { prisma } from '../db/prisma.js';
 import { logger } from '../utils/logger.js';
 
 export const hubService = {
-  async getAppsWithLicenseStatus(userId: number, userEmail: string) {
+  async getAppsWithLicenseStatus(userId: number, userEmail: string, userRole?: string) {
     // Buscar todos os apps publicados/disponíveis
     const apps = await prisma.app.findMany({
       where: {
@@ -54,7 +54,7 @@ export const hubService = {
       version: app.version,
       featured: app.featured,
       download_count: app.downloadCount,
-      owned: licenseMap.has(app.id),
+      owned: userRole === 'admin' || licenseMap.has(app.id),
       license_key: licenseMap.get(app.id)?.licenseKey ?? null,
     }));
   },
