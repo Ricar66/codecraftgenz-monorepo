@@ -114,6 +114,33 @@ export const getStats = async (req: Request, res: Response) => {
       }),
     ]);
 
+    // Sales per app (approved payments grouped by app)
+    const salesByApp = await prisma.payment.groupBy({
+      by: ['appId'],
+      where: { status: 'approved' },
+      _count: true,
+      _sum: { amount: true },
+    });
+
+    const appIds = salesByApp.map(s => s.appId);
+    const appsInfo = appIds.length > 0
+      ? await prisma.app.findMany({
+          where: { id: { in: appIds } },
+          select: { id: true, name: true, thumbUrl: true },
+        })
+      : [];
+
+    const salesPerApp = salesByApp.map(s => {
+      const app = appsInfo.find(a => a.id === s.appId);
+      return {
+        app_id: s.appId,
+        app_name: app?.name ?? 'App removido',
+        thumb_url: app?.thumbUrl ?? null,
+        sales_count: s._count,
+        total_revenue: Number(s._sum.amount ?? 0),
+      };
+    }).sort((a, b) => b.total_revenue - a.total_revenue);
+
     res.json(
       success({
         finance: {
@@ -139,6 +166,7 @@ export const getStats = async (req: Request, res: Response) => {
         apps: {
           total: appsCount,
         },
+        salesPerApp,
         chartData,
         period: periodo,
       })
