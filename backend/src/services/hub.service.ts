@@ -3,10 +3,11 @@ import { logger } from '../utils/logger.js';
 
 export const hubService = {
   async getAppsWithLicenseStatus(userId: number, userEmail: string, userRole?: string) {
-    // Buscar todos os apps publicados/disponíveis
+    // Buscar todos os apps publicados/disponíveis (exclui o próprio Hub)
     const apps = await prisma.app.findMany({
       where: {
         status: { in: ['published', 'available'] },
+        name: { not: 'CodeCraft Hub' },
       },
       orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
     });
