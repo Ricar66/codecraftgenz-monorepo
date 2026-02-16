@@ -149,8 +149,51 @@ export const deleteFromHostinger = async (fileName: string): Promise<void> => {
   }
 };
 
+/**
+ * Baixa um arquivo da Hostinger via FTP e salva localmente
+ *
+ * @param fileName - Nome do arquivo a ser baixado
+ * @param localPath - Caminho completo onde salvar o arquivo localmente
+ * @returns true se baixou com sucesso, false se o arquivo não existe no FTP
+ */
+export const downloadFromHostinger = async (
+  fileName: string,
+  localPath: string
+): Promise<boolean> => {
+  if (!isFtpConfigured()) {
+    logger.warn('FTP não configurado - download da Hostinger desabilitado');
+    return false;
+  }
+
+  const client = new ftp.Client();
+
+  try {
+    await client.access({
+      host: FTP_CONFIG.host,
+      user: FTP_CONFIG.user,
+      password: FTP_CONFIG.password,
+      port: FTP_CONFIG.port,
+      secure: FTP_CONFIG.secure,
+    });
+
+    await client.cd(FTP_CONFIG.remotePath);
+
+    logger.info({ fileName, localPath }, 'Baixando arquivo da Hostinger via FTP...');
+    await client.downloadTo(localPath, fileName);
+    logger.info({ fileName, localPath }, 'Download FTP concluído com sucesso');
+
+    return true;
+  } catch (error) {
+    logger.warn({ error, fileName }, 'Erro ao baixar arquivo via FTP (pode não existir)');
+    return false;
+  } finally {
+    client.close();
+  }
+};
+
 export const ftpService = {
   isFtpConfigured,
   uploadToHostinger,
   deleteFromHostinger,
+  downloadFromHostinger,
 };

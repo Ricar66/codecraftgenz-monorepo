@@ -3,6 +3,7 @@ import { prisma } from '../db/prisma.js';
 import { sendError, success } from '../utils/response.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
 import { env } from '../config/env.js';
+import { logger } from '../utils/logger.js';
 import path from 'path';
 import fs from 'fs/promises';
 import crypto from 'crypto';
@@ -14,8 +15,22 @@ const router = Router();
 const DOWNLOADS_DIR = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
 
 /**
+ * Verifica se o arquivo existe localmente e está no diretório permitido
+ */
+async function fileExistsLocally(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    const resolvedPath = path.resolve(filePath);
+    const resolvedDir = path.resolve(DOWNLOADS_DIR);
+    return resolvedPath.startsWith(resolvedDir);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * GET /api/downloads/:file
- * Servir arquivo de download
+ * Servir arquivo de download (com fallback para FTP da Hostinger)
  */
 router.get('/:file', rateLimiter.default, async (req, res): Promise<void> => {
   const filename = req.params.file as string;
@@ -24,31 +39,50 @@ router.get('/:file', rateLimiter.default, async (req, res): Promise<void> => {
   const sanitizedFilename = path.basename(filename);
   const filePath = path.join(DOWNLOADS_DIR, sanitizedFilename);
 
-  // Verificar se o arquivo existe
+  // 1. Tentar servir do disco local
+  if (await fileExistsLocally(filePath)) {
+    res.download(filePath, sanitizedFilename, (err) => {
+      if (err) {
+        console.error('Erro ao enviar arquivo:', err);
+        if (!res.headersSent) {
+          sendError(res, 500, 'DOWNLOAD_ERROR', 'Erro ao fazer download do arquivo');
+        }
+      }
+    });
+    return;
+  }
+
+  // 2. Fallback: buscar da Hostinger via FTP, salvar localmente e servir
   try {
-    await fs.access(filePath);
-  } catch {
-    sendError(res, 404, 'FILE_NOT_FOUND', 'Arquivo não encontrado');
-    return;
-  }
+    const { isFtpConfigured, downloadFromHostinger } = await import('../services/ftp.service.js');
 
-  // Verificar se está dentro do diretório permitido
-  const resolvedPath = path.resolve(filePath);
-  const resolvedDir = path.resolve(DOWNLOADS_DIR);
-  if (!resolvedPath.startsWith(resolvedDir)) {
-    sendError(res, 403, 'ACCESS_DENIED', 'Acesso negado');
-    return;
-  }
+    if (isFtpConfigured()) {
+      logger.info({ filename: sanitizedFilename }, 'Arquivo não encontrado localmente, buscando da Hostinger via FTP...');
 
-  // Enviar arquivo
-  res.download(filePath, sanitizedFilename, (err) => {
-    if (err) {
-      console.error('Erro ao enviar arquivo:', err);
-      if (!res.headersSent) {
-        sendError(res, 500, 'DOWNLOAD_ERROR', 'Erro ao fazer download do arquivo');
+      // Garantir que o diretório existe
+      await fs.mkdir(DOWNLOADS_DIR, { recursive: true });
+
+      const downloaded = await downloadFromHostinger(sanitizedFilename, filePath);
+
+      if (downloaded && await fileExistsLocally(filePath)) {
+        logger.info({ filename: sanitizedFilename }, 'Arquivo recuperado da Hostinger, servindo ao usuário');
+        res.download(filePath, sanitizedFilename, (err) => {
+          if (err) {
+            console.error('Erro ao enviar arquivo:', err);
+            if (!res.headersSent) {
+              sendError(res, 500, 'DOWNLOAD_ERROR', 'Erro ao fazer download do arquivo');
+            }
+          }
+        });
+        return;
       }
     }
-  });
+  } catch (ftpError) {
+    logger.warn({ error: ftpError, filename: sanitizedFilename }, 'Erro ao buscar arquivo via FTP');
+  }
+
+  // 3. Arquivo não encontrado em nenhum lugar
+  sendError(res, 404, 'FILE_NOT_FOUND', 'Arquivo não encontrado');
 });
 
 /**
