@@ -17,6 +17,7 @@ export const createMentorSchema = z.object({
   body: z.object({
     nome: z.string().min(1, 'Nome é obrigatório').max(128),
     email: z.string().email().optional(),
+    telefone: z.string().max(20).optional(),
     bio: z.string().max(2000).optional(),
     especialidade: z.string().max(256).optional(),
     avatar_url: urlOrDataUri,
@@ -33,6 +34,7 @@ export const updateMentorSchema = z.object({
   body: z.object({
     nome: z.string().min(1).max(128).optional(),
     email: z.string().email().optional(),
+    telefone: z.string().max(20).optional(),
     bio: z.string().max(2000).optional(),
     especialidade: z.string().max(256).optional(),
     avatar_url: urlOrDataUri,
