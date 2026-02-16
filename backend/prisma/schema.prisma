@@ -396,6 +396,65 @@ model Feedback {
 }
 
 // =============================================
+// NFS-e (NOTA FISCAL DE SERVICO ELETRONICA)
+// =============================================
+
+model Invoice {
+  id                  String    @id @default(uuid())
+  vendaId             String?   @unique
+  paymentId           String?
+  rpsNumero           Int?
+  rpsSerie            String?   @default("1")
+  nfseNumero          String?
+  codigoVerificacao   String?
+  status              String    @default("pending")
+
+  dataEmissao         DateTime
+  competencia         DateTime
+
+  prestadorCnpj       String
+  prestadorIm         String
+
+  tomadorTipo         String    @default("PJ")
+  tomadorDocumento    String
+  tomadorRazaoSocial  String?
+  tomadorEmail        String?
+  tomadorLogradouro   String?
+  tomadorNumero       String?
+  tomadorBairro       String?
+  tomadorCodMunicipio String?
+  tomadorUf           String?
+  tomadorCep          String?
+
+  descricaoServico    String    @db.Text
+  itemListaServico    String
+  codTributacao       String?
+  valorServicos       Decimal   @db.Decimal(10, 2)
+  aliquotaIss         Decimal?  @db.Decimal(5, 2)
+  valorIss            Decimal?  @db.Decimal(10, 2)
+  issRetido           Boolean   @default(false)
+
+  simplesNacional     Boolean   @default(true)
+  incentivoFiscal     Boolean   @default(false)
+  naturezaOperacao    Int       @default(1)
+
+  protocolo           String?
+  xmlEnvio            String?   @db.LongText
+  xmlRetorno          String?   @db.LongText
+  mensagemErro        String?   @db.Text
+  pdfUrl              String?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([status])
+  @@index([vendaId])
+  @@index([nfseNumero])
+  @@index([prestadorCnpj])
+  @@map("invoices")
+}
+
+// =============================================
 // B2B PROPOSALS
 // =============================================
 

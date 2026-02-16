@@ -1,5 +1,6 @@
 import { paymentRepository } from '../repositories/payment.repository.js';
 import { licenseService } from './license.service.js';
+import { nfseService } from './nfse.service.js';
 import { userService } from './user.service.js';
 import { emailService } from './email.service.js';
 import { AppError } from '../utils/AppError.js';
@@ -69,6 +70,17 @@ export const paymentService = {
           sendEmail: false, // Email enviado separadamente
         }
       );
+
+      // NFS-e automatica (non-blocking)
+      const app = await prisma.app.findUnique({ where: { id: payment.appId }, select: { name: true } });
+      nfseService.emitirAutomatica({
+        paymentId: payment.id,
+        appId: payment.appId,
+        appName: app?.name || 'App',
+        amount: Number(payment.amount),
+        payerEmail: payment.payerEmail || undefined,
+        payerName: payment.payerName || undefined,
+      });
     }
 
     return mapPayment(updated);
@@ -419,6 +431,20 @@ export const paymentService = {
             licenseKey,
           });
         }
+
+        // NFS-e automatica (non-blocking)
+        const payerDoc = mpPayment?.payer?.identification?.number;
+        const payerDocType = mpPayment?.payer?.identification?.type;
+        nfseService.emitirAutomatica({
+          paymentId: payment.id,
+          appId: payment.appId,
+          appName: app?.name || 'App',
+          amount: Number(payment.amount),
+          payerEmail: payment.payerEmail || undefined,
+          payerName: payment.payerName || undefined,
+          payerDocument: payerDoc || undefined,
+          payerDocumentType: payerDocType || undefined,
+        });
       } catch (emailError) {
         logger.error({ error: emailError, paymentId: payment.id }, 'Erro ao enviar email via webhook');
       }
@@ -754,6 +780,20 @@ export const paymentService = {
         payerName,
         price: totalAmount,
         licenseKey,
+      });
+
+      // NFS-e automatica (non-blocking)
+      const payerDoc = mpResponse?.payer?.identification?.number;
+      const payerDocType = mpResponse?.payer?.identification?.type;
+      nfseService.emitirAutomatica({
+        paymentId,
+        appId,
+        appName: app.name,
+        amount: totalAmount,
+        payerEmail,
+        payerName,
+        payerDocument: payerDoc || undefined,
+        payerDocumentType: payerDocType || undefined,
       });
     }
 
