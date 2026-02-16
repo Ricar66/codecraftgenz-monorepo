@@ -57,6 +57,14 @@ const envSchema = z.object({
   // Admin
   ADMIN_RESET_TOKEN: z.string().optional(),
 
+  // NFS-e (Nota Fiscal de Servico Eletronica)
+  NFSE_ENVIRONMENT: z.enum(['sandbox', 'production']).default('sandbox'),
+  NFSE_CERT_PATH: z.string().optional(),
+  NFSE_CERT_PASSWORD: z.string().optional(),
+  NFSE_PRESTADOR_CNPJ: z.string().optional(),
+  NFSE_PRESTADOR_IM: z.string().optional(),
+  NFSE_COD_MUNICIPIO: z.string().default('3543402'),
+
   // Frontend
   FRONTEND_URL: z.string().default('http://localhost:5173'),
 });
