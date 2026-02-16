@@ -30,6 +30,7 @@ export const mentorService = {
       data: {
         nome: data.nome,
         email: data.email,
+        telefone: data.telefone,
         bio: data.bio,
         especialidade: data.especialidade,
         avatarUrl: data.avatar_url,
@@ -52,6 +53,7 @@ export const mentorService = {
       data: {
         nome: data.nome,
         email: data.email,
+        telefone: data.telefone,
         bio: data.bio,
         especialidade: data.especialidade,
         avatarUrl: data.avatar_url,
@@ -76,6 +78,7 @@ function mapMentor(mentor: {
   id: number;
   nome: string;
   email: string | null;
+  telefone: string | null;
   bio: string | null;
   especialidade: string | null;
   avatarUrl: string | null;
@@ -89,6 +92,7 @@ function mapMentor(mentor: {
     id: mentor.id,
     nome: mentor.nome,
     email: mentor.email,
+    telefone: mentor.telefone,
     bio: mentor.bio,
     especialidade: mentor.especialidade,
     avatar_url: mentor.avatarUrl,
@@ -104,6 +108,7 @@ function mapMentorDetailed(mentor: {
   id: number;
   nome: string;
   email: string | null;
+  telefone: string | null;
   bio: string | null;
   especialidade: string | null;
   avatarUrl: string | null;
