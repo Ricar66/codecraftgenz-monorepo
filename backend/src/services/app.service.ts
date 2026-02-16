@@ -157,22 +157,50 @@ export const appService = {
       .replace(/[^a-zA-Z0-9._-]/g, '_') // substitui caracteres especiais por _
       .replace(/__+/g, '_'); // remove underscores duplicados
 
-    // SEMPRE salvar localmente no disco do Render (é o método principal)
-    // O Render persiste arquivos em /var/downloads se configurado como disco persistente
     const downloadsDir = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
     await fs.mkdir(downloadsDir, { recursive: true });
 
+    // --- Deletar arquivo antigo se o nome mudou ---
+    const oldExecUrl = app.executableUrl;
+    if (oldExecUrl) {
+      // Extrair nome do arquivo antigo da URL (ex: /api/downloads/OldFile.exe -> OldFile.exe)
+      const oldFileName = decodeURIComponent(oldExecUrl.split('/').pop() || '');
+
+      if (oldFileName && oldFileName !== originalName) {
+        logger.info({ appId, oldFile: oldFileName, newFile: originalName }, 'Nome do executável mudou - removendo arquivo antigo');
+
+        // Deletar do disco local
+        try {
+          const oldFilePath = path.join(downloadsDir, oldFileName);
+          await fs.unlink(oldFilePath);
+          logger.info({ oldFile: oldFileName }, 'Arquivo antigo deletado do disco local');
+        } catch (unlinkError) {
+          logger.warn({ error: unlinkError, oldFile: oldFileName }, 'Arquivo antigo não encontrado no disco local (ignorando)');
+        }
+
+        // Deletar do FTP da Hostinger
+        try {
+          const { isFtpConfigured, deleteFromHostinger } = await import('./ftp.service.js');
+          if (isFtpConfigured()) {
+            await deleteFromHostinger(oldFileName);
+            logger.info({ oldFile: oldFileName }, 'Arquivo antigo deletado da Hostinger via FTP');
+          }
+        } catch (ftpDeleteError) {
+          logger.warn({ error: ftpDeleteError, oldFile: oldFileName }, 'Erro ao deletar arquivo antigo do FTP (ignorando)');
+        }
+      }
+    }
+
+    // Salvar novo arquivo no disco local
     const filePath = path.join(downloadsDir, originalName);
     await fs.writeFile(filePath, file.buffer);
 
     logger.info({ appId, file: originalName, size: file.size, path: filePath }, 'Executável salvo no disco local');
 
     // URL para download via API do backend
-    // Em produção: https://codecraftgenz-monorepo.onrender.com/api/downloads/arquivo.exe
-    // Em desenvolvimento: /api/downloads/arquivo.exe
     const executableUrl = `/api/downloads/${encodeURIComponent(originalName)}`;
 
-    // OPCIONAL: Também fazer upload para FTP como backup (não bloqueia)
+    // Backup para FTP da Hostinger
     try {
       const { isFtpConfigured, uploadToHostinger } = await import('./ftp.service.js');
 
@@ -182,11 +210,10 @@ export const appService = {
         logger.info({ appId, file: originalName, url: ftpUrl }, 'Backup FTP concluído');
       }
     } catch (ftpError) {
-      // FTP é backup, não falhar se der erro
       logger.warn({ error: ftpError, appId }, 'Erro no backup FTP (ignorando)');
     }
 
-    // Atualizar app com URL do executável (aponta para o backend)
+    // Atualizar app com URL do executável
     await prisma.app.update({
       where: { id: appId },
       data: { executableUrl },
