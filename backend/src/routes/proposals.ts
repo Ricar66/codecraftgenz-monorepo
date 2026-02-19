@@ -8,18 +8,70 @@ import { logger } from '../utils/logger.js';
 const router = Router();
 
 /**
- * GET /api/proposals - Listar propostas (admin)
+ * GET /api/proposals/stats - Estatisticas de propostas (admin)
+ * Deve ficar ANTES de /:id para nao conflitar
+ */
+router.get('/stats', authenticate, authorizeAdmin, async (_req, res) => {
+  try {
+    const [total, byStatusRaw] = await Promise.all([
+      prisma.proposal.count(),
+      prisma.proposal.groupBy({
+        by: ['status'],
+        _count: true,
+      }),
+    ]);
+
+    const byStatus: Record<string, number> = {};
+    for (const s of byStatusRaw) {
+      byStatus[s.status] = s._count;
+    }
+
+    const approved = byStatus['approved'] || 0;
+    const conversionRate = total > 0 ? ((approved / total) * 100).toFixed(1) : '0';
+
+    res.json(success({ total, byStatus, conversionRate }));
+  } catch (error) {
+    logger.error({ error }, 'Erro ao buscar estatisticas de propostas');
+    sendError(res, 500, 'INTERNAL_ERROR', 'Erro ao buscar estatisticas');
+  }
+});
+
+/**
+ * GET /api/proposals - Listar propostas com paginacao (admin)
+ * Retorna { proposals: [...], pagination: {...} }
  */
 router.get('/', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const status = req.query.status ? String(req.query.status) : undefined;
-    const limit = req.query.limit ? Number(req.query.limit) : 50;
-    const proposals = await prisma.proposal.findMany({
-      where: status ? { status } : undefined,
-      take: Math.min(limit, 100),
-      orderBy: { createdAt: 'desc' },
-    });
-    res.json(success(proposals));
+    const search = req.query.search ? String(req.query.search) : undefined;
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(Number(req.query.limit) || 20, 100);
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (status) where.status = status;
+    if (search) {
+      where.OR = [
+        { companyName: { contains: search } },
+        { contactName: { contains: search } },
+        { email: { contains: search } },
+      ];
+    }
+
+    const [proposals, total] = await Promise.all([
+      prisma.proposal.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.proposal.count({ where }),
+    ]);
+
+    res.json(success({
+      proposals,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    }));
   } catch (error) {
     logger.error({ error }, 'Erro ao buscar propostas');
     sendError(res, 500, 'INTERNAL_ERROR', 'Erro ao buscar propostas');
@@ -32,11 +84,9 @@ router.get('/', authenticate, authorizeAdmin, async (req, res) => {
 router.get('/:id', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const id = String(req.params.id);
-    const proposal = await prisma.proposal.findUnique({
-      where: { id },
-    });
+    const proposal = await prisma.proposal.findUnique({ where: { id } });
     if (!proposal) {
-      sendError(res, 404, 'NOT_FOUND', 'Proposta não encontrada');
+      sendError(res, 404, 'NOT_FOUND', 'Proposta nao encontrada');
       return;
     }
     res.json(success(proposal));
@@ -47,14 +97,14 @@ router.get('/:id', authenticate, authorizeAdmin, async (req, res) => {
 });
 
 /**
- * POST /api/proposals - Enviar proposta (público, rate limited)
+ * POST /api/proposals - Enviar proposta (publico, rate limited)
  */
 router.post('/', rateLimiter.sensitive, async (req, res) => {
   try {
     const { companyName, contactName, email, phone, projectType, budgetRange, description } = req.body;
 
     if (!companyName || !contactName || !email) {
-      sendError(res, 400, 'VALIDATION_ERROR', 'companyName, contactName e email são obrigatórios');
+      sendError(res, 400, 'VALIDATION_ERROR', 'companyName, contactName e email sao obrigatorios');
       return;
     }
 
@@ -79,23 +129,58 @@ router.post('/', rateLimiter.sensitive, async (req, res) => {
 });
 
 /**
- * PUT /api/proposals/:id - Atualizar proposta (admin)
+ * PATCH /api/proposals/:id/status - Atualizar apenas status (admin)
+ */
+router.patch('/:id/status', authenticate, authorizeAdmin, async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const { status, notes } = req.body;
+
+    if (!status) {
+      sendError(res, 400, 'VALIDATION_ERROR', 'status e obrigatorio');
+      return;
+    }
+
+    const proposal = await prisma.proposal.update({
+      where: { id },
+      data: { status, ...(notes !== undefined ? { notes } : {}) },
+    });
+    res.json(success(proposal));
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      sendError(res, 404, 'NOT_FOUND', 'Proposta nao encontrada');
+      return;
+    }
+    logger.error({ error }, 'Erro ao atualizar status');
+    sendError(res, 500, 'INTERNAL_ERROR', 'Erro ao atualizar status');
+  }
+});
+
+/**
+ * PUT /api/proposals/:id - Atualizar proposta completa (admin)
  */
 router.put('/:id', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const id = String(req.params.id);
-    const { status, notes } = req.body;
+    const { status, notes, companyName, contactName, email, phone, projectType, budgetRange, description } = req.body;
     const proposal = await prisma.proposal.update({
       where: { id },
       data: {
         ...(status ? { status } : {}),
         ...(notes !== undefined ? { notes } : {}),
+        ...(companyName ? { companyName } : {}),
+        ...(contactName ? { contactName } : {}),
+        ...(email ? { email } : {}),
+        ...(phone !== undefined ? { phone } : {}),
+        ...(projectType ? { projectType } : {}),
+        ...(budgetRange !== undefined ? { budgetRange } : {}),
+        ...(description !== undefined ? { description } : {}),
       },
     });
     res.json(success(proposal));
   } catch (error: any) {
     if (error?.code === 'P2025') {
-      sendError(res, 404, 'NOT_FOUND', 'Proposta não encontrada');
+      sendError(res, 404, 'NOT_FOUND', 'Proposta nao encontrada');
       return;
     }
     logger.error({ error }, 'Erro ao atualizar proposta');
@@ -109,13 +194,11 @@ router.put('/:id', authenticate, authorizeAdmin, async (req, res) => {
 router.delete('/:id', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const id = String(req.params.id);
-    await prisma.proposal.delete({
-      where: { id },
-    });
+    await prisma.proposal.delete({ where: { id } });
     res.status(204).send();
   } catch (error: any) {
     if (error?.code === 'P2025') {
-      sendError(res, 404, 'NOT_FOUND', 'Proposta não encontrada');
+      sendError(res, 404, 'NOT_FOUND', 'Proposta nao encontrada');
       return;
     }
     logger.error({ error }, 'Erro ao excluir proposta');
