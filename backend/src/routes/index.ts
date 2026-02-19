@@ -15,7 +15,7 @@ import inscricaoRoutes from './inscricoes.js';
 import financeRoutes from './finances.js';
 import configRoutes from './config.js';
 import dashboardRoutes from './dashboard.js';
-// import proposalRoutes from './proposals.js'; // TODO: Add proposals routes
+import proposalRoutes from './proposals.js';
 import feedbackRoutes from './feedbacks.js';
 import downloadRoutes from './downloads.js';
 import integrationRoutes from './integrations.js';
@@ -44,7 +44,7 @@ router.use('/api/inscricoes', inscricaoRoutes);
 router.use('/api/financas', financeRoutes);
 router.use('/api/config', configRoutes);
 router.use('/api/dashboard', dashboardRoutes);
-// router.use('/api/proposals', proposalRoutes); // TODO: Add proposals routes
+router.use('/api/proposals', proposalRoutes);
 router.use('/api/feedbacks', feedbackRoutes);
 router.use('/api/downloads', downloadRoutes);
 router.use('/api/hub', hubRoutes); // CodeCraft Hub (desktop launcher)
