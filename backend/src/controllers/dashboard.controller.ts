@@ -114,6 +114,37 @@ export const getStats = async (req: Request, res: Response) => {
       }),
     ]);
 
+    // Proposals B2B stats
+    const [proposalsTotal, proposalsByStatus, proposalsNewRecent, recentProposals] = await Promise.all([
+      prisma.proposal.count(),
+      prisma.proposal.groupBy({
+        by: ['status'],
+        _count: true,
+      }),
+      prisma.proposal.count({
+        where: {
+          status: 'new',
+          createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        },
+      }),
+      prisma.proposal.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          companyName: true,
+          projectType: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    const proposalsByStatusMap: Record<string, number> = {};
+    for (const s of proposalsByStatus) {
+      proposalsByStatusMap[s.status] = s._count;
+    }
+
     // Sales per app (approved payments grouped by app)
     const salesByApp = await prisma.payment.groupBy({
       by: ['appId'],
@@ -165,6 +196,12 @@ export const getStats = async (req: Request, res: Response) => {
         },
         apps: {
           total: appsCount,
+        },
+        proposals: {
+          total: proposalsTotal,
+          new: proposalsNewRecent,
+          byStatus: proposalsByStatusMap,
+          recent: recentProposals,
         },
         salesPerApp,
         chartData,
