@@ -479,6 +479,7 @@ router.post('/admin/provision-license', sensitiveLimiter, requireAdminToken, asy
         paymentId: payment_id || `ADMIN-${Date.now()}`,
         price: 0,
         sendEmail: false,
+        adminOverride: true,
       }
     );
 
