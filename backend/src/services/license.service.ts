@@ -11,9 +11,9 @@ const MAX_DEVICES_PER_LICENSE = 1;
 export const licenseService = {
   async activateDevice(data: ActivateDeviceInput, ip?: string, userAgent?: string) {
     const appId = Number(data.app_id);
-    // Normalizar email para minúsculas para evitar problemas de case
+    // Normalizar email e hardwareId para minúsculas para evitar bypass por case
     const email = data.email.toLowerCase().trim();
-    const hardware_id = data.hardware_id;
+    const hardware_id = data.hardware_id.toLowerCase().trim();
 
     // Buscar app
     const app = await prisma.app.findUnique({
@@ -162,9 +162,9 @@ export const licenseService = {
 
   async verifyLicense(data: VerifyLicenseInput, ip?: string, userAgent?: string) {
     const appId = Number(data.app_id);
-    // Normalizar email para minúsculas para evitar problemas de case
+    // Normalizar email e hardwareId para minúsculas para evitar bypass por case
     const email = data.email.toLowerCase().trim();
-    const hardware_id = data.hardware_id;
+    const hardware_id = data.hardware_id.toLowerCase().trim();
 
     // Verificar se tem licença ativa para este dispositivo
     const license = await licenseRepository.findByAppEmailAndHardware(
@@ -231,10 +231,12 @@ export const licenseService = {
       throw AppError.notFound('App');
     }
 
-    // Verificar se já tem licença
+    // Verificar se já atingiu o limite de licenças para este email/app
     const existing = await licenseRepository.findByAppAndEmail(appId, email);
-    if (existing.length > 0) {
-      logger.info({ appId, email }, 'Licença já existe, não criando nova');
+    const approvedCount = await paymentRepository.countApprovedByEmailAndApp(email, appId);
+    const maxLicenses = Math.max(approvedCount, 1);
+    if (existing.length >= maxLicenses) {
+      logger.info({ appId, email, existing: existing.length, max: maxLicenses }, 'Limite de licenças atingido, não criando nova');
       return existing[0];
     }
 
@@ -425,11 +427,14 @@ export const licenseService = {
     hardwareId: string;
     licenseKey: string;
   }) {
+    const email = data.email.toLowerCase().trim();
+    const hardwareId = data.hardwareId.toLowerCase().trim();
+
     // Verificar se já existe ativação para este hardware
     const existing = await licenseRepository.findByAppEmailAndHardware(
       data.appId,
-      data.email,
-      data.hardwareId
+      email,
+      hardwareId
     );
 
     if (existing) {
@@ -444,6 +449,17 @@ export const licenseService = {
       return existing;
     }
 
+    // Verificar limite de licenças antes de criar nova
+    const approvedCount = await paymentRepository.countApprovedByEmailAndApp(email, data.appId);
+    if (approvedCount === 0) {
+      throw AppError.forbidden('Você não possui licença para este app');
+    }
+
+    const usedLicenses = await licenseRepository.countUsedLicenses(data.appId, email);
+    if (usedLicenses >= approvedCount * MAX_DEVICES_PER_LICENSE) {
+      throw AppError.forbidden(`Limite de ${MAX_DEVICES_PER_LICENSE} dispositivos por licença atingido`);
+    }
+
     // Criar nova licença
     const app = await prisma.app.findUnique({
       where: { id: data.appId },
@@ -452,9 +468,9 @@ export const licenseService = {
 
     const license = await licenseRepository.create({
       appId: data.appId,
-      email: data.email,
+      email,
       userId: data.userId,
-      hardwareId: data.hardwareId,
+      hardwareId,
       appName: app?.name,
       licenseKey: data.licenseKey,
     });
@@ -462,8 +478,8 @@ export const licenseService = {
     // Registrar log de ativação
     await licenseRepository.logActivation({
       appId: data.appId,
-      email: data.email,
-      hardwareId: data.hardwareId,
+      email,
+      hardwareId,
       licenseId: license.id,
       action: 'activate',
       status: 'success',
