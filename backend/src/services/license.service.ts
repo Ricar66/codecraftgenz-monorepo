@@ -90,16 +90,18 @@ export const licenseService = {
       };
     }
 
-    // Verificar se tem compra aprovada
+    // Verificar se tem compra aprovada OU licença admin-criada
     const approvedCount = await paymentRepository.countApprovedByEmailAndApp(email, appId);
-    if (approvedCount === 0) {
+    const totalLicenseRecords = (await licenseRepository.findByAppAndEmail(appId, email)).length;
+
+    if (approvedCount === 0 && totalLicenseRecords === 0) {
       await licenseRepository.logActivation({
         appId,
         email,
         hardwareId: hardware_id,
         action: 'activate',
         status: 'error',
-        message: 'Nenhuma compra aprovada encontrada',
+        message: 'Nenhuma compra ou licença encontrada',
         ip,
         userAgent,
       });
@@ -107,8 +109,10 @@ export const licenseService = {
     }
 
     // Contar dispositivos já ativados
+    // maxDevices = maior entre compras e licenças existentes (admin pode criar sem compra)
+    const maxDevices = Math.max(approvedCount, totalLicenseRecords) * MAX_DEVICES_PER_LICENSE;
     const usedLicenses = await licenseRepository.countUsedLicenses(appId, email);
-    if (usedLicenses >= approvedCount * MAX_DEVICES_PER_LICENSE) {
+    if (usedLicenses >= maxDevices) {
       await licenseRepository.logActivation({
         appId,
         email,
@@ -220,6 +224,7 @@ export const licenseService = {
       paymentId?: string;
       price?: number;
       sendEmail?: boolean;
+      adminOverride?: boolean;
     }
   ) {
     const app = await prisma.app.findUnique({
@@ -232,12 +237,15 @@ export const licenseService = {
     }
 
     // Verificar se já atingiu o limite de licenças para este email/app
-    const existing = await licenseRepository.findByAppAndEmail(appId, email);
-    const approvedCount = await paymentRepository.countApprovedByEmailAndApp(email, appId);
-    const maxLicenses = Math.max(approvedCount, 1);
-    if (existing.length >= maxLicenses) {
-      logger.info({ appId, email, existing: existing.length, max: maxLicenses }, 'Limite de licenças atingido, não criando nova');
-      return existing[0];
+    // Admin pode criar licenças sem limite (adminOverride)
+    if (!options?.adminOverride) {
+      const existing = await licenseRepository.findByAppAndEmail(appId, email);
+      const approvedCount = await paymentRepository.countApprovedByEmailAndApp(email, appId);
+      const maxLicenses = Math.max(approvedCount, 1);
+      if (existing.length >= maxLicenses) {
+        logger.info({ appId, email, existing: existing.length, max: maxLicenses }, 'Limite de licenças atingido, não criando nova');
+        return existing[0];
+      }
     }
 
     // Criar licença (sem hardware_id, será ativado depois)
@@ -451,12 +459,15 @@ export const licenseService = {
 
     // Verificar limite de licenças antes de criar nova
     const approvedCount = await paymentRepository.countApprovedByEmailAndApp(email, data.appId);
-    if (approvedCount === 0) {
+    const totalLicenseRecords = (await licenseRepository.findByAppAndEmail(data.appId, email)).length;
+
+    if (approvedCount === 0 && totalLicenseRecords === 0) {
       throw AppError.forbidden('Você não possui licença para este app');
     }
 
+    const maxDevices = Math.max(approvedCount, totalLicenseRecords) * MAX_DEVICES_PER_LICENSE;
     const usedLicenses = await licenseRepository.countUsedLicenses(data.appId, email);
-    if (usedLicenses >= approvedCount * MAX_DEVICES_PER_LICENSE) {
+    if (usedLicenses >= maxDevices) {
       throw AppError.forbidden(`Limite de ${MAX_DEVICES_PER_LICENSE} dispositivos por licença atingido`);
     }
 
