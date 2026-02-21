@@ -153,24 +153,24 @@ export const getStats = async (req: Request, res: Response) => {
       _sum: { amount: true },
     });
 
-    const appIds = salesByApp.map(s => s.appId);
-    const appsInfo = appIds.length > 0
-      ? await prisma.app.findMany({
-          where: { id: { in: appIds } },
-          select: { id: true, name: true, thumbUrl: true },
-        })
-      : [];
+    // Fetch ALL published apps so we always show them in the dashboard
+    const allApps = await prisma.app.findMany({
+      where: { status: { not: 'draft' } },
+      select: { id: true, name: true, thumbUrl: true, price: true },
+      orderBy: { name: 'asc' },
+    });
 
-    const salesPerApp = salesByApp.map(s => {
-      const app = appsInfo.find(a => a.id === s.appId);
+    const salesPerApp = allApps.map(app => {
+      const sale = salesByApp.find(s => s.appId === app.id);
       return {
-        app_id: s.appId,
-        app_name: app?.name ?? 'App removido',
-        thumb_url: app?.thumbUrl ?? null,
-        sales_count: s._count,
-        total_revenue: Number(s._sum.amount ?? 0),
+        app_id: app.id,
+        app_name: app.name,
+        thumb_url: app.thumbUrl ?? null,
+        price: Number(app.price ?? 0),
+        sales_count: sale?._count ?? 0,
+        total_revenue: Number(sale?._sum.amount ?? 0),
       };
-    }).sort((a, b) => b.total_revenue - a.total_revenue);
+    }).sort((a, b) => b.total_revenue - a.total_revenue || b.sales_count - a.sales_count);
 
     res.json(
       success({
