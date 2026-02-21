@@ -86,16 +86,6 @@ export const licenseRepository = {
     });
   },
 
-  async releaseDevice(licenseId: number) {
-    return prisma.license.update({
-      where: { id: licenseId },
-      data: {
-        hardwareId: null,
-        activatedAt: null,
-      },
-    });
-  },
-
   async countUsedLicenses(appId: number, email: string) {
     return prisma.license.count({
       where: {
