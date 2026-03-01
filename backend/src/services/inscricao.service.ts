@@ -1,6 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import type { CreateInscricaoInput, UpdateInscricaoStatusInput } from '../schemas/inscricao.schema.js';
+import { leadService } from './lead.service.js';
 
 export const inscricaoService = {
   async getAll() {
@@ -56,6 +57,16 @@ export const inscricaoService = {
         status: 'pendente',
       },
     });
+
+    // Captura lead
+    leadService.captureLead({
+      nome: data.nome,
+      email: data.email,
+      telefone: data.telefone,
+      origin: 'crafter_signup',
+      originId: inscricao.id,
+    }).catch(() => {});
+
     return mapInscricao(inscricao);
   },
 

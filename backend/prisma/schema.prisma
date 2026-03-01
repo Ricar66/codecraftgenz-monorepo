@@ -479,3 +479,60 @@ model Proposal {
   @@index([email])
   @@map("proposals")
 }
+
+// =============================================
+// AUDIT LOGS
+// =============================================
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  userName   String?  @db.VarChar(256)
+  action     String   @db.VarChar(32)
+  entity     String   @db.VarChar(128)
+  entityId   String?  @db.VarChar(64)
+  endpoint   String   @db.VarChar(512)
+  method     String   @db.VarChar(10)
+  statusCode Int?
+  oldData    String?  @db.Text
+  newData    String?  @db.Text
+  ip         String?  @db.VarChar(64)
+  userAgent  String?  @db.VarChar(512)
+  duration   Int?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// =============================================
+// LEADS ENGINE
+// =============================================
+
+model Lead {
+  id          Int       @id @default(autoincrement())
+  nome        String?   @db.VarChar(256)
+  email       String    @db.VarChar(256)
+  telefone    String?   @db.VarChar(32)
+  origin      String    @db.VarChar(64)
+  originId    Int?
+  originRef   String?   @db.VarChar(256)
+  status      String    @default("new") @db.VarChar(32)
+  metadata    String?   @db.Text
+  utmSource   String?   @db.VarChar(256)
+  utmMedium   String?   @db.VarChar(256)
+  utmCampaign String?   @db.VarChar(256)
+  ip          String?   @db.VarChar(64)
+  userAgent   String?   @db.VarChar(512)
+  convertedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([email])
+  @@index([origin])
+  @@index([status])
+  @@index([createdAt])
+  @@map("leads")
+}

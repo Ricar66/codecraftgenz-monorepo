@@ -13,6 +13,7 @@ import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import { defaultLimiter } from './middlewares/rateLimiter.js';
 import { noCache } from './middlewares/cache.js';
 import routes from './routes/index.js';
+import { auditMiddleware } from './middlewares/audit.js';
 
 // Diretório de downloads
 const DOWNLOADS_DIR = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
@@ -178,6 +179,9 @@ app.get('/downloads/:file', async (req, res) => {
     res.status(500).json({ error: 'Falha ao enviar arquivo para download' });
   }
 });
+
+// Audit middleware (fire-and-forget, logs mutations)
+app.use(auditMiddleware);
 
 // Routes
 app.use(routes);
