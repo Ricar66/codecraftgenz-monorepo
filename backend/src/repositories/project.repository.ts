@@ -36,14 +36,16 @@ export const projectRepository = {
     });
   },
 
-  async create(data: CreateProjectInput & { titulo?: string; owner?: string; tecnologias?: string[] }) {
+  async create(data: CreateProjectInput & { titulo?: string; owner?: string; data_inicio?: string; tecnologias?: string[] }) {
     return prisma.project.create({
       data: {
         nome: data.nome || data.titulo || '',
+        owner: data.owner,
         descricao: data.descricao,
         status: data.status ?? 'ativo',
         preco: data.preco ?? 0,
         progresso: data.progresso ?? 0,
+        dataInicio: data.data_inicio,
         thumbUrl: data.thumb_url,
         tagsJson: data.tecnologias ? JSON.stringify(data.tecnologias) : null,
         mentorId: data.mentor_id,
@@ -51,15 +53,17 @@ export const projectRepository = {
     });
   },
 
-  async update(id: number, data: UpdateProjectInput & { titulo?: string; owner?: string; tecnologias?: string[] }) {
+  async update(id: number, data: UpdateProjectInput & { titulo?: string; owner?: string; data_inicio?: string; tecnologias?: string[] }) {
     return prisma.project.update({
       where: { id },
       data: {
         nome: data.nome || data.titulo,
+        owner: data.owner,
         descricao: data.descricao,
         status: data.status,
         preco: data.preco,
         progresso: data.progresso,
+        dataInicio: data.data_inicio,
         thumbUrl: data.thumb_url,
         tagsJson: data.tecnologias ? JSON.stringify(data.tecnologias) : undefined,
         mentorId: data.mentor_id,

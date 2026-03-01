@@ -11,13 +11,60 @@ const ALLOWED_MIMES = [
 ];
 
 export const imageUploadService = {
-  async uploadImage(file: { originalname: string; buffer: Buffer; size: number; mimetype: string }) {
+  /**
+   * Extrai o nome do arquivo de uma URL de imagem da Hostinger
+   * Ex: "https://codecraftgenz.com.br/downloads/images/1234-foto.png" -> "images/1234-foto.png"
+   */
+  extractImagePath(url: string): string | null {
+    if (!url) return null;
+    const match = url.match(/\/downloads\/(images\/[^?#]+)/);
+    return match ? match[1] : null;
+  },
+
+  /**
+   * Deleta uma imagem antiga da Hostinger e do disco local
+   */
+  async deleteOldImage(oldUrl: string): Promise<void> {
+    const imagePath = this.extractImagePath(oldUrl);
+    if (!imagePath) return;
+
+    const fileName = imagePath.split('/').pop();
+    if (!fileName) return;
+
+    // Deletar do disco local
+    try {
+      const downloadsDir = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
+      const localPath = path.join(downloadsDir, IMAGES_SUBDIR, fileName);
+      await fs.unlink(localPath);
+      logger.info({ fileName }, 'Imagem antiga deletada do disco local');
+    } catch {
+      // Arquivo pode não existir localmente
+    }
+
+    // Deletar da Hostinger via FTP
+    try {
+      const { isFtpConfigured, deleteFromHostinger } = await import('./ftp.service.js');
+      if (isFtpConfigured()) {
+        await deleteFromHostinger(`${IMAGES_SUBDIR}/${fileName}`);
+        logger.info({ fileName }, 'Imagem antiga deletada da Hostinger via FTP');
+      }
+    } catch (ftpError) {
+      logger.warn({ error: ftpError, fileName }, 'Erro ao deletar imagem antiga via FTP (ignorando)');
+    }
+  },
+
+  async uploadImage(file: { originalname: string; buffer: Buffer; size: number; mimetype: string }, oldUrl?: string) {
     if (!ALLOWED_MIMES.includes(file.mimetype)) {
       throw new Error('Tipo de imagem não permitido. Use JPEG, PNG, WEBP, GIF ou SVG.');
     }
 
     if (file.size > MAX_IMAGE_SIZE) {
       throw new Error('Imagem muito grande. Máximo de 5MB.');
+    }
+
+    // Deletar imagem antiga se fornecida
+    if (oldUrl) {
+      await this.deleteOldImage(oldUrl);
     }
 
     // Sanitizar filename com prefixo timestamp

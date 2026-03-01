@@ -59,10 +59,12 @@ export const projectService = {
 function mapProject(project: {
   id: number;
   nome: string;
+  owner: string | null;
   descricao: string | null;
   status: string;
   preco: unknown;
   progresso: number;
+  dataInicio: string | null;
   thumbUrl: string | null;
   tagsJson?: string | null;
   mentorId: number | null;
@@ -83,10 +85,12 @@ function mapProject(project: {
   return {
     id: project.id,
     nome: project.nome,
+    owner: project.owner,
     descricao: project.descricao,
     status: project.status,
     preco: Number(project.preco),
     progresso: project.progresso,
+    data_inicio: project.dataInicio,
     thumb_url: project.thumbUrl,
     tecnologias: tecnologias,
     mentor_id: project.mentorId,

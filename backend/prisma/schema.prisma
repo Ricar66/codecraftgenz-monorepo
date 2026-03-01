@@ -63,10 +63,12 @@ model PasswordReset {
 model Project {
   id          Int       @id @default(autoincrement())
   nome        String
+  owner       String?
   descricao   String?
   status      String    @default("ativo")
   preco       Decimal   @default(0) @db.Decimal(10, 2)
   progresso   Int       @default(0)
+  dataInicio  String?
   thumbUrl    String?
   tagsJson    String?   // Tecnologias do projeto em formato JSON
   mentorId    Int?
