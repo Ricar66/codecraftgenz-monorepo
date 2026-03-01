@@ -13,7 +13,7 @@ const FTP_CONFIG = {
   password: env.FTP_PASSWORD || '',
   port: env.FTP_PORT ?? 21,
   secure: false, // FTP padrão (não FTPS)
-  remotePath: env.FTP_REMOTE_PATH || '/public_html/downloads',
+  remotePath: env.FTP_REMOTE_PATH || '/domains/codecraftgenz.com.br/public_html/downloads',
   publicUrl: env.FTP_PUBLIC_URL || 'https://codecraftgenz.com.br/downloads',
 };
 
@@ -71,7 +71,8 @@ export const uploadToHostinger = async (
       secure: FTP_CONFIG.secure,
     });
 
-    logger.info('Conexão FTP estabelecida');
+    const ftpRoot = await client.pwd();
+    logger.info({ ftpRoot }, 'Conexão FTP estabelecida');
 
     // Suporte a subdiretorios (ex: "images/foto.png" -> subDir="images", actualFileName="foto.png")
     const parts = fileName.split('/');
