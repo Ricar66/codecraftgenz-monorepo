@@ -161,7 +161,7 @@ export const deleteFromHostinger = async (fileName: string): Promise<void> => {
 /**
  * Baixa um arquivo da Hostinger via FTP e salva localmente
  *
- * @param fileName - Nome do arquivo a ser baixado
+ * @param fileName - Nome do arquivo (pode incluir subdir, ex: images/projetos/foto.jpg)
  * @param localPath - Caminho completo onde salvar o arquivo localmente
  * @returns true se baixou com sucesso, false se o arquivo não existe no FTP
  */
@@ -185,10 +185,18 @@ export const downloadFromHostinger = async (
       secure: FTP_CONFIG.secure,
     });
 
-    await client.cd(FTP_CONFIG.remotePath);
+    // Suporte a subdiretorios (ex: "images/projetos/foto.jpg")
+    const parts = fileName.split('/');
+    const actualFileName = parts.pop()!;
+    const subDir = parts.join('/');
 
-    logger.info({ fileName, localPath }, 'Baixando arquivo da Hostinger via FTP...');
-    await client.downloadTo(localPath, fileName);
+    const targetDir = subDir
+      ? `${FTP_CONFIG.remotePath}/${subDir}`
+      : FTP_CONFIG.remotePath;
+
+    logger.info({ fileName, actualFileName, targetDir, localPath }, 'Baixando arquivo da Hostinger via FTP...');
+    await client.cd(targetDir);
+    await client.downloadTo(localPath, actualFileName);
     logger.info({ fileName, localPath }, 'Download FTP concluído com sucesso');
 
     return true;
