@@ -94,19 +94,19 @@ export const imageUploadService = {
     await fs.writeFile(filePath, file.buffer);
     logger.info({ fileName, category, size: file.size, path: filePath }, 'Imagem salva no disco local');
 
-    // URL fallback via API do backend
-    let publicUrl = `/api/downloads/${imagesSubdir}/${encodeURIComponent(fileName)}`;
+    // URL primaria via API do backend (mesmo padrao dos executaveis)
+    const publicUrl = `/api/downloads/${imagesSubdir}/${encodeURIComponent(fileName)}`;
 
-    // Upload para Hostinger via FTP (em /public_html/downloads/images/<category>/)
+    // Backup para Hostinger via FTP (mesma logica dos executaveis)
     try {
       const { isFtpConfigured, uploadToHostinger } = await import('./ftp.service.js');
       if (isFtpConfigured()) {
-        const ftpUrl = await uploadToHostinger(`${imagesSubdir}/${fileName}`, file.buffer);
-        publicUrl = ftpUrl;
-        logger.info({ fileName, category, url: ftpUrl }, 'Imagem enviada para Hostinger via FTP');
+        logger.info({ fileName, category }, 'FTP configurado - enviando backup para Hostinger...');
+        await uploadToHostinger(`${imagesSubdir}/${fileName}`, file.buffer);
+        logger.info({ fileName, category }, 'Backup FTP da imagem concluido');
       }
     } catch (ftpError) {
-      logger.warn({ error: ftpError, fileName, category }, 'Erro no upload FTP de imagem (usando URL local)');
+      logger.warn({ error: ftpError, fileName, category }, 'Erro no backup FTP de imagem (ignorando)');
     }
 
     return {

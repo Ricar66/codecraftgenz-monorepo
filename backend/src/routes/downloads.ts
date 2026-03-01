@@ -28,6 +28,172 @@ async function fileExistsLocally(filePath: string): Promise<boolean> {
   }
 }
 
+// ── Rotas especificas ANTES de /:file (que é catch-all) ──
+
+/**
+ * GET /api/downloads/images/:category/:file
+ * Servir imagens de thumbnails (apps e projetos)
+ */
+router.get('/images/:category/:file', rateLimiter.default, async (req, res): Promise<void> => {
+  const category = req.params.category as string;
+  const filename = req.params.file as string;
+
+  // Validar categoria
+  if (!['apps', 'projetos'].includes(category)) {
+    sendError(res, 400, 'INVALID_CATEGORY', 'Categoria inválida');
+    return;
+  }
+
+  // Sanitizar nome do arquivo
+  const sanitizedFilename = path.basename(filename);
+  const filePath = path.join(DOWNLOADS_DIR, 'images', category, sanitizedFilename);
+
+  // Definir content-type correto para imagens
+  const ext = path.extname(sanitizedFilename).toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+    '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+  };
+
+  // 1. Tentar servir do disco local
+  if (await fileExistsLocally(filePath)) {
+    if (mimeTypes[ext]) res.setHeader('Content-Type', mimeTypes[ext]);
+    res.setHeader('Cache-Control', 'public, max-age=2592000'); // 30 days
+    res.sendFile(filePath, (err) => {
+      if (err && !res.headersSent) {
+        sendError(res, 500, 'DOWNLOAD_ERROR', 'Erro ao servir imagem');
+      }
+    });
+    return;
+  }
+
+  // 2. Fallback: buscar da Hostinger via FTP
+  try {
+    const { isFtpConfigured, downloadFromHostinger } = await import('../services/ftp.service.js');
+
+    if (isFtpConfigured()) {
+      logger.info({ category, filename: sanitizedFilename }, 'Imagem não encontrada localmente, buscando da Hostinger via FTP...');
+
+      const imagesDir = path.join(DOWNLOADS_DIR, 'images', category);
+      await fs.mkdir(imagesDir, { recursive: true });
+
+      const downloaded = await downloadFromHostinger(`images/${category}/${sanitizedFilename}`, filePath);
+
+      if (downloaded && await fileExistsLocally(filePath)) {
+        if (mimeTypes[ext]) res.setHeader('Content-Type', mimeTypes[ext]);
+        res.setHeader('Cache-Control', 'public, max-age=2592000');
+        res.sendFile(filePath, (err) => {
+          if (err && !res.headersSent) {
+            sendError(res, 500, 'DOWNLOAD_ERROR', 'Erro ao servir imagem');
+          }
+        });
+        return;
+      }
+    }
+  } catch (ftpError) {
+    logger.warn({ error: ftpError, category, filename: sanitizedFilename }, 'Erro ao buscar imagem via FTP');
+  }
+
+  sendError(res, 404, 'FILE_NOT_FOUND', 'Imagem não encontrada');
+});
+
+/**
+ * GET /api/downloads/app/:appId
+ * Obter URL de download do app (com verificação de licença)
+ */
+router.get('/app/:appId', rateLimiter.sensitive, async (req, res): Promise<void> => {
+  const appId = Number(req.params.appId);
+  const email = req.query.email as string;
+
+  if (!email) {
+    sendError(res, 400, 'EMAIL_REQUIRED', 'Email é obrigatório');
+    return;
+  }
+
+  // Verificar se tem compra aprovada
+  const payment = await prisma.payment.findFirst({
+    where: {
+      appId,
+      payerEmail: email,
+      status: 'approved',
+    },
+  });
+
+  if (!payment) {
+    sendError(res, 403, 'NO_LICENSE', 'Você não possui licença para este app');
+    return;
+  }
+
+  // Buscar app
+  const app = await prisma.app.findUnique({
+    where: { id: appId },
+    select: { executableUrl: true, name: true },
+  });
+
+  if (!app || !app.executableUrl) {
+    sendError(res, 404, 'APP_NOT_FOUND', 'App ou download não encontrado');
+    return;
+  }
+
+  // Incrementar contador de downloads
+  await prisma.app.update({
+    where: { id: appId },
+    data: { downloadCount: { increment: 1 } },
+  });
+
+  res.json(success({
+    download_url: app.executableUrl,
+    app_name: app.name,
+  }));
+});
+
+/**
+ * GET /api/downloads/:file/integrity
+ * Verificar integridade do arquivo (hash SHA256)
+ */
+router.get('/:file/integrity', rateLimiter.default, async (req, res): Promise<void> => {
+  const filename = req.params.file as string;
+
+  // Sanitizar nome do arquivo
+  const sanitizedFilename = path.basename(filename);
+  const filePath = path.join(DOWNLOADS_DIR, sanitizedFilename);
+
+  // Verificar se o arquivo existe
+  try {
+    await fs.access(filePath);
+  } catch {
+    sendError(res, 404, 'FILE_NOT_FOUND', 'Arquivo não encontrado');
+    return;
+  }
+
+  // Verificar se está dentro do diretório permitido
+  const resolvedPath = path.resolve(filePath);
+  const resolvedDir = path.resolve(DOWNLOADS_DIR);
+  if (!resolvedPath.startsWith(resolvedDir)) {
+    sendError(res, 403, 'ACCESS_DENIED', 'Acesso negado');
+    return;
+  }
+
+  try {
+    // Ler arquivo e calcular hash
+    const fileBuffer = await fs.readFile(filePath);
+    const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+    const stats = await fs.stat(filePath);
+
+    res.json(success({
+      filename: sanitizedFilename,
+      sha256: hash,
+      size: stats.size,
+      modified: stats.mtime,
+    }));
+  } catch (error) {
+    console.error('Erro ao calcular hash:', error);
+    sendError(res, 500, 'INTEGRITY_ERROR', 'Erro ao verificar integridade do arquivo');
+  }
+});
+
+// ── Rota catch-all para arquivos simples (DEVE ser a última) ──
+
 /**
  * GET /api/downloads/:file
  * Servir arquivo de download (com fallback para FTP da Hostinger)
@@ -83,101 +249,6 @@ router.get('/:file', rateLimiter.default, async (req, res): Promise<void> => {
 
   // 3. Arquivo não encontrado em nenhum lugar
   sendError(res, 404, 'FILE_NOT_FOUND', 'Arquivo não encontrado');
-});
-
-/**
- * GET /api/downloads/:file/integrity
- * Verificar integridade do arquivo (hash SHA256)
- */
-router.get('/:file/integrity', rateLimiter.default, async (req, res): Promise<void> => {
-  const filename = req.params.file as string;
-
-  // Sanitizar nome do arquivo
-  const sanitizedFilename = path.basename(filename);
-  const filePath = path.join(DOWNLOADS_DIR, sanitizedFilename);
-
-  // Verificar se o arquivo existe
-  try {
-    await fs.access(filePath);
-  } catch {
-    sendError(res, 404, 'FILE_NOT_FOUND', 'Arquivo não encontrado');
-    return;
-  }
-
-  // Verificar se está dentro do diretório permitido
-  const resolvedPath = path.resolve(filePath);
-  const resolvedDir = path.resolve(DOWNLOADS_DIR);
-  if (!resolvedPath.startsWith(resolvedDir)) {
-    sendError(res, 403, 'ACCESS_DENIED', 'Acesso negado');
-    return;
-  }
-
-  try {
-    // Ler arquivo e calcular hash
-    const fileBuffer = await fs.readFile(filePath);
-    const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-    const stats = await fs.stat(filePath);
-
-    res.json(success({
-      filename: sanitizedFilename,
-      sha256: hash,
-      size: stats.size,
-      modified: stats.mtime,
-    }));
-  } catch (error) {
-    console.error('Erro ao calcular hash:', error);
-    sendError(res, 500, 'INTEGRITY_ERROR', 'Erro ao verificar integridade do arquivo');
-  }
-});
-
-/**
- * GET /api/downloads/app/:appId
- * Obter URL de download do app (com verificação de licença)
- */
-router.get('/app/:appId', rateLimiter.sensitive, async (req, res): Promise<void> => {
-  const appId = Number(req.params.appId);
-  const email = req.query.email as string;
-
-  if (!email) {
-    sendError(res, 400, 'EMAIL_REQUIRED', 'Email é obrigatório');
-    return;
-  }
-
-  // Verificar se tem compra aprovada
-  const payment = await prisma.payment.findFirst({
-    where: {
-      appId,
-      payerEmail: email,
-      status: 'approved',
-    },
-  });
-
-  if (!payment) {
-    sendError(res, 403, 'NO_LICENSE', 'Você não possui licença para este app');
-    return;
-  }
-
-  // Buscar app
-  const app = await prisma.app.findUnique({
-    where: { id: appId },
-    select: { executableUrl: true, name: true },
-  });
-
-  if (!app || !app.executableUrl) {
-    sendError(res, 404, 'APP_NOT_FOUND', 'App ou download não encontrado');
-    return;
-  }
-
-  // Incrementar contador de downloads
-  await prisma.app.update({
-    where: { id: appId },
-    data: { downloadCount: { increment: 1 } },
-  });
-
-  res.json(success({
-    download_url: app.executableUrl,
-    app_name: app.name,
-  }));
 });
 
 export default router;
