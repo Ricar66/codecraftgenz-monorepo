@@ -10,7 +10,7 @@ services:
     plan: free
     rootDir: backend
     buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: node dist/server.js
+    startCommand: npx prisma migrate deploy && node dist/server.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
