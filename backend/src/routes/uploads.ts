@@ -40,7 +40,9 @@ router.post(
     try {
       // old_url vem como campo do form (multipart) para substituir imagem anterior
       const oldUrl = req.body?.old_url as string | undefined;
-      const result = await imageUploadService.uploadImage(file, oldUrl);
+      // category: 'apps' ou 'projetos' (default: 'apps')
+      const category = (req.body?.category as string) || 'apps';
+      const result = await imageUploadService.uploadImage(file, oldUrl, category as 'apps' | 'projetos');
       res.json(success(result));
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Erro ao processar upload';

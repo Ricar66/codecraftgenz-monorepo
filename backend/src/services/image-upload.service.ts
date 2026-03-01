@@ -4,20 +4,21 @@ import { env } from '../config/env.js';
 import fs from 'fs/promises';
 import path from 'path';
 
-const IMAGES_SUBDIR = 'images';
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIMES = [
   'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml',
 ];
+const VALID_CATEGORIES = ['apps', 'projetos'] as const;
+type ImageCategory = typeof VALID_CATEGORIES[number];
 
 export const imageUploadService = {
   /**
-   * Extrai o nome do arquivo de uma URL de imagem da Hostinger
-   * Ex: "https://codecraftgenz.com.br/downloads/images/1234-foto.png" -> "images/1234-foto.png"
+   * Extrai o caminho relativo da imagem a partir da URL
+   * Ex: "https://codecraftgenz.com.br/downloads/images/apps/1234-foto.png" -> "images/apps/1234-foto.png"
    */
   extractImagePath(url: string): string | null {
     if (!url) return null;
-    const match = url.match(/\/downloads\/(images\/[^?#]+)/);
+    const match = url.match(/\/downloads\/(images\/(?:apps|projetos)\/[^?#]+)/);
     return match ? match[1] : null;
   },
 
@@ -28,15 +29,14 @@ export const imageUploadService = {
     const imagePath = this.extractImagePath(oldUrl);
     if (!imagePath) return;
 
-    const fileName = imagePath.split('/').pop();
-    if (!fileName) return;
+    // imagePath = "images/apps/1234-foto.png" ou "images/projetos/1234-foto.png"
 
     // Deletar do disco local
     try {
       const downloadsDir = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
-      const localPath = path.join(downloadsDir, IMAGES_SUBDIR, fileName);
+      const localPath = path.join(downloadsDir, ...imagePath.split('/'));
       await fs.unlink(localPath);
-      logger.info({ fileName }, 'Imagem antiga deletada do disco local');
+      logger.info({ imagePath }, 'Imagem antiga deletada do disco local');
     } catch {
       // Arquivo pode não existir localmente
     }
@@ -45,15 +45,23 @@ export const imageUploadService = {
     try {
       const { isFtpConfigured, deleteFromHostinger } = await import('./ftp.service.js');
       if (isFtpConfigured()) {
-        await deleteFromHostinger(`${IMAGES_SUBDIR}/${fileName}`);
-        logger.info({ fileName }, 'Imagem antiga deletada da Hostinger via FTP');
+        await deleteFromHostinger(imagePath);
+        logger.info({ imagePath }, 'Imagem antiga deletada da Hostinger via FTP');
       }
     } catch (ftpError) {
-      logger.warn({ error: ftpError, fileName }, 'Erro ao deletar imagem antiga via FTP (ignorando)');
+      logger.warn({ error: ftpError, imagePath }, 'Erro ao deletar imagem antiga via FTP (ignorando)');
     }
   },
 
-  async uploadImage(file: { originalname: string; buffer: Buffer; size: number; mimetype: string }, oldUrl?: string) {
+  async uploadImage(
+    file: { originalname: string; buffer: Buffer; size: number; mimetype: string },
+    oldUrl?: string,
+    category: ImageCategory = 'apps'
+  ) {
+    if (!VALID_CATEGORIES.includes(category)) {
+      throw new Error(`Categoria inválida: ${category}. Use: ${VALID_CATEGORIES.join(', ')}`);
+    }
+
     if (!ALLOWED_MIMES.includes(file.mimetype)) {
       throw new Error('Tipo de imagem não permitido. Use JPEG, PNG, WEBP, GIF ou SVG.');
     }
@@ -74,28 +82,31 @@ export const imageUploadService = {
       .replace(/__+/g, '_');
     const fileName = `${timestamp}-${sanitized}`;
 
-    // Salvar localmente em downloads/images/
+    // Subdir: images/apps ou images/projetos
+    const imagesSubdir = `images/${category}`;
+
+    // Salvar localmente em downloads/images/<category>/
     const downloadsDir = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
-    const imagesDir = path.join(downloadsDir, IMAGES_SUBDIR);
+    const imagesDir = path.join(downloadsDir, 'images', category);
     await fs.mkdir(imagesDir, { recursive: true });
 
     const filePath = path.join(imagesDir, fileName);
     await fs.writeFile(filePath, file.buffer);
-    logger.info({ fileName, size: file.size, path: filePath }, 'Imagem salva no disco local');
+    logger.info({ fileName, category, size: file.size, path: filePath }, 'Imagem salva no disco local');
 
     // URL fallback via API do backend
-    let publicUrl = `/api/downloads/${IMAGES_SUBDIR}/${encodeURIComponent(fileName)}`;
+    let publicUrl = `/api/downloads/${imagesSubdir}/${encodeURIComponent(fileName)}`;
 
-    // Upload para Hostinger via FTP (em /public_html/downloads/images/)
+    // Upload para Hostinger via FTP (em /public_html/downloads/images/<category>/)
     try {
       const { isFtpConfigured, uploadToHostinger } = await import('./ftp.service.js');
       if (isFtpConfigured()) {
-        const ftpUrl = await uploadToHostinger(`${IMAGES_SUBDIR}/${fileName}`, file.buffer);
+        const ftpUrl = await uploadToHostinger(`${imagesSubdir}/${fileName}`, file.buffer);
         publicUrl = ftpUrl;
-        logger.info({ fileName, url: ftpUrl }, 'Imagem enviada para Hostinger via FTP');
+        logger.info({ fileName, category, url: ftpUrl }, 'Imagem enviada para Hostinger via FTP');
       }
     } catch (ftpError) {
-      logger.warn({ error: ftpError, fileName }, 'Erro no upload FTP de imagem (usando URL local)');
+      logger.warn({ error: ftpError, fileName, category }, 'Erro no upload FTP de imagem (usando URL local)');
     }
 
     return {
