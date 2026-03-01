@@ -13,7 +13,7 @@ const FTP_CONFIG = {
   password: env.FTP_PASSWORD || '',
   port: env.FTP_PORT ?? 21,
   secure: false, // FTP padrão (não FTPS)
-  remotePath: env.FTP_REMOTE_PATH || '/public_html/downloads',
+  remotePath: env.FTP_REMOTE_PATH || '/nodejs/downloads',
   publicUrl: env.FTP_PUBLIC_URL || 'https://codecraftgenz.com.br/downloads',
 };
 
