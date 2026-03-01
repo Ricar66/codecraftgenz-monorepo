@@ -55,6 +55,10 @@ router.get('/images/:category/:file', rateLimiter.default, async (req, res): Pro
     '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
   };
 
+  // Permitir carregamento cross-origin (frontend em codecraftgenz.com.br, backend em onrender.com)
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
   // 1. Tentar servir do disco local
   if (await fileExistsLocally(filePath)) {
     if (mimeTypes[ext]) res.setHeader('Content-Type', mimeTypes[ext]);
