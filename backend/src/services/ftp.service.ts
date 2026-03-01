@@ -185,9 +185,6 @@ export const downloadFromHostinger = async (
       secure: FTP_CONFIG.secure,
     });
 
-    const ftpRoot = await client.pwd();
-    logger.info({ ftpRoot, remotePath: FTP_CONFIG.remotePath }, 'Download FTP - diretório raiz');
-
     // Suporte a subdiretorios (ex: "images/projetos/foto.jpg")
     const parts = fileName.split('/');
     const actualFileName = parts.pop()!;
@@ -197,14 +194,8 @@ export const downloadFromHostinger = async (
       ? `${FTP_CONFIG.remotePath}/${subDir}`
       : FTP_CONFIG.remotePath;
 
-    logger.info({ fileName, actualFileName, targetDir, localPath }, 'Baixando arquivo da Hostinger via FTP...');
+    logger.info({ fileName, targetDir, localPath }, 'Baixando arquivo da Hostinger via FTP...');
     await client.cd(targetDir);
-
-    const currentDir = await client.pwd();
-    const files = await client.list();
-    const fileNames = files.map(f => f.name);
-    logger.info({ currentDir, filesInDir: fileNames.slice(0, 20) }, 'Download FTP - diretório atual e conteúdo');
-
     await client.downloadTo(localPath, actualFileName);
     logger.info({ fileName, localPath }, 'Download FTP concluído com sucesso');
 
