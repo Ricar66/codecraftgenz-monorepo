@@ -44,7 +44,7 @@ export const isFtpConfigured = (): boolean => {
 /**
  * Faz upload de um arquivo para a Hostinger via FTP
  *
- * @param fileName - Nome do arquivo (ex: MeuApp.exe)
+ * @param fileName - Nome do arquivo (ex: MeuApp.exe) ou caminho com subdir (ex: images/foto.png)
  * @param fileBuffer - Buffer do arquivo
  * @returns URL pública do arquivo na Hostinger
  */
@@ -58,7 +58,7 @@ export const uploadToHostinger = async (
   }
 
   const client = new ftp.Client();
-  client.ftp.verbose = false; // Desabilitar logs verbosos em produção
+  client.ftp.verbose = false;
 
   try {
     logger.info({ host: FTP_CONFIG.host, user: FTP_CONFIG.user }, 'Conectando ao FTP...');
@@ -73,28 +73,36 @@ export const uploadToHostinger = async (
 
     logger.info('Conexão FTP estabelecida');
 
-    // Garantir que a pasta de downloads existe
+    // Suporte a subdiretorios (ex: "images/foto.png" -> subDir="images", actualFileName="foto.png")
+    const parts = fileName.split('/');
+    const actualFileName = parts.pop()!;
+    const subDir = parts.join('/');
+
+    const targetDir = subDir
+      ? `${FTP_CONFIG.remotePath}/${subDir}`
+      : FTP_CONFIG.remotePath;
+
+    // Garantir que o diretorio de destino existe
     try {
-      await client.ensureDir(FTP_CONFIG.remotePath);
-      logger.info({ path: FTP_CONFIG.remotePath }, 'Diretório verificado/criado');
+      await client.ensureDir(targetDir);
+      logger.info({ path: targetDir }, 'Diretório verificado/criado');
     } catch (dirError) {
-      logger.warn({ error: dirError, path: FTP_CONFIG.remotePath }, 'Erro ao criar diretório (pode já existir)');
+      logger.warn({ error: dirError, path: targetDir }, 'Erro ao criar diretório (pode já existir)');
     }
 
-    // Navegar para a pasta de downloads
-    await client.cd(FTP_CONFIG.remotePath);
+    await client.cd(targetDir);
 
-    // Converter Buffer para Readable Stream
     const readableStream = Readable.from(fileBuffer);
 
-    // Fazer upload do arquivo
-    const remotePath = `${FTP_CONFIG.remotePath}/${fileName}`;
-    logger.info({ fileName, remotePath, size: fileBuffer.length }, 'Iniciando upload FTP...');
+    const remotePath = `${targetDir}/${actualFileName}`;
+    logger.info({ fileName: actualFileName, remotePath, size: fileBuffer.length }, 'Iniciando upload FTP...');
 
-    await client.uploadFrom(readableStream, fileName);
+    await client.uploadFrom(readableStream, actualFileName);
 
-    const publicUrl = `${FTP_CONFIG.publicUrl}/${fileName}`;
-    logger.info({ fileName, publicUrl, size: fileBuffer.length }, 'Upload FTP concluído com sucesso');
+    const publicUrl = subDir
+      ? `${FTP_CONFIG.publicUrl}/${subDir}/${actualFileName}`
+      : `${FTP_CONFIG.publicUrl}/${actualFileName}`;
+    logger.info({ fileName: actualFileName, publicUrl, size: fileBuffer.length }, 'Upload FTP concluído com sucesso');
 
     return publicUrl;
 

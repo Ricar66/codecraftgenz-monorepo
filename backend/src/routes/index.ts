@@ -18,6 +18,7 @@ import dashboardRoutes from './dashboard.js';
 import proposalRoutes from './proposals.js';
 import feedbackRoutes from './feedbacks.js';
 import downloadRoutes from './downloads.js';
+import uploadRoutes from './uploads.js';
 import integrationRoutes from './integrations.js';
 import hubRoutes from './hub.js';
 import nfseRoutes from './nfse.js';
@@ -47,6 +48,7 @@ router.use('/api/dashboard', dashboardRoutes);
 router.use('/api/proposals', proposalRoutes);
 router.use('/api/feedbacks', feedbackRoutes);
 router.use('/api/downloads', downloadRoutes);
+router.use('/api/uploads', uploadRoutes);
 router.use('/api/hub', hubRoutes); // CodeCraft Hub (desktop launcher)
 router.use('/api/nfse', nfseRoutes); // NFS-e (Nota Fiscal de Servico Eletronica)
 router.use('/api', integrationRoutes); // Mercado Livre OAuth
