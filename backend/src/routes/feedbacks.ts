@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { success } from '../utils/response.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
+import { leadService } from '../services/lead.service.js';
 
 const router = Router();
 
@@ -51,6 +52,14 @@ router.post('/', rateLimiter.sensitive, async (req, res): Promise<void> => {
         }),
       },
     });
+
+    // Captura lead
+    leadService.captureLead({
+      nome, email, origin: 'feedback',
+      originId: feedback.id,
+      ip: req.ip || undefined,
+      userAgent: req.get('user-agent'),
+    }).catch(() => {});
 
     res.json(success({ id: feedback.id, message: 'Feedback enviado com sucesso' }));
   } catch (error) {

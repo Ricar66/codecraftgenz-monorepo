@@ -6,6 +6,7 @@ import { generateToken } from '../middlewares/auth.js';
 import { logger } from '../utils/logger.js';
 import { userService } from './user.service.js';
 import type { LoginInput, RegisterInput } from '../schemas/auth.schema.js';
+import { leadService } from './lead.service.js';
 
 const SALT_ROUNDS = 10;
 
@@ -127,6 +128,13 @@ export const authService = {
 
       logger.info({ userId: user.id }, 'User registered');
     }
+
+    // Captura lead de registro
+    leadService.captureLead({
+      nome: user.name || undefined,
+      email: user.email,
+      origin: 'registration',
+    }).catch(() => {});
 
     // Generate token
     const token = generateToken({

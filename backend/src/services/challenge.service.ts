@@ -1,5 +1,6 @@
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
+import { leadService } from './lead.service.js';
 import type {
   CreateChallengeInput,
   UpdateChallengeInput,
@@ -126,6 +127,18 @@ export const challengeService = {
         status: 'subscribed',
       },
     });
+
+    // Captura lead
+    const subUser = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } });
+    if (subUser) {
+      leadService.captureLead({
+        nome: subUser.name || undefined,
+        email: subUser.email,
+        origin: 'challenge_subscribe',
+        originId: challengeId,
+        originRef: challenge.name,
+      }).catch(() => {});
+    }
 
     return { submission_id: submission.id, status: 'subscribed' };
   },

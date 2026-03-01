@@ -4,6 +4,7 @@ import { success, sendError } from '../utils/response.js';
 import { authenticate, authorizeAdmin } from '../middlewares/auth.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
 import { logger } from '../utils/logger.js';
+import { leadService } from '../services/lead.service.js';
 
 const router = Router();
 
@@ -119,6 +120,16 @@ router.post('/', rateLimiter.sensitive, async (req, res) => {
         description: description || null,
       },
     });
+
+    // Captura lead
+    leadService.captureLead({
+      nome: contactName, email,
+      telefone: phone,
+      origin: 'proposal',
+      originRef: companyName,
+      ip: req.ip || undefined,
+      userAgent: req.get('user-agent'),
+    }).catch(() => {});
 
     logger.info({ id: proposal.id, email }, 'Nova proposta B2B recebida');
     res.status(201).json(success(proposal));
