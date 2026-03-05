@@ -1,6 +1,19 @@
 import { prisma } from '../db/prisma.js';
 import { logger } from '../utils/logger.js';
 
+/**
+ * Resolve URLs relativas de imagem para absolutas (para clientes externos como o Hub desktop).
+ * Ex: "/api/downloads/images/apps/123-foto.png" -> "https://codecraftgenz-monorepo.onrender.com/api/downloads/images/apps/123-foto.png"
+ */
+function resolveImageUrl(url: string | null): string | null {
+  if (!url) return null;
+  // Ja e absoluta
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+  // Relativa -> absoluta usando a URL do backend
+  const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 8080}`;
+  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 export const hubService = {
   async getAppsWithLicenseStatus(userId: number, userEmail: string, userRole?: string) {
     // Buscar todos os apps publicados/disponíveis (exclui o próprio Hub)
@@ -48,9 +61,9 @@ export const hubService = {
       price: Number(app.price),
       category: app.category,
       tags: parseJson(app.tags, []),
-      thumb_url: app.thumbUrl,
-      screenshots: parseJson(app.screenshots, []),
-      executable_url: app.executableUrl,
+      thumb_url: resolveImageUrl(app.thumbUrl),
+      screenshots: parseJson(app.screenshots, []).map((s: string) => resolveImageUrl(s) || s),
+      executable_url: resolveImageUrl(app.executableUrl),
       platforms: parseJson(app.platforms, ['windows']),
       version: app.version,
       featured: app.featured,
