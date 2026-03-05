@@ -63,7 +63,7 @@ export const hubService = {
       tags: parseJson(app.tags, []),
       thumb_url: resolveImageUrl(app.thumbUrl),
       screenshots: parseJson(app.screenshots, []).map((s: string) => resolveImageUrl(s) || s),
-      executable_url: resolveImageUrl(app.executableUrl),
+      executable_url: app.executableUrl,
       platforms: parseJson(app.platforms, ['windows']),
       version: app.version,
       featured: app.featured,
