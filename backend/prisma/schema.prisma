@@ -64,7 +64,7 @@ model Project {
   id          Int       @id @default(autoincrement())
   nome        String
   owner       String?
-  descricao   String?
+  descricao   String?   @db.Text
   status      String    @default("ativo")
   preco       Decimal   @default(0) @db.Decimal(10, 2)
   progresso   Int       @default(0)
@@ -90,8 +90,8 @@ model Project {
 model App {
   id              Int       @id @default(autoincrement())
   name            String    
-  description     String?   
-  shortDescription String?  
+  description     String?   @db.Text
+  shortDescription String?  @db.Text
   price           Decimal   @default(0) @db.Decimal(10, 2)
   category        String?   
   tags            String?   
@@ -221,7 +221,7 @@ model Crafter {
 model Equipe {
   id          Int       @id @default(autoincrement())
   nome        String    
-  descricao   String?   
+  descricao   String?   @db.Text
   logoUrl     String?   
   status      String    @default("ativo") 
   createdAt   DateTime  @default(now())
@@ -318,7 +318,7 @@ model Desafio {
   id          Int       @id @default(autoincrement())
   name        String    
   objective   String?   
-  description String?   
+  description String?   @db.Text
   difficulty  String    @default("medio") 
   deadline    DateTime?
   reward      Decimal?  @db.Decimal(10, 2)
