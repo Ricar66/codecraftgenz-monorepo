@@ -98,7 +98,9 @@ router.get('/images/:category/:file', rateLimiter.default, async (req, res): Pro
     logger.warn({ error: ftpError, category, filename: sanitizedFilename }, 'Erro ao buscar imagem via FTP');
   }
 
-  sendError(res, 404, 'FILE_NOT_FOUND', 'Imagem não encontrada');
+  // Fallback final: redirecionar para Hostinger
+  const hostingerBase = env.FTP_PUBLIC_URL || 'https://codecraftgenz.com.br/downloads';
+  res.redirect(302, `${hostingerBase}/images/${category}/${sanitizedFilename}`);
 });
 
 /**
@@ -251,8 +253,11 @@ router.get('/:file', rateLimiter.default, async (req, res): Promise<void> => {
     logger.warn({ error: ftpError, filename: sanitizedFilename }, 'Erro ao buscar arquivo via FTP');
   }
 
-  // 3. Arquivo não encontrado em nenhum lugar
-  sendError(res, 404, 'FILE_NOT_FOUND', 'Arquivo não encontrado');
+  // 3. Fallback final: redirecionar para URL pública da Hostinger
+  const hostingerPublicUrl = env.FTP_PUBLIC_URL || 'https://codecraftgenz.com.br/downloads';
+  const redirectUrl = `${hostingerPublicUrl}/${sanitizedFilename}`;
+  logger.info({ filename: sanitizedFilename, redirectUrl }, 'Redirecionando para Hostinger (fallback)');
+  res.redirect(302, redirectUrl);
 });
 
 export default router;
