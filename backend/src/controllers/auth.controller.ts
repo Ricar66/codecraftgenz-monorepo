@@ -124,4 +124,28 @@ export const authController = {
       next(error);
     }
   },
+
+  /**
+   * POST /api/v1/auth/google
+   * Login/Register with Google OAuth
+   */
+  async googleAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { credential } = req.body;
+
+      if (!credential) {
+        res.status(400).json({ success: false, error: { message: 'Token do Google não fornecido' } });
+        return;
+      }
+
+      const result = await authService.googleAuth(credential);
+
+      // Set cookie
+      res.cookie('token', result.token, cookieOptions);
+
+      sendSuccess(res, result);
+    } catch (error) {
+      next(error);
+    }
+  },
 };

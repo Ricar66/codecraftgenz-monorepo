@@ -7,6 +7,7 @@ import { logger } from '../utils/logger.js';
 import { userService } from './user.service.js';
 import type { LoginInput, RegisterInput } from '../schemas/auth.schema.js';
 import { leadService } from './lead.service.js';
+import { env } from '../config/env.js';
 
 const SALT_ROUNDS = 10;
 
@@ -291,4 +292,129 @@ export const authService = {
 
     logger.info({ userId }, 'Password changed');
   },
+
+  /**
+   * Google OAuth - login or register with Google ID token
+   */
+  async googleAuth(credential: string) {
+    // Verify the Google ID token
+    const payload = await verifyGoogleToken(credential);
+
+    if (!payload || !payload.email) {
+      throw AppError.unauthorized('Token do Google inválido');
+    }
+
+    const { email, name, sub: googleId } = payload;
+
+    // Check if user exists
+    let user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (user) {
+      // User exists
+      if (user.status !== 'ativo') {
+        throw AppError.forbidden('Conta desativada ou suspensa');
+      }
+
+      // If guest user, convert to regular
+      if (user.isGuest) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            name: name || user.name,
+            isGuest: false,
+            // Set a random password hash since they use Google
+            passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), SALT_ROUNDS),
+          },
+        });
+        logger.info({ userId: user.id }, 'Guest user converted via Google OAuth');
+      }
+
+      // Merge any guest users with same email
+      try {
+        const guestUsers = await prisma.user.findMany({
+          where: { email, isGuest: true, id: { not: user.id } },
+        });
+        for (const guestUser of guestUsers) {
+          await userService.mergeGuestIntoUser(guestUser.id, user.id);
+        }
+      } catch (mergeError) {
+        logger.warn({ error: mergeError, userId: user.id }, 'Falha ao merge guests no Google login');
+      }
+
+      logger.info({ userId: user.id }, 'User logged in via Google');
+    } else {
+      // Create new user
+      user = await prisma.user.create({
+        data: {
+          email,
+          name: name || 'Usuário Google',
+          passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), SALT_ROUNDS),
+          role: 'viewer',
+          status: 'ativo',
+          isGuest: false,
+        },
+      });
+
+      logger.info({ userId: user.id }, 'User registered via Google');
+
+      // Capture lead
+      leadService.captureLead({
+        nome: user.name || undefined,
+        email: user.email,
+        origin: 'google_oauth',
+      }).catch(() => {});
+    }
+
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    });
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    };
+  },
 };
+
+/**
+ * Verify Google ID token using Google's tokeninfo endpoint
+ */
+async function verifyGoogleToken(credential: string): Promise<{ email: string; name: string; sub: string } | null> {
+  try {
+    const response = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`
+    );
+
+    if (!response.ok) {
+      logger.warn('Google token verification failed');
+      return null;
+    }
+
+    const payload = await response.json();
+
+    // Verify the audience matches our client ID
+    if (env.GOOGLE_CLIENT_ID && payload.aud !== env.GOOGLE_CLIENT_ID) {
+      logger.warn({ aud: payload.aud }, 'Google token audience mismatch');
+      return null;
+    }
+
+    return {
+      email: payload.email,
+      name: payload.name || '',
+      sub: payload.sub,
+    };
+  } catch (error) {
+    logger.error({ error }, 'Error verifying Google token');
+    return null;
+  }
+}

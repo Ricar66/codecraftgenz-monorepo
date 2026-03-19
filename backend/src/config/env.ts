@@ -67,6 +67,9 @@ const envSchema = z.object({
 
   // Frontend
   FRONTEND_URL: z.string().default('http://localhost:5173'),
+
+  // Google OAuth
+  GOOGLE_CLIENT_ID: z.string().optional(),
 });
 
 // Parse and validate environment variables

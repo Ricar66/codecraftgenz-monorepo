@@ -81,4 +81,14 @@ router.post(
   authController.changePassword
 );
 
+/**
+ * POST /api/v1/auth/google
+ * Login/Register with Google OAuth
+ */
+router.post(
+  '/google',
+  authLimiter,
+  authController.googleAuth
+);
+
 export default router;
