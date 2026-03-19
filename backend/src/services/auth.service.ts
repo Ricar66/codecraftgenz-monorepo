@@ -304,7 +304,7 @@ export const authService = {
       throw AppError.unauthorized('Token do Google inválido');
     }
 
-    const { email, name, sub: googleId } = payload;
+    const { email, name } = payload;
 
     // Check if user exists
     let user = await prisma.user.findUnique({
@@ -363,7 +363,7 @@ export const authService = {
       leadService.captureLead({
         nome: user.name || undefined,
         email: user.email,
-        origin: 'google_oauth',
+        origin: 'registration' as const,
       }).catch(() => {});
     }
 
@@ -400,7 +400,7 @@ async function verifyGoogleToken(credential: string): Promise<{ email: string; n
       return null;
     }
 
-    const payload = await response.json();
+    const payload = await response.json() as Record<string, string>;
 
     // Verify the audience matches our client ID
     if (env.GOOGLE_CLIENT_ID && payload.aud !== env.GOOGLE_CLIENT_ID) {
