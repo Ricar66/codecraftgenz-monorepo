@@ -52,3 +52,5 @@ temp/
 *.pid
 *.seed
 *.pid.lock
+backend/.env.example
+infra/.env.example
