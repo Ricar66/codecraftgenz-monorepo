@@ -24,7 +24,7 @@ const router = Router();
 // Configuração do multer para upload de executáveis
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 512 * 1024 * 1024 }, // 512MB
+  limits: { fileSize: 150 * 1024 * 1024 }, // 150MB
   fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
     const allowedMimes = [
       'application/x-msdownload',

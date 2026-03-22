@@ -3,6 +3,7 @@ import { prisma } from '../db/prisma.js';
 import { success } from '../utils/response.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
 import { leadService } from '../services/lead.service.js';
+import { logger } from '../utils/logger.js';
 
 const router = Router();
 
@@ -59,7 +60,7 @@ router.post('/', rateLimiter.sensitive, async (req, res): Promise<void> => {
       originId: feedback.id,
       ip: req.ip || undefined,
       userAgent: req.get('user-agent'),
-    }).catch(() => {});
+    }).catch((e) => { logger.warn({ error: e }, 'Non-critical async operation failed'); });
 
     res.json(success({ id: feedback.id, message: 'Feedback enviado com sucesso' }));
   } catch (error) {

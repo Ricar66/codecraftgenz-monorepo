@@ -135,7 +135,7 @@ export const authService = {
       nome: user.name || undefined,
       email: user.email,
       origin: 'registration',
-    }).catch(() => {});
+    }).catch((e) => { logger.warn({ error: e }, 'Non-critical async operation failed'); });
 
     // Generate token
     const token = generateToken({
@@ -364,7 +364,7 @@ export const authService = {
         nome: user.name || undefined,
         email: user.email,
         origin: 'registration' as const,
-      }).catch(() => {});
+      }).catch((e) => { logger.warn({ error: e }, 'Non-critical async operation failed'); });
     }
 
     const token = generateToken({

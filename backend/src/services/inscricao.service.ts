@@ -2,6 +2,7 @@ import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import type { CreateInscricaoInput, UpdateInscricaoStatusInput } from '../schemas/inscricao.schema.js';
 import { leadService } from './lead.service.js';
+import { logger } from '../utils/logger.js';
 
 export const inscricaoService = {
   async getAll() {
@@ -65,7 +66,7 @@ export const inscricaoService = {
       telefone: data.telefone,
       origin: 'crafter_signup',
       originId: inscricao.id,
-    }).catch(() => {});
+    }).catch((e) => { logger.warn({ error: e }, 'Non-critical async operation failed'); });
 
     return mapInscricao(inscricao);
   },

@@ -1,6 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { leadService } from './lead.service.js';
+import { logger } from '../utils/logger.js';
 import type {
   CreateChallengeInput,
   UpdateChallengeInput,
@@ -137,7 +138,7 @@ export const challengeService = {
         origin: 'challenge_subscribe',
         originId: challengeId,
         originRef: challenge.name,
-      }).catch(() => {});
+      }).catch((e) => { logger.warn({ error: e }, 'Non-critical async operation failed'); });
     }
 
     return { submission_id: submission.id, status: 'subscribed' };

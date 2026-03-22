@@ -129,7 +129,7 @@ router.post('/', rateLimiter.sensitive, async (req, res) => {
       originRef: companyName,
       ip: req.ip || undefined,
       userAgent: req.get('user-agent'),
-    }).catch(() => {});
+    }).catch((e) => { logger.warn({ error: e }, 'Non-critical async operation failed'); });
 
     logger.info({ id: proposal.id, email }, 'Nova proposta B2B recebida');
     res.status(201).json(success(proposal));
