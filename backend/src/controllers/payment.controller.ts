@@ -89,8 +89,12 @@ export const paymentController = {
       }
 
       logger.info({ requestId: xRequestId }, 'Assinatura de webhook validada');
+    } else if (process.env.NODE_ENV === 'production') {
+      logger.error('MP_WEBHOOK_SECRET não configurado em produção - webhook rejeitado');
+      res.status(500).json({ error: 'Webhook secret não configurado' });
+      return;
     } else {
-      logger.warn('MP_WEBHOOK_SECRET não configurado - webhook aceito sem validação');
+      logger.warn('MP_WEBHOOK_SECRET não configurado - webhook aceito sem validação (dev only)');
     }
 
     const { type, data } = req.body;
