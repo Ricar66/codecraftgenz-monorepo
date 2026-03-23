@@ -1,183 +1,235 @@
-# CodeCraft Gen-Z
+# CodeCraft Gen-Z Backend
 
-Plataforma de cursos e marketplace de aplicativos para desenvolvedores.
+API backend da plataforma CodeCraft Gen-Z -- marketplace de apps, desafios, mentorias, ranking e pagamentos para desenvolvedores.
 
-## Requisitos
+**API:** https://api.codecraftgenz.com.br
 
-- Node.js >= 20
-- Docker e Docker Compose
-- MySQL 8.0 (via Docker ou instalado localmente)
+---
 
-## Estrutura do Monorepo
+## Tech Stack
 
-```
-codecraftgenz-monorepo/
-├── backend/          # API Express + TypeScript + Prisma
-├── frontend/         # React + Vite + TypeScript (em breve)
-├── infra/            # Docker Compose, Dockerfiles
-├── .github/          # GitHub Actions CI/CD
-├── Makefile          # Comandos do projeto
-└── README.md
-```
+| Tecnologia | Versao / Detalhes |
+|------------|-------------------|
+| Node.js | 20 |
+| Express | Framework HTTP |
+| TypeScript | Tipagem estatica |
+| Prisma ORM | Acesso ao banco de dados |
+| MySQL | 8.0 |
+| Zod | Validacao de schemas |
+| JWT | Autenticacao |
+| Helmet | Headers de seguranca |
+| PM2 | Process manager (producao) |
 
-## Configuração
+---
 
-### 1. Clone o repositório
+## Pre-requisitos
 
-```bash
-git clone https://github.com/seu-usuario/codecraftgenz-monorepo.git
-cd codecraftgenz-monorepo
-```
+- Node.js 20+
+- MySQL 8
 
-### 2. Configure as variáveis de ambiente
+---
 
-**Backend:**
-```bash
-cp backend/.env.example backend/.env
-# Edite backend/.env com suas credenciais
-```
-
-**Docker (opcional):**
-```bash
-cp infra/.env.example infra/.env
-# Edite infra/.env se for usar Docker Compose
-```
-
-### Variáveis de Ambiente (Backend)
-
-| Variável | Descrição | Exemplo |
-|----------|-----------|---------|
-| `NODE_ENV` | Ambiente | `development`, `production`, `test` |
-| `PORT` | Porta do servidor | `8080` |
-| `DATABASE_URL` | URL de conexão MySQL | `mysql://user:pass@localhost:3306/db` |
-| `JWT_SECRET` | Chave secreta JWT (min 32 chars) | `sua-chave-super-secreta-aqui-123` |
-| `JWT_EXPIRES_IN` | Expiração do token | `7d` |
-| `CORS_ORIGIN` | URL do frontend | `http://localhost:5173` |
-
-## Rodando o Projeto
-
-### Com Docker (Recomendado)
+## Getting Started
 
 ```bash
-# Subir tudo (banco + API)
-make up
+# Clonar o repositorio
+git clone https://github.com/Ricar66/codecraftgenz-monorepo.git
+cd codecraftgenz-monorepo/backend
+
+# Instalar dependencias
+npm install
+
+# Configurar variaveis de ambiente
+cp .env.example .env
+# Edite o arquivo .env com suas credenciais
+
+# Gerar o Prisma Client
+npx prisma generate
 
 # Rodar migrations
-make db-migrate-deploy
+npx prisma migrate deploy
 
-# Seed do banco
-make db-seed
+# Build do TypeScript
+npm run build
+
+# Iniciar o servidor
+npm start
 ```
 
-Acesse:
-- API: http://localhost:8080
-- MySQL: localhost:3306
-
-### Sem Docker
+Para desenvolvimento:
 
 ```bash
-# Instalar dependências
-make install
-
-# Gerar Prisma Client
-make db-generate
-
-# Iniciar banco MySQL local (deve estar rodando na porta 3306)
-
-# Rodar migrations
-make db-migrate
-
-# Iniciar em modo desenvolvimento
-make dev-backend
+npm run dev
 ```
 
-## Comandos Makefile
+A API estara disponivel em `http://localhost:8080`.
+
+---
+
+## Variaveis de Ambiente
+
+Crie um arquivo `.env` no diretorio `backend/` baseado no `.env.example`. Abaixo estao todas as variaveis necessarias:
+
+| Variavel | Descricao |
+|----------|-----------|
+| `NODE_ENV` | Ambiente de execucao (`development`, `production`, `test`) |
+| `PORT` | Porta do servidor HTTP |
+| `DATABASE_URL` | URL de conexao MySQL para o Prisma (`mysql://user:pass@host:3306/db`) |
+| `JWT_SECRET` | Chave secreta para assinatura de tokens JWT (minimo 32 caracteres) |
+| `JWT_EXPIRES_IN` | Tempo de expiracao do token JWT (ex: `7d`) |
+| `CORS_ORIGIN` | URL do frontend permitida no CORS |
+| `MERCADO_PAGO_ACCESS_TOKEN` | Token de acesso da API Mercado Pago |
+| `MERCADO_PAGO_PUBLIC_KEY` | Chave publica do Mercado Pago |
+| `MERCADO_PAGO_WEBHOOK_SECRET` | Secret para validacao de webhooks do Mercado Pago |
+| `MERCADO_PAGO_SUCCESS_URL` | URL de redirect apos pagamento aprovado |
+| `MERCADO_PAGO_FAILURE_URL` | URL de redirect apos pagamento recusado |
+| `MERCADO_PAGO_PENDING_URL` | URL de redirect para pagamento pendente |
+| `MERCADO_PAGO_WEBHOOK_URL` | URL publica do webhook para o Mercado Pago |
+| `EMAIL_USER` | Email para envio de emails transacionais |
+| `EMAIL_PASS` | Senha ou App Password do email |
+| `FRONTEND_URL` | URL do frontend (usado em emails e redirects) |
+| `FTP_HOST` | Host FTP para upload de arquivos |
+| `FTP_USER` | Usuario FTP |
+| `FTP_PASS` | Senha FTP |
+| `FTP_BASE_PATH` | Caminho base no servidor FTP |
+| `GOOGLE_CLIENT_ID` | Client ID do Google OAuth |
+| `GOOGLE_CLIENT_SECRET` | Client Secret do Google OAuth |
+| `ADMIN_RESET_TOKEN` | Token para reset administrativo |
+
+**Nunca commite arquivos `.env` no repositorio.**
+
+Para gerar um JWT_SECRET seguro:
 
 ```bash
-# Ajuda
-make help
-
-# Instalação
-make install              # Instalar todas as dependências
-make install-backend      # Instalar só backend
-make install-frontend     # Instalar só frontend
-
-# Desenvolvimento
-make dev                  # Iniciar tudo (banco Docker + backend + frontend)
-make dev-backend          # Iniciar só backend
-make dev-frontend         # Iniciar só frontend
-
-# Docker
-make up                   # Subir todos os serviços
-make up-db                # Subir só o banco
-make down                 # Parar todos os serviços
-make down-v               # Parar e remover volumes
-make logs                 # Ver logs de todos os serviços
-make logs-api             # Ver logs só da API
-make logs-db              # Ver logs só do banco
-
-# Banco de Dados
-make db-generate          # Gerar Prisma Client
-make db-migrate           # Rodar migrations (dev)
-make db-migrate-deploy    # Rodar migrations (prod)
-make db-seed              # Seed do banco
-make db-reset             # Resetar banco (migrate + seed)
-make db-studio            # Abrir Prisma Studio
-
-# Build & Test
-make build                # Build de tudo
-make build-backend        # Build do backend
-make build-frontend       # Build do frontend
-make test                 # Rodar todos os testes
-make test-backend         # Rodar testes do backend
-make test-watch           # Testes em modo watch
-make test-coverage        # Testes com coverage
-make lint                 # Lint de tudo
-make lint-backend         # Lint do backend
-
-# Utilitários
-make clean                # Limpar node_modules e dist
-make format               # Formatar código com Prettier
-make typecheck            # Verificar tipos TypeScript
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
+
+---
 
 ## Endpoints da API
 
 ### Health Check
 
-| Método | Endpoint | Descrição |
+| Metodo | Endpoint | Descricao |
 |--------|----------|-----------|
 | GET | `/health` | Status da API |
-| GET | `/health/db` | Status do banco |
+| GET | `/health/db` | Status do banco de dados |
 
-### Autenticação
+### Autenticacao (`/api/auth`)
 
-| Método | Endpoint | Descrição |
+| Metodo | Endpoint | Descricao |
 |--------|----------|-----------|
-| POST | `/api/auth/register` | Registrar usuário |
-| POST | `/api/auth/login` | Login |
+| POST | `/api/auth/register` | Registrar usuario |
+| POST | `/api/auth/login` | Login com email/senha |
+| POST | `/api/auth/google` | Login com Google OAuth |
 | POST | `/api/auth/logout` | Logout |
-| GET | `/api/auth/me` | Usuário atual |
+| GET | `/api/auth/me` | Dados do usuario autenticado |
 | POST | `/api/auth/forgot-password` | Solicitar reset de senha |
-| POST | `/api/auth/reset-password` | Resetar senha |
+| POST | `/api/auth/reset-password` | Resetar senha com token |
 
-### Response Shape
+### Apps (`/api/apps`)
 
-Todas as respostas seguem o padrão:
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | `/api/apps` | Listar apps |
+| GET | `/api/apps/:id` | Detalhes de um app |
+| POST | `/api/apps` | Criar app (admin) |
+| PUT | `/api/apps/:id` | Atualizar app (admin) |
+| DELETE | `/api/apps/:id` | Remover app (admin) |
+
+### Pagamentos (`/api/apps`)
+
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| POST | `/api/apps/:id/purchase` | Criar preferencia Mercado Pago (redirect) |
+| GET | `/api/apps/:id/purchase/status` | Status da compra |
+| POST | `/api/apps/:id/payment/direct` | Pagamento direto (cartao/PIX/boleto) |
+| GET | `/api/apps/:id/payment/last` | Ultimo pagamento do app |
+| POST | `/api/apps/webhook` | Webhook do Mercado Pago |
+| POST | `/api/apps/:id/resend-email` | Reenviar email de confirmacao |
+
+### Desafios (`/api/challenges`)
+
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | `/api/challenges` | Listar desafios |
+| GET | `/api/challenges/:id` | Detalhes de um desafio |
+| POST | `/api/challenges` | Criar desafio (admin) |
+| POST | `/api/challenges/:id/submit` | Submeter solucao |
+
+### Projetos (`/api/projects`)
+
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | `/api/projects` | Listar projetos |
+| GET | `/api/projects/:id` | Detalhes de um projeto |
+| POST | `/api/projects` | Criar projeto |
+| PUT | `/api/projects/:id` | Atualizar projeto |
+
+### Mentorias (`/api/mentors`)
+
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | `/api/mentors` | Listar mentores |
+| GET | `/api/mentors/:id` | Detalhes de um mentor |
+| POST | `/api/mentors` | Cadastrar mentor |
+
+### Ranking (`/api/ranking`)
+
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | `/api/ranking` | Ranking geral de usuarios |
+
+### Feedbacks (`/api/feedbacks`)
+
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | `/api/feedbacks` | Listar feedbacks |
+| POST | `/api/feedbacks` | Enviar feedback |
+
+### Propostas B2B (`/api/proposals`)
+
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | `/api/proposals` | Listar propostas (admin) |
+| POST | `/api/proposals` | Enviar proposta comercial |
+
+### Leads (`/api/leads`)
+
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | `/api/leads` | Listar leads (admin) |
+| POST | `/api/leads` | Registrar lead |
+
+### Downloads (`/api/downloads`)
+
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | `/api/downloads/:file` | Download de arquivo (protegido) |
+
+### Licencas (`/api/public/license`)
+
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| POST | `/api/public/license/activate-device` | Ativar licenca em dispositivo |
+
+### Formato de Resposta
+
+Todas as respostas seguem o padrao:
 
 **Sucesso:**
 ```json
 {
   "success": true,
-  "data": { ... }
+  "data": { }
 }
 ```
 
-**Sucesso Paginado:**
+**Sucesso paginado:**
 ```json
 {
   "success": true,
-  "data": [ ... ],
+  "data": [ ],
   "meta": {
     "page": 1,
     "limit": 10,
@@ -193,75 +245,129 @@ Todas as respostas seguem o padrão:
   "success": false,
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "Dados inválidos",
-    "details": { ... }
+    "message": "Dados invalidos",
+    "details": { }
   }
 }
 ```
 
-## Tech Stack
+---
 
-### Backend
-- **Runtime:** Node.js 20
-- **Framework:** Express.js
-- **Language:** TypeScript
-- **ORM:** Prisma
-- **Database:** MySQL 8.0
-- **Validation:** Zod
-- **Auth:** JWT + httpOnly cookies
-- **Logger:** Pino
-- **Testing:** Vitest
+## Banco de Dados
 
-### Frontend (em breve)
-- **Framework:** React 18
-- **Build:** Vite
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS
-- **State:** Zustand
-- **Routing:** React Router
+O banco de dados usa MySQL com Prisma ORM.
 
-### Infra
-- **Containers:** Docker + Docker Compose
-- **CI/CD:** GitHub Actions
-- **Backend Hosting:** Render
-- **Frontend Hosting:** Hostinger
-
-## Desenvolvimento
-
-### Criar nova migration
+### Comandos Prisma
 
 ```bash
-cd backend
+# Gerar Prisma Client
+npx prisma generate
+
+# Criar nova migration
 npx prisma migrate dev --name nome_da_migration
+
+# Aplicar migrations em producao
+npx prisma migrate deploy
+
+# Abrir Prisma Studio (interface visual)
+npx prisma studio
+
+# Resetar banco (apaga dados)
+npx prisma migrate reset
+
+# Seed do banco
+npx prisma db seed
 ```
 
-### Ver banco no Prisma Studio
+O schema do banco esta em `prisma/schema.prisma`.
+
+---
+
+## Estrutura do Projeto
+
+```
+codecraftgenz-monorepo/
+├── backend/
+│   ├── src/
+│   │   ├── routes/           # Definicao de rotas Express
+│   │   ├── controllers/      # Controllers (recebem request, retornam response)
+│   │   ├── services/         # Logica de negocio
+│   │   ├── repositories/     # Acesso ao banco via Prisma
+│   │   ├── middlewares/      # Middlewares (auth, rate-limit, validacao)
+│   │   ├── schemas/          # Schemas Zod para validacao
+│   │   ├── config/           # Configuracoes (database, email, etc.)
+│   │   ├── utils/            # Funcoes utilitarias
+│   │   ├── types/            # Tipos TypeScript
+│   │   ├── db/               # Configuracao do Prisma Client
+│   │   ├── app.ts            # Configuracao do Express app
+│   │   └── server.ts         # Ponto de entrada do servidor
+│   ├── prisma/
+│   │   ├── schema.prisma     # Schema do banco de dados
+│   │   └── migrations/       # Migrations do Prisma
+│   ├── package.json
+│   └── tsconfig.json
+├── infra/                    # Docker Compose, Dockerfiles
+├── Makefile                  # Comandos do projeto
+└── README.md
+```
+
+---
+
+## Deploy para VPS
+
+O backend roda em um VPS dedicado com Ubuntu 24.04.
+
+### Comando de deploy
 
 ```bash
-make db-studio
+ssh root@187.77.229.205 deploy-backend
 ```
 
-### Rodar testes com coverage
+O script `deploy-backend` no servidor executa:
+
+1. `cd /app/codecraftgenz-monorepo/backend`
+2. `git pull origin main`
+3. `npm install`
+4. `npx prisma generate`
+5. `npx prisma migrate deploy`
+6. `npm run build`
+7. `pm2 restart codecraftgenz-api`
+
+### Infraestrutura do VPS
+
+| Componente | Detalhes |
+|------------|----------|
+| Sistema operacional | Ubuntu 24.04 LTS |
+| Process manager | PM2 |
+| Reverse proxy | Nginx |
+| SSL | Certbot (Let's Encrypt) |
+| Dominio API | `api.codecraftgenz.com.br` |
+| Banco de dados | MySQL no Hostinger (`srv1889.hstgr.io`) |
+
+O Nginx faz reverse proxy da porta 443 para a porta da aplicacao Node.js gerenciada pelo PM2.
+
+---
+
+## Docker (Desenvolvimento)
+
+Para desenvolvimento local com Docker:
 
 ```bash
-make test-coverage
+# Subir banco + API
+make up
+
+# Rodar migrations
+make db-migrate-deploy
+
+# Seed do banco
+make db-seed
+
+# Parar servicos
+make down
 ```
 
-## Deploy
+---
 
-### Backend (Render)
-
-1. Conecte o repositório no Render
-2. Configure:
-   - Build Command: `cd backend && npm ci && npx prisma generate && npm run build`
-   - Start Command: `cd backend && npm start`
-3. Adicione as variáveis de ambiente
-
-### Frontend (Hostinger)
-
-1. Build local: `make build-frontend`
-2. Upload da pasta `frontend/dist` para o Hostinger
-
-## Licença
+## Licenca
 
 Proprietary - CodeCraft Gen-Z
