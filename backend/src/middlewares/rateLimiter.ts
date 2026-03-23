@@ -3,11 +3,11 @@ import { sendError } from '../utils/response.js';
 
 /**
  * Default rate limiter
- * 100 requests per 15 minutes
+ * 500 requests per 15 minutes (SPA faz ~15 req por page load)
  */
 export const defaultLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 500,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (_req, res) => {
