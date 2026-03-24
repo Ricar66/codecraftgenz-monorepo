@@ -57,11 +57,11 @@ export const authLimiter = rateLimit({
 
 /**
  * Sensitive operations limiter
- * 5 requests per hour
+ * 30 requests per 15 minutes (license activation, password reset, etc.)
  */
 export const sensitiveLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   skip: isAdmin,
