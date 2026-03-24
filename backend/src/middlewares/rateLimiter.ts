@@ -57,11 +57,13 @@ export const authLimiter = rateLimit({
 
 /**
  * Sensitive operations limiter
- * 30 requests per 15 minutes (license activation, password reset, etc.)
+ * 100 requests per 15 minutes per IP
+ * Cada usuario tem IP diferente, entao nao bloqueia uso normal
+ * So protege contra brute force do mesmo IP
  */
 export const sensitiveLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 30,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   skip: isAdmin,
