@@ -65,6 +65,32 @@ function createTransporter() {
   });
 }
 
+/**
+ * Cria transporter para o email team@ (crafter/boas-vindas)
+ * Usa EMAIL_TEAM_USER/EMAIL_TEAM_PASS se disponíveis, senão fallback para EMAIL_USER
+ */
+function createTeamTransporter() {
+  const user = env.EMAIL_TEAM_USER || env.EMAIL_USER;
+  const pass = env.EMAIL_TEAM_PASS || env.EMAIL_PASS;
+
+  if (!user || !pass) {
+    logger.warn('Team email credentials not configured');
+    return null;
+  }
+
+  logger.info({ emailUser: user }, 'Criando transporter de email (team)');
+
+  return nodemailer.createTransport({
+    host: 'smtp.hostinger.com',
+    port: 465,
+    secure: true,
+    auth: { user, pass },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+  });
+}
+
 // URL do logo da empresa (hospedado no site de produção)
 // Usando o logo-principal.png que está na raiz do public
 const LOGO_URL = 'https://codecraftgenz.com.br/logo-principal.png';
@@ -466,16 +492,16 @@ export const emailService = {
    * Envia email de boas-vindas ao crafter inscrito
    */
   async sendWelcomeEmail(data: WelcomeEmailData): Promise<boolean> {
-    const transporter = createTransporter();
+    const transporter = createTeamTransporter();
     if (!transporter) {
       logger.warn({ email: data.to }, 'Welcome email not sent - credentials not configured');
       return false;
     }
 
     try {
-      const fromAddress = data.from || `"CodeCraft Gen-Z" <${env.EMAIL_USER}>`;
+      const teamEmail = env.EMAIL_TEAM_USER || env.EMAIL_USER;
       const mailOptions = {
-        from: fromAddress.includes('<') ? fromAddress : `"CodeCraft Gen-Z" <${fromAddress}>`,
+        from: `"Equipe CodeCraft Gen-Z" <${teamEmail}>`,
         to: data.to,
         subject: `🎉 Bem-vindo(a) à CodeCraft Gen-Z, ${data.nome}!`,
         text: `Olá ${data.nome},\n\nSua inscrição como Crafter foi recebida com sucesso!\n\nNossa seleção de novos Crafters acontece mensalmente. Avaliaremos seu perfil e entraremos em contato em breve.\n\nAté breve!\nEquipe CodeCraft Gen-Z\nhttps://codecraftgenz.com.br`,
@@ -495,15 +521,16 @@ export const emailService = {
    * Envia notificação de nova inscrição ao admin
    */
   async sendAdminNotification(data: NotifyAdminData): Promise<boolean> {
-    const transporter = createTransporter();
+    const transporter = createTeamTransporter();
     if (!transporter) {
       logger.warn('Admin notification not sent - credentials not configured');
       return false;
     }
 
     try {
+      const teamEmail = env.EMAIL_TEAM_USER || env.EMAIL_USER;
       const mailOptions = {
-        from: `"CodeCraft Gen-Z" <${env.EMAIL_USER}>`,
+        from: `"CodeCraft Gen-Z" <${teamEmail}>`,
         to: data.to,
         subject: data.subject,
         text: `Nova inscrição de Crafter:\n\nNome: ${data.nome}\nEmail: ${data.email}\nTelefone: ${data.telefone || '—'}\nRede Social: ${data.rede_social || '—'}\nÁrea: ${data.area_interesse || '—'}\nLocalização: ${[data.cidade, data.estado].filter(Boolean).join(', ') || '—'}\nMensagem: ${data.mensagem || '—'}`,

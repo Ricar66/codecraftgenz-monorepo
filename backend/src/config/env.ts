@@ -29,6 +29,10 @@ const envSchema = z.object({
   EMAIL_USER: z.string().email().optional(),
   EMAIL_PASS: z.string().optional(),
 
+  // Email Team (para emails de crafter/boas-vindas)
+  EMAIL_TEAM_USER: z.string().email().optional(),
+  EMAIL_TEAM_PASS: z.string().optional(),
+
   // Mercado Pago (optional in development)
   MP_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
   MERCADO_PAGO_PUBLIC_KEY: z.string().optional(),
