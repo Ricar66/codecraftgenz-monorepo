@@ -400,7 +400,7 @@ function generateWelcomeEmailHtml(data: WelcomeEmailData): string {
     <div style="padding:32px 24px;color:#d0d0d8;font-size:15px;line-height:1.7;">
       <p>Olá <strong style="color:#fff;">${data.nome}</strong>,</p>
       <p>Sua inscrição como <strong style="color:#00E4F2;">Crafter</strong> foi recebida com sucesso!</p>
-      <p>Nossa seleção de novos Crafters acontece <strong style="color:#D12BF2;">mensalmente</strong>. Avaliaremos seu perfil com carinho e entraremos em contato em breve.</p>
+      <p>Nossa seleção de novos Crafters acontece <strong style="color:#D12BF2;">mensalmente</strong>. Entraremos em contato.</p>
       <div style="background:rgba(0,228,242,0.08);border:1px solid rgba(0,228,242,0.2);border-radius:8px;padding:16px;margin:24px 0;">
         <p style="margin:0;color:#00E4F2;font-weight:600;">📅 O que esperar:</p>
         <ul style="color:#d0d0d8;margin:8px 0 0 0;padding-left:20px;">
