@@ -60,7 +60,7 @@ router.get('/stats', authenticate, authorizeAdmin, async (_req: Request, res: Re
 });
 
 router.get('/:id', validate(parceriaIdSchema), async (req: Request, res: Response) => {
-  const parceria = await parceriaService.getById(req.params.id);
+  const parceria = await parceriaService.getById(String(req.params.id));
   res.json(parceria);
 });
 
@@ -71,7 +71,7 @@ router.patch(
   validate(updateParceriaStatusSchema),
   async (req: Request, res: Response) => {
     const data = (req as any).validated?.body || req.body;
-    const updated = await parceriaService.updateStatus(req.params.id, data);
+    const updated = await parceriaService.updateStatus(String(req.params.id), data);
     res.json({ success: true, data: updated });
   }
 );
@@ -82,7 +82,7 @@ router.delete(
   authorizeAdmin,
   validate(parceriaIdSchema),
   async (req: Request, res: Response) => {
-    await parceriaService.delete(req.params.id);
+    await parceriaService.delete(String(req.params.id));
     res.status(204).send();
   }
 );
