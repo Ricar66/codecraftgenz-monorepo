@@ -481,6 +481,30 @@ model Proposal {
 }
 
 // =============================================
+// PARTNERSHIPS (Parcerias)
+// =============================================
+
+model Partnership {
+  id             String   @id @default(uuid())
+  nomeContato    String
+  email          String
+  telefone       String?
+  empresa        String
+  cargo          String?
+  site           String?
+  tipoParceria   String   @default("tecnologia")
+  mensagem       String?  @db.Text
+  status         String   @default("novo")
+  notas          String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([status])
+  @@index([email])
+  @@map("partnerships")
+}
+
+// =============================================
 // AUDIT LOGS
 // =============================================
 

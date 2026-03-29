@@ -547,6 +547,120 @@ export const emailService = {
   },
 
   /**
+   * Envia email de boas-vindas ao parceiro
+   */
+  async sendPartnerWelcomeEmail(data: { to: string; nome: string; empresa?: string }): Promise<boolean> {
+    const transporter = createTeamTransporter();
+    if (!transporter) return false;
+
+    try {
+      const teamEmail = env.EMAIL_TEAM_USER || env.EMAIL_USER;
+      const mailOptions = {
+        from: `"Equipe CodeCraft Gen-Z" <${teamEmail}>`,
+        to: data.to,
+        subject: `🤝 Proposta recebida, ${data.nome}!`,
+        text: `Olá ${data.nome},\n\nRecebemos sua proposta de parceria${data.empresa ? ` pela ${data.empresa}` : ''}.\n\nAnalisamos propostas semanalmente e entraremos em contato em breve.\n\nEquipe CodeCraft Gen-Z`,
+        html: `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;background:#1a1a2e;border-radius:12px;overflow:hidden;border:1px solid rgba(0,228,242,0.2);">
+    <div style="background:linear-gradient(135deg,#00E4F2,#0891b2);padding:32px 24px;text-align:center;">
+      <img src="${LOGO_URL}" alt="CodeCraft Gen-Z" style="height:48px;margin-bottom:16px;" />
+      <h1 style="color:#fff;margin:0;font-size:24px;">Proposta recebida! 🤝</h1>
+    </div>
+    <div style="padding:32px 24px;color:#d0d0d8;font-size:15px;line-height:1.7;">
+      <p>Olá <strong style="color:#fff;">${data.nome}</strong>,</p>
+      <p>Recebemos sua proposta de parceria${data.empresa ? ` pela <strong style="color:#00E4F2;">${data.empresa}</strong>` : ''} com muito interesse!</p>
+      <p>Analisamos propostas de parceria <strong style="color:#00E4F2;">semanalmente</strong> e nossa equipe entrará em contato em breve para agendar uma conversa.</p>
+      <div style="background:rgba(0,228,242,0.08);border:1px solid rgba(0,228,242,0.2);border-radius:8px;padding:16px;margin:24px 0;">
+        <p style="margin:0;color:#00E4F2;font-weight:600;">📋 Próximos passos:</p>
+        <ul style="color:#d0d0d8;margin:8px 0 0 0;padding-left:20px;">
+          <li>Nossa equipe avaliará sua proposta</li>
+          <li>Entraremos em contato para alinhar detalhes</li>
+          <li>Agendaremos uma reunião para conhecer melhor</li>
+        </ul>
+      </div>
+      <p>Conheça mais sobre nós em <a href="https://codecraftgenz.com.br/para-empresas" style="color:#00E4F2;text-decoration:none;">codecraftgenz.com.br/para-empresas</a></p>
+      <p style="margin-top:32px;">Até breve! 🚀<br/><strong style="color:#fff;">Equipe CodeCraft Gen-Z</strong></p>
+    </div>
+    <div style="background:rgba(255,255,255,0.03);padding:16px 24px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);">
+      <p style="color:#666;font-size:12px;margin:0;">&copy; ${new Date().getFullYear()} CodeCraft Gen-Z. Todos os direitos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>`,
+      };
+      const info = await transporter.sendMail(mailOptions);
+      logger.info({ messageId: info.messageId, to: data.to }, 'Partner welcome email sent');
+      return true;
+    } catch (error) {
+      logger.error({ error, email: data.to }, 'Failed to send partner welcome email');
+      return false;
+    }
+  },
+
+  /**
+   * Envia notificação de nova parceria ao admin
+   */
+  async sendPartnerNotification(data: {
+    to: string; subject: string; nomeContato: string; email: string;
+    telefone?: string; empresa?: string; cargo?: string; site?: string;
+    tipoParceria?: string; mensagem?: string;
+  }): Promise<boolean> {
+    const transporter = createTeamTransporter();
+    if (!transporter) return false;
+
+    const TIPO_LABELS: Record<string, string> = {
+      tecnologia: 'Parceria Tecnológica', investimento: 'Investimento', patrocinio: 'Patrocínio',
+      squads: 'Contratação de Squads', mentoria_corporativa: 'Mentoria Corporativa',
+      estagio: 'Programa de Estágio', outro: 'Outro',
+    };
+
+    try {
+      const teamEmail = env.EMAIL_TEAM_USER || env.EMAIL_USER;
+      const mailOptions = {
+        from: `"CodeCraft Gen-Z" <${teamEmail}>`,
+        to: data.to,
+        subject: data.subject,
+        text: `Nova proposta de parceria:\n\nContato: ${data.nomeContato}\nEmpresa: ${data.empresa || '—'}\nEmail: ${data.email}\nTelefone: ${data.telefone || '—'}\nCargo: ${data.cargo || '—'}\nSite: ${data.site || '—'}\nTipo: ${TIPO_LABELS[data.tipoParceria || ''] || data.tipoParceria || '—'}\nMensagem: ${data.mensagem || '—'}`,
+        html: `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:600px;margin:20px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+    <div style="background:linear-gradient(135deg,#00E4F2,#0891b2);padding:20px 24px;">
+      <h1 style="color:#fff;margin:0;font-size:20px;">🤝 Nova Proposta de Parceria</h1>
+    </div>
+    <div style="padding:24px;color:#333;font-size:14px;line-height:1.6;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr><td style="padding:8px 12px;font-weight:600;color:#666;width:140px;">Contato:</td><td style="padding:8px 12px;color:#111;">${data.nomeContato}</td></tr>
+        <tr style="background:#f9f9f9;"><td style="padding:8px 12px;font-weight:600;color:#666;">Empresa:</td><td style="padding:8px 12px;color:#111;font-weight:600;">${data.empresa || '—'}</td></tr>
+        <tr><td style="padding:8px 12px;font-weight:600;color:#666;">Email:</td><td style="padding:8px 12px;"><a href="mailto:${data.email}" style="color:#0891b2;">${data.email}</a></td></tr>
+        <tr style="background:#f9f9f9;"><td style="padding:8px 12px;font-weight:600;color:#666;">Telefone:</td><td style="padding:8px 12px;">${data.telefone || '—'}</td></tr>
+        <tr><td style="padding:8px 12px;font-weight:600;color:#666;">Cargo:</td><td style="padding:8px 12px;">${data.cargo || '—'}</td></tr>
+        <tr style="background:#f9f9f9;"><td style="padding:8px 12px;font-weight:600;color:#666;">Site:</td><td style="padding:8px 12px;">${data.site ? `<a href="${data.site}" style="color:#0891b2;">${data.site}</a>` : '—'}</td></tr>
+        <tr><td style="padding:8px 12px;font-weight:600;color:#666;">Tipo:</td><td style="padding:8px 12px;"><strong>${TIPO_LABELS[data.tipoParceria || ''] || data.tipoParceria || '—'}</strong></td></tr>
+        ${data.mensagem ? `<tr style="background:#f9f9f9;"><td style="padding:8px 12px;font-weight:600;color:#666;vertical-align:top;">Mensagem:</td><td style="padding:8px 12px;">${data.mensagem}</td></tr>` : ''}
+      </table>
+      <p style="margin-top:20px;text-align:center;"><a href="https://codecraftgenz.com.br/admin/parcerias" style="display:inline-block;background:#0891b2;color:#fff;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Ver no Painel Admin</a></p>
+    </div>
+  </div>
+</body>
+</html>`,
+      };
+      const info = await transporter.sendMail(mailOptions);
+      logger.info({ messageId: info.messageId, to: data.to }, 'Partner notification sent');
+      return true;
+    } catch (error) {
+      logger.error({ error, to: data.to }, 'Failed to send partner notification');
+      return false;
+    }
+  },
+
+  /**
    * Testa a conexão com o servidor de email
    */
   async testConnection(): Promise<boolean> {
