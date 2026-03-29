@@ -333,6 +333,98 @@ suporte@codecraftgenz.com.br
 }
 
 /**
+ * Interface para email de boas-vindas ao crafter
+ */
+interface WelcomeEmailData {
+  nome: string;
+  to: string;
+  from?: string;
+}
+
+/**
+ * Interface para notificação de nova inscrição ao admin
+ */
+interface NotifyAdminData {
+  to: string;
+  subject: string;
+  nome: string;
+  email: string;
+  telefone?: string;
+  rede_social?: string;
+  area_interesse?: string;
+  cidade?: string;
+  estado?: string;
+  mensagem?: string;
+}
+
+/**
+ * Gera o template HTML do email de boas-vindas ao crafter
+ */
+function generateWelcomeEmailHtml(data: WelcomeEmailData): string {
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;background:#1a1a2e;border-radius:12px;overflow:hidden;border:1px solid rgba(209,43,242,0.2);">
+    <div style="background:linear-gradient(135deg,#D12BF2,#68007B);padding:32px 24px;text-align:center;">
+      <img src="${LOGO_URL}" alt="CodeCraft Gen-Z" style="height:48px;margin-bottom:16px;" />
+      <h1 style="color:#fff;margin:0;font-size:24px;">Bem-vindo(a), ${data.nome}! 🎉</h1>
+    </div>
+    <div style="padding:32px 24px;color:#d0d0d8;font-size:15px;line-height:1.7;">
+      <p>Olá <strong style="color:#fff;">${data.nome}</strong>,</p>
+      <p>Sua inscrição como <strong style="color:#00E4F2;">Crafter</strong> foi recebida com sucesso!</p>
+      <p>Nossa seleção de novos Crafters acontece <strong style="color:#D12BF2;">mensalmente</strong>. Avaliaremos seu perfil com carinho e entraremos em contato em breve.</p>
+      <div style="background:rgba(0,228,242,0.08);border:1px solid rgba(0,228,242,0.2);border-radius:8px;padding:16px;margin:24px 0;">
+        <p style="margin:0;color:#00E4F2;font-weight:600;">📅 O que esperar:</p>
+        <ul style="color:#d0d0d8;margin:8px 0 0 0;padding-left:20px;">
+          <li>Nosso time avaliará sua inscrição</li>
+          <li>Você receberá um retorno por e-mail</li>
+          <li>Se selecionado(a), receberá os próximos passos</li>
+        </ul>
+      </div>
+      <p>Enquanto isso, conheça mais sobre nossos projetos e desafios em <a href="https://codecraftgenz.com.br" style="color:#00E4F2;text-decoration:none;">codecraftgenz.com.br</a></p>
+      <p style="margin-top:32px;">Até breve! 🚀<br/><strong style="color:#fff;">Equipe CodeCraft Gen-Z</strong></p>
+    </div>
+    <div style="background:rgba(255,255,255,0.03);padding:16px 24px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);">
+      <p style="color:#666;font-size:12px;margin:0;">&copy; ${new Date().getFullYear()} CodeCraft Gen-Z. Todos os direitos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+/**
+ * Gera o template HTML de notificação ao admin
+ */
+function generateNotifyAdminHtml(data: NotifyAdminData): string {
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:600px;margin:20px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+    <div style="background:#D12BF2;padding:20px 24px;">
+      <h1 style="color:#fff;margin:0;font-size:20px;">🆕 Nova Inscrição de Crafter</h1>
+    </div>
+    <div style="padding:24px;color:#333;font-size:14px;line-height:1.6;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr><td style="padding:8px 12px;font-weight:600;color:#666;width:140px;">Nome:</td><td style="padding:8px 12px;color:#111;">${data.nome}</td></tr>
+        <tr style="background:#f9f9f9;"><td style="padding:8px 12px;font-weight:600;color:#666;">Email:</td><td style="padding:8px 12px;"><a href="mailto:${data.email}" style="color:#D12BF2;">${data.email}</a></td></tr>
+        <tr><td style="padding:8px 12px;font-weight:600;color:#666;">Telefone:</td><td style="padding:8px 12px;">${data.telefone || '—'}</td></tr>
+        <tr style="background:#f9f9f9;"><td style="padding:8px 12px;font-weight:600;color:#666;">Rede Social:</td><td style="padding:8px 12px;">${data.rede_social ? `<a href="${data.rede_social}" style="color:#D12BF2;">${data.rede_social}</a>` : '—'}</td></tr>
+        <tr><td style="padding:8px 12px;font-weight:600;color:#666;">Área:</td><td style="padding:8px 12px;">${data.area_interesse || '—'}</td></tr>
+        <tr style="background:#f9f9f9;"><td style="padding:8px 12px;font-weight:600;color:#666;">Localização:</td><td style="padding:8px 12px;">${[data.cidade, data.estado].filter(Boolean).join(', ') || '—'}</td></tr>
+        ${data.mensagem ? `<tr><td style="padding:8px 12px;font-weight:600;color:#666;vertical-align:top;">Mensagem:</td><td style="padding:8px 12px;">${data.mensagem}</td></tr>` : ''}
+      </table>
+      <p style="margin-top:20px;text-align:center;"><a href="https://codecraftgenz.com.br/admin/inscricoes" style="display:inline-block;background:#D12BF2;color:#fff;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Ver no Painel Admin</a></p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+/**
  * Serviço de Email
  */
 export const emailService = {
@@ -366,6 +458,63 @@ export const emailService = {
       return true;
     } catch (error) {
       logger.error({ error, email: data.customerEmail }, 'Failed to send purchase email');
+      return false;
+    }
+  },
+
+  /**
+   * Envia email de boas-vindas ao crafter inscrito
+   */
+  async sendWelcomeEmail(data: WelcomeEmailData): Promise<boolean> {
+    const transporter = createTransporter();
+    if (!transporter) {
+      logger.warn({ email: data.to }, 'Welcome email not sent - credentials not configured');
+      return false;
+    }
+
+    try {
+      const fromAddress = data.from || `"CodeCraft Gen-Z" <${env.EMAIL_USER}>`;
+      const mailOptions = {
+        from: fromAddress.includes('<') ? fromAddress : `"CodeCraft Gen-Z" <${fromAddress}>`,
+        to: data.to,
+        subject: `🎉 Bem-vindo(a) à CodeCraft Gen-Z, ${data.nome}!`,
+        text: `Olá ${data.nome},\n\nSua inscrição como Crafter foi recebida com sucesso!\n\nNossa seleção de novos Crafters acontece mensalmente. Avaliaremos seu perfil e entraremos em contato em breve.\n\nAté breve!\nEquipe CodeCraft Gen-Z\nhttps://codecraftgenz.com.br`,
+        html: generateWelcomeEmailHtml(data),
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      logger.info({ messageId: info.messageId, to: data.to }, 'Welcome email sent');
+      return true;
+    } catch (error) {
+      logger.error({ error, email: data.to }, 'Failed to send welcome email');
+      return false;
+    }
+  },
+
+  /**
+   * Envia notificação de nova inscrição ao admin
+   */
+  async sendAdminNotification(data: NotifyAdminData): Promise<boolean> {
+    const transporter = createTransporter();
+    if (!transporter) {
+      logger.warn('Admin notification not sent - credentials not configured');
+      return false;
+    }
+
+    try {
+      const mailOptions = {
+        from: `"CodeCraft Gen-Z" <${env.EMAIL_USER}>`,
+        to: data.to,
+        subject: data.subject,
+        text: `Nova inscrição de Crafter:\n\nNome: ${data.nome}\nEmail: ${data.email}\nTelefone: ${data.telefone || '—'}\nRede Social: ${data.rede_social || '—'}\nÁrea: ${data.area_interesse || '—'}\nLocalização: ${[data.cidade, data.estado].filter(Boolean).join(', ') || '—'}\nMensagem: ${data.mensagem || '—'}`,
+        html: generateNotifyAdminHtml(data),
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      logger.info({ messageId: info.messageId, to: data.to }, 'Admin notification email sent');
+      return true;
+    } catch (error) {
+      logger.error({ error, to: data.to }, 'Failed to send admin notification');
       return false;
     }
   },
