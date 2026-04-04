@@ -52,6 +52,11 @@ export const inscricaoService = {
         nome: data.nome,
         email: data.email,
         telefone: data.telefone,
+        redeSocial: data.rede_social,
+        cep: data.cep,
+        cidade: data.cidade,
+        estado: data.estado,
+        areaInteresse: data.area_interesse,
         mensagem: data.mensagem,
         projetoId: data.projeto_id,
         tipo: data.tipo ?? 'geral',
@@ -101,6 +106,11 @@ function mapInscricao(inscricao: {
   nome: string;
   email: string;
   telefone: string | null;
+  redeSocial?: string | null;
+  cep?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  areaInteresse?: string | null;
   mensagem: string | null;
   projetoId: number | null;
   tipo: string;
@@ -115,6 +125,11 @@ function mapInscricao(inscricao: {
     nome: inscricao.nome,
     email: inscricao.email,
     telefone: inscricao.telefone,
+    rede_social: inscricao.redeSocial || null,
+    cep: inscricao.cep || null,
+    cidade: inscricao.cidade || null,
+    estado: inscricao.estado || null,
+    area_interesse: inscricao.areaInteresse || null,
     mensagem: inscricao.mensagem,
     projeto_id: inscricao.projetoId,
     tipo: inscricao.tipo,

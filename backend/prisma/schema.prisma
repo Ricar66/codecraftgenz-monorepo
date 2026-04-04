@@ -293,19 +293,24 @@ model Mentor {
 // =============================================
 
 model Inscricao {
-  id          Int       @id @default(autoincrement())
-  nome        String    
-  email       String    
-  telefone    String?   
-  mensagem    String?   
-  projetoId   Int?
-  tipo        String    @default("geral") 
-  status      String    @default("pendente") 
-  notas       String?   
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              Int       @id @default(autoincrement())
+  nome            String
+  email           String
+  telefone        String?
+  redeSocial      String?   @map("rede_social")
+  cep             String?
+  cidade          String?
+  estado          String?
+  areaInteresse   String?   @map("area_interesse")
+  mensagem        String?
+  projetoId       Int?
+  tipo            String    @default("geral")
+  status          String    @default("pendente")
+  notas           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  projeto     Project?  @relation(fields: [projetoId], references: [id], onDelete: SetNull)
+  projeto         Project?  @relation(fields: [projetoId], references: [id], onDelete: SetNull)
 
   @@map("inscricoes")
 }
