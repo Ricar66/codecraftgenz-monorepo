@@ -133,8 +133,8 @@ export const authController = {
     try {
       const { credential } = req.body;
 
-      if (!credential) {
-        res.status(400).json({ success: false, error: { message: 'Token do Google não fornecido' } });
+      if (!credential || typeof credential !== 'string' || credential.length < 20 || credential.length > 4096) {
+        res.status(400).json({ success: false, error: { message: 'Token do Google inválido' } });
         return;
       }
 

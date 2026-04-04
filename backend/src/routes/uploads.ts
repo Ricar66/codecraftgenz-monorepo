@@ -13,12 +13,12 @@ const imageUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
     const allowedMimes = [
-      'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml',
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
     ];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Tipo de imagem não permitido. Use JPEG, PNG, WEBP, GIF ou SVG.'));
+      cb(new Error('Tipo de imagem não permitido. Use JPEG, PNG, WEBP ou GIF.'));
     }
   },
 });

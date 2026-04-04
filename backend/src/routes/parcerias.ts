@@ -8,8 +8,13 @@ import {
 } from '../schemas/parceria.schema.js';
 import { parceriaService } from '../services/parceria.service.js';
 import { emailService } from '../services/email.service.js';
+import { emailLimiter } from '../middlewares/rateLimiter.js';
+import { logger } from '../utils/logger.js';
 
 const router = Router();
+
+// Destino fixo para notificações admin
+const ADMIN_EMAIL = 'codecraftgenz@gmail.com';
 
 // Públicas
 router.get('/', async (req: Request, res: Response) => {
@@ -29,27 +34,54 @@ router.post('/', validate(createParceriaSchema), async (req: Request, res: Respo
   res.status(201).json({ success: true, data: parceria });
 });
 
-// Email de boas-vindas ao parceiro
-router.post('/welcome', async (req: Request, res: Response) => {
+// Email de boas-vindas ao parceiro — rate limited
+router.post('/welcome', emailLimiter, async (req: Request, res: Response) => {
   const { to, nome, empresa } = req.body;
-  if (!to || !nome) {
-    return res.status(400).json({ success: false, error: 'Campos "to" e "nome" são obrigatórios' });
+
+  if (!to || !nome || typeof to !== 'string' || typeof nome !== 'string') {
+    return res.status(400).json({ success: false, error: 'Campos inválidos' });
   }
-  const sent = await emailService.sendPartnerWelcomeEmail({ to, nome, empresa });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    return res.status(400).json({ success: false, error: 'Email inválido' });
+  }
+  if (nome.length > 128 || to.length > 256) {
+    return res.status(400).json({ success: false, error: 'Dados muito longos' });
+  }
+
+  const sent = await emailService.sendPartnerWelcomeEmail({
+    to,
+    nome: String(nome).slice(0, 128),
+    empresa: empresa ? String(empresa).slice(0, 256) : undefined,
+  });
+  if (!sent) logger.warn({ to, ip: req.ip }, 'Partner welcome email failed');
   return res.json({ success: sent });
 });
 
-// Notificação ao admin
-router.post('/notify', async (req: Request, res: Response) => {
-  const { to, nomeContato, email, telefone, empresa, cargo, site, tipoParceria, mensagem } = req.body;
-  if (!to || !nomeContato || !email) {
+// Notificação ao admin — rate limited, destino fixo
+router.post('/notify', emailLimiter, async (req: Request, res: Response) => {
+  const { nomeContato, email, telefone, empresa, cargo, site, tipoParceria, mensagem } = req.body;
+
+  if (!nomeContato || !email || typeof nomeContato !== 'string' || typeof email !== 'string') {
     return res.status(400).json({ success: false, error: 'Campos obrigatórios faltando' });
   }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ success: false, error: 'Email inválido' });
+  }
+
+  // Destino SEMPRE fixo — ignora campo "to" do body
   const sent = await emailService.sendPartnerNotification({
-    to,
-    subject: `🤝 Nova proposta de parceria: ${empresa || nomeContato}`,
-    nomeContato, email, telefone, empresa, cargo, site, tipoParceria, mensagem,
+    to: ADMIN_EMAIL,
+    subject: `🤝 Nova proposta de parceria: ${String(empresa || nomeContato).slice(0, 64)}`,
+    nomeContato: String(nomeContato).slice(0, 128),
+    email: String(email).slice(0, 256),
+    telefone: telefone ? String(telefone).slice(0, 20) : undefined,
+    empresa: empresa ? String(empresa).slice(0, 256) : undefined,
+    cargo: cargo ? String(cargo).slice(0, 128) : undefined,
+    site: site ? String(site).slice(0, 500) : undefined,
+    tipoParceria: tipoParceria ? String(tipoParceria).slice(0, 50) : undefined,
+    mensagem: mensagem ? String(mensagem).slice(0, 2000) : undefined,
   });
+
   return res.json({ success: sent });
 });
 

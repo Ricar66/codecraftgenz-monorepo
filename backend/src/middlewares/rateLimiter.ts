@@ -88,6 +88,21 @@ export const apiLimiter = rateLimit({
 });
 
 /**
+ * Email rate limiter — muito restrito para prevenir spam/phishing
+ * 3 requisições por hora por IP
+ */
+export const emailLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: isAdmin,
+  handler: (_req, res) => {
+    sendError(res, 429, 'TOO_MANY_REQUESTS', 'Limite de envio de emails atingido. Tente novamente em 1 hora.');
+  },
+});
+
+/**
  * Combined rate limiter object for easy import
  */
 export const rateLimiter = {
@@ -95,4 +110,5 @@ export const rateLimiter = {
   auth: authLimiter,
   sensitive: sensitiveLimiter,
   api: apiLimiter,
+  email: emailLimiter,
 };
