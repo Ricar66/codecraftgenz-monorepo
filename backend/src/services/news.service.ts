@@ -37,7 +37,7 @@ function matchesKeywords(text: string): boolean {
   return KEYWORDS.some(kw => lower.includes(kw));
 }
 
-function categorizeArticle(title: string, source: string): string {
+function categorizeArticle(title: string, _source?: string): string {
   const lower = title.toLowerCase();
   if (/salário|salario|vaga|emprego|carreira|mercado.*trabalho|junior|estágio|estagio|remoto/.test(lower)) return 'mercado';
   if (/inteligência artificial|inteligencia artificial|ia |ai |chatgpt|gpt|claude|gemini|llm|machine learning|deep learning/.test(lower)) return 'ia';
