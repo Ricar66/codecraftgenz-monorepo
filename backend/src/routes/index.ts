@@ -25,6 +25,7 @@ import nfseRoutes from './nfse.js';
 import leadRoutes from './leads.js';
 import ideiasRoutes from './ideias.js';
 import parceriaRoutes from './parcerias.js';
+import noticiasRoutes from './noticias.js';
 import testRoutes from './test.js';
 
 const router = Router();
@@ -57,6 +58,7 @@ router.use('/api/nfse', nfseRoutes); // NFS-e (Nota Fiscal de Servico Eletronica
 router.use('/api/leads', leadRoutes); // Leads Engine
 router.use('/api/ideias', ideiasRoutes); // Ideas / Voting System
 router.use('/api/parcerias', parceriaRoutes); // Partnerships
+router.use('/api/noticias', noticiasRoutes); // News (RSS feeds)
 router.use('/api', integrationRoutes); // Mercado Livre OAuth
 router.use('/api/test', testRoutes); // Test routes (blocked in production)
 

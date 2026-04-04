@@ -2,6 +2,7 @@ import app from './app.js';
 import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { prisma } from './db/prisma.js';
+import { startNewsCron } from './services/news.cron.js';
 
 const PORT = env.PORT;
 
@@ -15,6 +16,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   prisma.$queryRaw`SELECT 1`
     .then(() => {
       logger.info('✅ Database connected');
+      startNewsCron();
     })
     .catch((err) => {
       logger.error({ err }, '❌ Database connection failed');
