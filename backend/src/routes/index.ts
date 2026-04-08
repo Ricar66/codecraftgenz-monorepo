@@ -26,6 +26,7 @@ import leadRoutes from './leads.js';
 import ideiasRoutes from './ideias.js';
 import parceriaRoutes from './parcerias.js';
 import noticiasRoutes from './noticias.js';
+import metaRoutes from './meta.routes.js';
 import testRoutes from './test.js';
 
 const router = Router();
@@ -59,6 +60,7 @@ router.use('/api/leads', leadRoutes); // Leads Engine
 router.use('/api/ideias', ideiasRoutes); // Ideas / Voting System
 router.use('/api/parcerias', parceriaRoutes); // Partnerships
 router.use('/api/noticias', noticiasRoutes); // News (RSS feeds)
+router.use('/api/metas', metaRoutes); // Metas / Goals team calendar
 router.use('/api', integrationRoutes); // Mercado Livre OAuth
 router.use('/api/test', testRoutes); // Test routes (blocked in production)
 

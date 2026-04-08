@@ -72,8 +72,13 @@ const envSchema = z.object({
   // Frontend
   FRONTEND_URL: z.string().default('http://localhost:5173'),
 
-  // Google OAuth
+  // Google OAuth (login)
   GOOGLE_CLIENT_ID: z.string().optional(),
+
+  // Google Calendar (team metas)
+  GOOGLE_CALENDAR_CLIENT_ID: z.string().optional(),
+  GOOGLE_CALENDAR_CLIENT_SECRET: z.string().optional(),
+  BACKEND_URL: z.string().default('http://localhost:8080'),
 });
 
 // Parse and validate environment variables
