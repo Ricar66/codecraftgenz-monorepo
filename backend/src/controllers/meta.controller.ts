@@ -7,7 +7,7 @@ import { env } from '../config/env.js';
 export const metaController = {
   // ── Metas CRUD ───────────────────────────────────────────
 
-  async list(req: Request, res: Response, next: NextFunction) {
+  async list(_req: Request, res: Response, next: NextFunction) {
     try {
       const metas = await metaService.list();
       res.json({ data: metas });
@@ -92,14 +92,14 @@ export const metaController = {
 
   // ── Google Calendar ────────────────────────────────────────
 
-  async calendarStatus(req: Request, res: Response, next: NextFunction) {
+  async calendarStatus(_req: Request, res: Response, next: NextFunction) {
     try {
       const status = await metaService.getCalendarStatus();
       res.json(status);
     } catch (err) { next(err); }
   },
 
-  async calendarConnect(req: Request, res: Response, next: NextFunction) {
+  async calendarConnect(_req: Request, res: Response, next: NextFunction) {
     try {
       const url = metaService.getCalendarAuthUrl();
       res.json({ url });
@@ -114,7 +114,7 @@ export const metaController = {
     } catch (err) { next(err); }
   },
 
-  async calendarDisconnect(req: Request, res: Response, next: NextFunction) {
+  async calendarDisconnect(_req: Request, res: Response, next: NextFunction) {
     try {
       await metaService.disconnectCalendar();
       res.json({ message: 'Google Calendar desconectado' });
@@ -123,7 +123,7 @@ export const metaController = {
 
   // ── Team members ──────────────────────────────────────────
 
-  async teamMembers(req: Request, res: Response, next: NextFunction) {
+  async teamMembers(_req: Request, res: Response, next: NextFunction) {
     try {
       const members = await metaService.getTeamMembers();
       res.json({ data: members });
