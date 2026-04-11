@@ -653,6 +653,33 @@ model SystemConfig {
 }
 
 // =============================================
+// ANALYTICS EVENTS
+// =============================================
+
+model AnalyticsEvent {
+  id             String    @id @default(cuid())
+  eventName      String    @db.VarChar(128) @map("event_name")
+  eventCategory  String    @db.VarChar(64)  @map("event_category")
+  sessionId      String    @db.VarChar(128) @map("session_id")
+  pageUrl        String?   @db.VarChar(1024) @map("page_url")
+  pagePath       String?   @db.VarChar(512)  @map("page_path")
+  referrer       String?   @db.VarChar(1024)
+  deviceType     String?   @db.VarChar(32)   @map("device_type")
+  utmSource      String?   @db.VarChar(256)  @map("utm_source")
+  utmMedium      String?   @db.VarChar(256)  @map("utm_medium")
+  utmCampaign    String?   @db.VarChar(256)  @map("utm_campaign")
+  utmTerm        String?   @db.VarChar(256)  @map("utm_term")
+  utmContent     String?   @db.VarChar(256)  @map("utm_content")
+  properties     String?   @db.Text
+  timestamp      DateTime  @default(now())
+
+  @@index([eventCategory, eventName])
+  @@index([sessionId])
+  @@index([timestamp])
+  @@map("analytics_events")
+}
+
+// =============================================
 // IDEAS / VOTING SYSTEM
 // =============================================
 
