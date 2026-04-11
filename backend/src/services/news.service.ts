@@ -10,9 +10,7 @@ const parser = new RSSParser({
 // Fontes RSS com categorias — todas PT-BR
 const RSS_FEEDS = [
   { url: 'https://www.tabnews.com.br/recentes/rss', source: 'TabNews', category: 'dev' },
-  { url: 'https://imasters.com.br/feed/', source: 'iMasters', category: 'dev' },
   { url: 'https://tecnoblog.net/feed/', source: 'Tecnoblog', category: 'tech' },
-  { url: 'https://www.tecmundo.com.br/rss', source: 'TecMundo', category: 'tech' },
   { url: 'https://olhardigital.com.br/feed/', source: 'Olhar Digital', category: 'tech' },
   { url: 'https://canaltech.com.br/rss/', source: 'Canaltech', category: 'tech' },
 ];
