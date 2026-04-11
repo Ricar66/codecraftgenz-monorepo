@@ -325,11 +325,25 @@ export const licenseService = {
     }));
   },
 
-  async getDownloadUrl(appId: number, email: string) {
-    // Verificar se tem compra aprovada
-    const approvedCount = await paymentRepository.countApprovedByEmailAndApp(email, appId);
-    if (approvedCount === 0) {
-      throw AppError.forbidden('Você não possui licença para este app');
+  async getDownloadUrl(appId: number, email: string, paymentId?: string) {
+    if (paymentId) {
+      // Validar que o payment_id pertence a essa compra (email + appId)
+      const payment = await prisma.payment.findFirst({
+        where: {
+          appId,
+          OR: [{ id: paymentId }, { preferenceId: paymentId }],
+          status: 'approved',
+        },
+      });
+      if (!payment) {
+        throw AppError.forbidden('payment_id inválido ou pagamento não aprovado');
+      }
+    } else {
+      // Sem payment_id: apenas verifica se existe pagamento aprovado com esse email
+      const approvedCount = await paymentRepository.countApprovedByEmailAndApp(email, appId);
+      if (approvedCount === 0) {
+        throw AppError.forbidden('Você não possui licença para este app');
+      }
     }
 
     const app = await prisma.app.findUnique({

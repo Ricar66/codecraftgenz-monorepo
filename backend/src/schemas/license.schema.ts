@@ -37,6 +37,7 @@ export const downloadByEmailSchema = z.object({
   }),
   body: z.object({
     email: z.string().email('Email inválido'),
+    payment_id: z.string().min(1, 'payment_id é obrigatório'),
   }),
 });
 

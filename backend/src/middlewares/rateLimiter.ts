@@ -2,8 +2,7 @@ import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { sendError } from '../utils/response.js';
-
-const ADMIN_ROLES = ['admin', 'administrator', 'superadmin', 'owner'];
+import { hasAdminRole } from '../lib/roles.js';
 
 /**
  * Skip rate limiting for authenticated admin users
@@ -14,7 +13,7 @@ function isAdmin(req: any): boolean {
     if (!auth?.startsWith('Bearer ')) return false;
     const token = auth.slice(7);
     const decoded = jwt.verify(token, env.JWT_SECRET) as any;
-    return ADMIN_ROLES.includes(decoded?.role);
+    return hasAdminRole(decoded?.role);
   } catch {
     return false;
   }

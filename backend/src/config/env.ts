@@ -55,8 +55,9 @@ const envSchema = z.object({
   FTP_REMOTE_PATH: z.string().optional(),
   FTP_PUBLIC_URL: z.string().optional(),
 
-  // Chave RSA para assinatura de licenças
+  // Chave RSA para assinatura de licenças (PEM ou base64)
   PRIVATE_KEY_PEM: z.string().optional(),
+  PRIVATE_KEY_PEM_B64: z.string().optional(),
 
   // Admin
   ADMIN_RESET_TOKEN: z.string().optional(),

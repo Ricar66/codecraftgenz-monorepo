@@ -4,6 +4,7 @@ import { env } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
 import { prisma } from '../db/prisma.js';
 import type { ValidatedRequest } from './validate.js';
+import { hasAdminRole } from '../lib/roles.js';
 
 /**
  * JWT Payload type
@@ -178,7 +179,7 @@ export function authorizeAdmin(
     return;
   }
 
-  if (req.user.role !== 'admin') {
+  if (!hasAdminRole(req.user.role)) {
     next(AppError.forbidden('Acesso restrito a administradores'));
     return;
   }
