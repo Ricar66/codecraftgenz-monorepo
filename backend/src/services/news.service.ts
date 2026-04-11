@@ -7,29 +7,34 @@ const parser = new RSSParser({
   headers: { 'User-Agent': 'CodeCraftGenZ-NewsBot/1.0' },
 });
 
-// Fontes RSS com categorias
+// Fontes RSS com categorias — todas PT-BR
 const RSS_FEEDS = [
   { url: 'https://www.tabnews.com.br/recentes/rss', source: 'TabNews', category: 'dev' },
-  { url: 'https://dev.to/feed', source: 'Dev.to', category: 'dev' },
+  { url: 'https://imasters.com.br/feed/', source: 'iMasters', category: 'dev' },
   { url: 'https://tecnoblog.net/feed/', source: 'Tecnoblog', category: 'tech' },
   { url: 'https://www.tecmundo.com.br/rss', source: 'TecMundo', category: 'tech' },
+  { url: 'https://olhardigital.com.br/feed/', source: 'Olhar Digital', category: 'tech' },
+  { url: 'https://canaltech.com.br/rss/', source: 'Canaltech', category: 'tech' },
 ];
 
-// Keywords para filtrar artigos relevantes
+// Keywords para filtrar artigos relevantes — foco PT-BR
 const KEYWORDS = [
   // Dev / Programação
   'programação', 'programacao', 'desenvolvedor', 'developer', 'dev junior',
   'javascript', 'typescript', 'react', 'node', 'python', 'java', 'golang',
   'frontend', 'backend', 'fullstack', 'api', 'github', 'open source',
-  'código', 'codigo', 'software', 'web', 'mobile', 'app',
+  'código', 'codigo', 'software', 'web', 'mobile', 'app', 'framework',
+  'banco de dados', 'banco dados', 'sql', 'nosql', 'docker', 'kubernetes',
+  'cloud', 'aws', 'azure', 'devops', 'segurança', 'cibersegurança',
   // IA
   'inteligência artificial', 'inteligencia artificial', 'machine learning',
   'ia ', ' ai ', 'chatgpt', 'gpt', 'claude', 'gemini', 'llm', 'deep learning',
-  'automação', 'automacao',
+  'automação', 'automacao', 'copilot', 'generativo', 'neural',
   // Mercado / Carreira
   'mercado de trabalho', 'salário', 'salario', 'vaga', 'emprego', 'carreira',
   'tech', 'startup', 'tecnologia', 'inovação', 'inovacao',
   'junior', 'estágio', 'estagio', 'remoto', 'home office',
+  'contratação', 'contratacao', 'freela', 'freelancer', 'programador',
 ];
 
 function matchesKeywords(text: string): boolean {
@@ -61,8 +66,8 @@ export const newsService = {
           if (!item.title || !item.link) continue;
 
           const fullText = `${item.title} ${item.contentSnippet || item.content || ''}`;
-          // Dev.to e TabNews são sempre relevantes, outros filtrar
-          const isRelevant = ['TabNews', 'Dev.to'].includes(feed.source) || matchesKeywords(fullText);
+          // TabNews e iMasters são sempre relevantes (foco dev PT-BR), outros filtrar por keyword
+          const isRelevant = ['TabNews', 'iMasters'].includes(feed.source) || matchesKeywords(fullText);
           if (!isRelevant) continue;
 
           const summary = (item.contentSnippet || item.content || '')
@@ -103,9 +108,9 @@ export const newsService = {
       }
     }
 
-    // Limpa artigos com mais de 30 dias
+    // Limpa artigos com mais de 15 dias
     await prisma.newsArticle.deleteMany({
-      where: { publishedAt: { lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+      where: { publishedAt: { lt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) } },
     });
 
     logger.info({ totalSaved }, 'News fetch completed');
