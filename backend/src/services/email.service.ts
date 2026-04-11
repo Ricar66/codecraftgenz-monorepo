@@ -807,4 +807,57 @@ export const emailService = {
       )
     );
   },
+
+  /**
+   * Envia email de redefinição de senha
+   */
+  async sendPasswordReset(data: { to: string; name: string; resetLink: string }): Promise<boolean> {
+    const transporter = createTransporter();
+    if (!transporter) {
+      logger.warn({ email: data.to }, 'Password reset email not sent - credentials not configured');
+      return false;
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:'Inter',system-ui,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+    <div style="background:linear-gradient(135deg,#1a1a2e,#0d0d1a);border-radius:16px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#6366f1,#D12BF2);padding:32px 40px;text-align:center;">
+        <h1 style="color:#fff;font-size:22px;font-weight:700;margin:0;">🔒 Redefinição de Senha</h1>
+        <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;">CodeCraft Gen-Z</p>
+      </div>
+      <div style="padding:32px 40px;">
+        <p style="color:#e0e0e0;font-size:15px;margin:0 0 16px;">Olá, <strong>${data.name}</strong></p>
+        <p style="color:#a0a0b0;font-size:14px;margin:0 0 24px;">Recebemos uma solicitação para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha. O link é válido por <strong style="color:#e0e0e0;">1 hora</strong>.</p>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="${data.resetLink}" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#D12BF2);color:#fff;font-weight:700;font-size:15px;padding:14px 32px;border-radius:10px;text-decoration:none;">Redefinir Senha</a>
+        </div>
+        <p style="color:#6b7280;font-size:12px;margin:24px 0 0;">Se você não solicitou a redefinição de senha, ignore este email — sua senha permanece a mesma.</p>
+        <p style="color:#6b7280;font-size:12px;margin:8px 0 0;">Caso o botão não funcione, copie e cole este link no navegador:<br><a href="${data.resetLink}" style="color:#6366f1;word-break:break-all;">${data.resetLink}</a></p>
+      </div>
+      <div style="background:rgba(255,255,255,0.02);padding:16px 40px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);">
+        <p style="color:#4b5563;font-size:12px;margin:0;">© ${new Date().getFullYear()} CodeCraft Gen-Z · <a href="https://codecraftgenz.com.br" style="color:#6366f1;text-decoration:none;">codecraftgenz.com.br</a></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    try {
+      const info = await transporter.sendMail({
+        from: `"CodeCraft Gen-Z" <${env.EMAIL_USER}>`,
+        to: data.to,
+        subject: '🔒 Redefinição de senha — CodeCraft Gen-Z',
+        text: `Olá ${data.name},\n\nClique no link abaixo para redefinir sua senha (válido por 1 hora):\n${data.resetLink}\n\nSe você não solicitou, ignore este email.\n\nEquipe CodeCraft Gen-Z`,
+        html,
+      });
+      logger.info({ messageId: info.messageId, to: data.to }, 'Password reset email sent');
+      return true;
+    } catch (err) {
+      logger.warn({ err, to: data.to }, 'Failed to send password reset email');
+      return false;
+    }
+  },
 };

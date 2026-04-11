@@ -8,6 +8,7 @@ import { userService } from './user.service.js';
 import type { LoginInput, RegisterInput } from '../schemas/auth.schema.js';
 import { leadService } from './lead.service.js';
 import { env } from '../config/env.js';
+import { emailService } from './email.service.js';
 
 const SALT_ROUNDS = 10;
 
@@ -216,9 +217,13 @@ export const authService = {
 
     logger.info({ userId: user.id }, 'Password reset token created');
 
-    // TODO: Implementar envio de email com link de reset
-    // O token NÃO deve ser retornado na API - apenas enviado por email
-    // await emailService.sendPasswordReset(user.email, token);
+    // Envia o link de reset por email — token nunca é retornado na API
+    const resetLink = `${env.FRONTEND_URL}/reset-password?token=${token}`;
+    void emailService.sendPasswordReset({
+      to: user.email,
+      name: user.name || 'Usuário',
+      resetLink,
+    });
 
     // Por segurança, não revelamos se o email existe ou não
     // Retornamos sempre a mesma mensagem

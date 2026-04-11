@@ -363,9 +363,8 @@ export const licenseService = {
       where: {
         appId,
         OR: [
-          { id: paymentId },                    // ID interno (PAY-xxx, DIRECT-xxx)
-          { preferenceId: paymentId },          // ID da preferência ou ID do MP em pagamentos diretos
-          { id: { contains: paymentId } },      // Busca parcial se for parte do ID
+          { id: paymentId },           // ID interno (PAY-xxx, DIRECT-xxx)
+          { preferenceId: paymentId }, // ID da preferência ou ID do MP em pagamentos diretos
         ],
         status: 'approved',
       },

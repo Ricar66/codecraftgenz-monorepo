@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { success } from '../utils/response.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
+import { authenticate, authorizeAdmin } from '../middlewares/auth.js';
 import { leadService } from '../services/lead.service.js';
 import { logger } from '../utils/logger.js';
 
@@ -127,7 +128,7 @@ router.get('/latest', async (_req, res) => {
  * GET /api/feedbacks - Buscar feedbacks (admin)
  * Usado para listar feedbacks de contato
  */
-router.get('/', async (req, res) => {
+router.get('/', authenticate, authorizeAdmin, async (req, res) => {
   const { limit = '20', origem } = req.query;
 
   try {

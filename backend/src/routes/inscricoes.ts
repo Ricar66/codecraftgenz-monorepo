@@ -16,9 +16,9 @@ const router = Router();
 // Destino fixo para notificações admin — não permite override
 const ADMIN_EMAIL = 'codecraftgenz@gmail.com';
 
-// Rotas públicas
-router.get('/', inscricaoController.getAll);
-router.get('/:id', validate(inscricaoIdSchema), inscricaoController.getById);
+// Listagem restrita a admin (contém PII: nome, email, telefone)
+router.get('/', authenticate, authorizeAdmin, inscricaoController.getAll);
+router.get('/:id', authenticate, authorizeAdmin, validate(inscricaoIdSchema), inscricaoController.getById);
 
 // Criar inscrição (público)
 router.post(

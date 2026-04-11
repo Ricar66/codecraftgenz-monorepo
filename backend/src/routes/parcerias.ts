@@ -16,8 +16,8 @@ const router = Router();
 // Destino fixo para notificações admin
 const ADMIN_EMAIL = 'codecraftgenz@gmail.com';
 
-// Públicas
-router.get('/', async (req: Request, res: Response) => {
+// Listagem restrita a admin (contém dados de contato B2B)
+router.get('/', authenticate, authorizeAdmin, async (req: Request, res: Response) => {
   const { status, search, page, limit } = req.query;
   const result = await parceriaService.getAll({
     status: status as string,

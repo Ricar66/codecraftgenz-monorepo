@@ -108,8 +108,9 @@ router.post(
   appController.devInsert
 );
 
-// Webhook do Mercado Pago (para apps)
-router.post('/webhook', rateLimiter.sensitive, appController.webhook);
+// Webhook do Mercado Pago — delega ao handler com validação HMAC
+// NOTA: paymentController.webhook valida x-signature antes de processar
+router.post('/webhook', rateLimiter.sensitive, paymentController.webhook);
 router.get('/webhook', appController.webhookVerify);
 
 // =============================================
