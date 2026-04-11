@@ -679,4 +679,132 @@ export const emailService = {
       return false;
     }
   },
+
+  /**
+   * Envia convite de reunião para os participantes de uma meta
+   */
+  async sendMeetingInvite(data: {
+    recipients: { name: string; email: string }[];
+    meetingTitle: string;
+    description?: string;
+    startDate: Date;
+    endDate?: Date;
+    callLink?: string;
+    organizerName: string;
+  }): Promise<void> {
+    const transporter = createTeamTransporter();
+    if (!transporter) {
+      logger.warn('Meeting invite not sent - email credentials not configured');
+      return;
+    }
+
+    const teamEmail = env.EMAIL_TEAM_USER || env.EMAIL_USER;
+
+    const fmt = (d: Date) => new Intl.DateTimeFormat('pt-BR', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Sao_Paulo',
+    }).format(d);
+
+    const fmtTime = (d: Date) => new Intl.DateTimeFormat('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Sao_Paulo',
+    }).format(d);
+
+    const startFormatted = fmt(data.startDate);
+    const endFormatted = data.endDate ? fmtTime(data.endDate) : null;
+    const duration = endFormatted ? ` até ${endFormatted}` : '';
+
+    const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
+    <div style="background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid rgba(209,43,242,0.2);box-shadow:0 4px 32px rgba(0,0,0,0.4);">
+
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);padding:32px 40px;text-align:center;border-bottom:2px solid #D12BF2;">
+        <img src="${LOGO_URL}" alt="CodeCraft Gen-Z" style="max-width:200px;height:auto;margin-bottom:20px;display:block;margin-left:auto;margin-right:auto;" />
+        <div style="display:inline-block;background:rgba(209,43,242,0.15);border:1px solid rgba(209,43,242,0.4);border-radius:8px;padding:6px 16px;margin-bottom:12px;">
+          <span style="color:#D12BF2;font-size:13px;font-weight:600;letter-spacing:0.05em;">📅 CONVITE DE REUNIÃO</span>
+        </div>
+        <h1 style="margin:0;color:#F5F5F7;font-size:22px;font-weight:700;line-height:1.3;">${data.meetingTitle}</h1>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:32px 40px;">
+
+        <!-- Data e hora -->
+        <div style="background:rgba(0,228,242,0.06);border:1px solid rgba(0,228,242,0.2);border-radius:12px;padding:20px 24px;margin-bottom:24px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding-bottom:12px;">
+                <span style="color:#a0a0b0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">📅 Data e Horário</span><br/>
+                <span style="color:#F5F5F7;font-size:16px;font-weight:600;text-transform:capitalize;">${startFormatted}${duration}</span>
+              </td>
+            </tr>
+            ${data.callLink ? `
+            <tr>
+              <td style="padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);">
+                <span style="color:#a0a0b0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">🎥 Link da Call</span><br/>
+                <a href="${data.callLink}" style="color:#00E4F2;font-size:15px;font-weight:500;text-decoration:none;word-break:break-all;">${data.callLink}</a>
+              </td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        ${data.description ? `
+        <!-- Descrição -->
+        <div style="margin-bottom:24px;">
+          <p style="margin:0 0 8px;color:#a0a0b0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">📝 Pauta</p>
+          <p style="margin:0;color:#d1d5db;font-size:15px;line-height:1.7;white-space:pre-wrap;">${data.description}</p>
+        </div>` : ''}
+
+        <!-- Botão de entrar na call -->
+        ${data.callLink ? `
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${data.callLink}" style="display:inline-block;background:linear-gradient(135deg,#D12BF2,#a020c0);color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-size:16px;font-weight:700;letter-spacing:0.02em;">
+            Entrar na Reunião →
+          </a>
+        </div>` : ''}
+
+        <!-- Organizador -->
+        <p style="margin:24px 0 0;color:#6b7280;font-size:13px;border-top:1px solid rgba(255,255,255,0.06);padding-top:20px;">
+          Convite enviado por <strong style="color:#a0a0b0;">${data.organizerName}</strong> via CodeCraft Gen-Z
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div style="background:rgba(255,255,255,0.02);padding:16px 40px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);">
+        <p style="color:#4b5563;font-size:12px;margin:0;">© ${new Date().getFullYear()} CodeCraft Gen-Z · <a href="https://codecraftgenz.com.br" style="color:#6366f1;text-decoration:none;">codecraftgenz.com.br</a></p>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>`;
+
+    // Dispara para todos os recipients em paralelo — fire and forget
+    await Promise.allSettled(
+      data.recipients.map(recipient =>
+        transporter.sendMail({
+          from: `"CodeCraft Gen-Z" <${teamEmail}>`,
+          to: recipient.email,
+          subject: `📅 Reunião: ${data.meetingTitle}`,
+          text: `Olá ${recipient.name},\n\nVocê foi convidado(a) para a reunião "${data.meetingTitle}".\n\nData: ${startFormatted}${duration}\n${data.callLink ? `\nLink: ${data.callLink}` : ''}\n${data.description ? `\nPauta: ${data.description}` : ''}\n\nEquipe CodeCraft Gen-Z`,
+          html: html.replace('</h1>', `</h1>`), // html já pronto
+        }).then(info => {
+          logger.info({ messageId: info.messageId, to: recipient.email }, 'Meeting invite sent');
+        }).catch(err => {
+          logger.warn({ err, to: recipient.email }, 'Failed to send meeting invite');
+        })
+      )
+    );
+  },
 };

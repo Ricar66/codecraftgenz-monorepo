@@ -4,6 +4,7 @@
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { teamCalendarService } from './team-calendar.service.js';
+import { emailService } from './email.service.js';
 import { logger } from '../utils/logger.js';
 
 const INCLUDE_FULL = {
@@ -66,7 +67,7 @@ export const metaService = {
       }
     }
 
-    return prisma.meta.create({
+    const meta = await prisma.meta.create({
       data: {
         title: data.title,
         description: data.description ?? null,
@@ -84,6 +85,35 @@ export const metaService = {
       },
       include: INCLUDE_FULL,
     });
+
+    // Dispara email de convite para os assignees se for reunião com participantes
+    if (data.type === 'meeting' && data.assigneeIds?.length) {
+      try {
+        const recipients = await prisma.user.findMany({
+          where: { id: { in: data.assigneeIds } },
+          select: { name: true, email: true },
+        });
+        const organizer = await prisma.user.findUnique({
+          where: { id: data.authorId },
+          select: { name: true },
+        });
+        if (recipients.length > 0) {
+          void emailService.sendMeetingInvite({
+            recipients,
+            meetingTitle: data.title,
+            description: data.description,
+            startDate: data.startDate,
+            endDate: data.endDate,
+            callLink: callLink ?? undefined,
+            organizerName: organizer?.name ?? 'Equipe CodeCraft',
+          });
+        }
+      } catch (err) {
+        logger.warn({ err }, 'Falha ao enviar convites de reunião por email');
+      }
+    }
+
+    return meta;
   },
 
   /** Update a meta. Re-syncs Google Calendar if meeting details change. */
