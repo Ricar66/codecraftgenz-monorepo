@@ -4,6 +4,7 @@ import { success, sendError } from '../utils/response.js';
 import type { ActivateDeviceInput, VerifyLicenseInput } from '../schemas/license.schema.js';
 import crypto from 'crypto';
 import { env } from '../config/env.js';
+import { logger } from '../utils/logger.js';
 
 export const licenseController = {
   async activateDevice(req: Request, res: Response) {
