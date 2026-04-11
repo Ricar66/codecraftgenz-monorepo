@@ -13,9 +13,9 @@ export const appService = {
     return apps.map(mapApp);
   },
 
-  async getPublic() {
-    const apps = await appRepository.findPublic();
-    return apps.map(mapApp);
+  async getPublic(page = 1, limit = 50) {
+    const { items, total } = await appRepository.findPublic(page, limit);
+    return { items: items.map(mapApp), total };
   },
 
   async getByCreator(creatorId: number) {

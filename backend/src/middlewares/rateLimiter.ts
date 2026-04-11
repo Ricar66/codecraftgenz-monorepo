@@ -1,35 +1,15 @@
 import rateLimit from 'express-rate-limit';
-import jwt from 'jsonwebtoken';
-import { env } from '../config/env.js';
 import { sendError } from '../utils/response.js';
-import { hasAdminRole } from '../lib/roles.js';
-
-/**
- * Skip rate limiting for authenticated admin users
- */
-function isAdmin(req: any): boolean {
-  try {
-    const auth = req.headers?.authorization;
-    if (!auth?.startsWith('Bearer ')) return false;
-    const token = auth.slice(7);
-    const decoded = jwt.verify(token, env.JWT_SECRET) as any;
-    return hasAdminRole(decoded?.role);
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Default rate limiter
  * 500 requests per 15 minutes (SPA faz ~15 req por page load)
- * Admins: sem limite
  */
 export const defaultLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 500,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: isAdmin,
   handler: (_req, res) => {
     sendError(res, 429, 'TOO_MANY_REQUESTS', 'Muitas requisições, tente novamente em 15 minutos');
   },
@@ -65,7 +45,6 @@ export const sensitiveLimiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: isAdmin,
   handler: (_req, res) => {
     sendError(res, 429, 'TOO_MANY_REQUESTS', 'Muitas requisições para esta operação, tente novamente em 1 hora');
   },
@@ -80,7 +59,6 @@ export const apiLimiter = rateLimit({
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: isAdmin,
   handler: (_req, res) => {
     sendError(res, 429, 'TOO_MANY_REQUESTS', 'Limite de requisições excedido');
   },
@@ -95,7 +73,6 @@ export const emailLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: isAdmin,
   handler: (_req, res) => {
     sendError(res, 429, 'TOO_MANY_REQUESTS', 'Limite de envio de emails atingido. Tente novamente em 1 hora.');
   },

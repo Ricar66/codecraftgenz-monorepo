@@ -70,7 +70,7 @@ router.post('/:id/vote', async (req, res) => {
       return;
     }
 
-    const result = await ideiaService.vote(ideiaId);
+    const result = await ideiaService.vote(ideiaId, req.user!.id);
     res.json(success(result));
   } catch (error: any) {
     if (error?.code === 'P2025') {

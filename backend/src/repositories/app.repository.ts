@@ -16,19 +16,25 @@ export const appRepository = {
     });
   },
 
-  async findPublic() {
-    return prisma.app.findMany({
-      where: { status: { in: ['published', 'available', 'finalizado', 'ready'] } },
-      include: {
-        creator: {
-          select: { id: true, name: true },
+  async findPublic(page = 1, limit = 50) {
+    const take = Math.min(limit, 100); // máximo 100 por página
+    const skip = (page - 1) * take;
+    const [items, total] = await Promise.all([
+      prisma.app.findMany({
+        where: { status: { in: ['published', 'available', 'finalizado', 'ready'] } },
+        include: {
+          creator: { select: { id: true, name: true } },
+          _count: { select: { purchases: true, feedbacks: true } },
         },
-        _count: {
-          select: { purchases: true, feedbacks: true },
-        },
-      },
-      orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
-    });
+        orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
+        take,
+        skip,
+      }),
+      prisma.app.count({
+        where: { status: { in: ['published', 'available', 'finalizado', 'ready'] } },
+      }),
+    ]);
+    return { items, total, page, limit: take, pages: Math.ceil(total / take) };
   },
 
   async findByCreator(creatorId: number) {

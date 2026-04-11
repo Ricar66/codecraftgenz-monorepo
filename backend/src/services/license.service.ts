@@ -241,9 +241,15 @@ export const licenseService = {
     if (!options?.adminOverride) {
       const existing = await licenseRepository.findByAppAndEmail(appId, email);
       const approvedCount = await paymentRepository.countApprovedByEmailAndApp(email, appId);
-      const maxLicenses = Math.max(approvedCount, 1);
-      if (existing.length >= maxLicenses) {
-        logger.info({ appId, email, existing: existing.length, max: maxLicenses }, 'Limite de licenças atingido, não criando nova');
+
+      // Exige pagamento aprovado — sem pagamento, não provisiona
+      if (approvedCount === 0) {
+        logger.warn({ appId, email }, 'Tentativa de provisionar licença sem pagamento aprovado');
+        throw AppError.forbidden('Você não possui pagamento aprovado para este app');
+      }
+
+      if (existing.length >= approvedCount) {
+        logger.info({ appId, email, existing: existing.length, max: approvedCount }, 'Limite de licenças atingido, não criando nova');
         return existing[0];
       }
     }

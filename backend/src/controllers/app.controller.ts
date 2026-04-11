@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { appService } from '../services/app.service.js';
 import { paymentService } from '../services/payment.service.js';
-import { success, sendError } from '../utils/response.js';
+import { success, sendError, paginated } from '../utils/response.js';
 import type { CreateAppInput, UpdateAppInput, FeedbackInput } from '../schemas/app.schema.js';
 import { logger } from '../utils/logger.js';
 
@@ -11,9 +11,11 @@ export const appController = {
     res.json(success(apps));
   },
 
-  async getPublic(_req: Request, res: Response) {
-    const apps = await appService.getPublic();
-    res.json(success(apps));
+  async getPublic(req: Request, res: Response) {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.pageSize) || Number(req.query.limit) || 50));
+    const { items, total } = await appService.getPublic(page, limit);
+    res.json(paginated(items, page, limit, total));
   },
 
   async getMine(req: Request, res: Response) {

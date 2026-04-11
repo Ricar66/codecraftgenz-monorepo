@@ -10,6 +10,38 @@ import type { PurchaseInput, DirectPaymentInput, SearchPaymentsQuery, UpdatePaym
 import { prisma } from '../db/prisma.js';
 import crypto from 'crypto';
 
+/**
+ * Remove campos PII (CPF, BIN do cartão, dados de identificação) da resposta do
+ * Mercado Pago antes de persistir no banco — conformidade LGPD / PCI-DSS.
+ */
+function sanitizeMpResponse(response: unknown): unknown {
+  if (!response || typeof response !== 'object') return response;
+  const r = response as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...r };
+
+  // Remover identificação do pagador (CPF/CNPJ)
+  if (out.payer && typeof out.payer === 'object') {
+    const payer = { ...(out.payer as Record<string, unknown>) };
+    delete payer.identification;
+    out.payer = payer;
+  }
+
+  // Remover dados sensíveis do cartão (BIN, dados do titular)
+  if (out.card && typeof out.card === 'object') {
+    const card = { ...(out.card as Record<string, unknown>) };
+    delete card.first_six_digits;
+    delete card.last_four_digits;
+    if (card.cardholder && typeof card.cardholder === 'object') {
+      const ch = { ...(card.cardholder as Record<string, unknown>) };
+      delete ch.identification;
+      card.cardholder = ch;
+    }
+    out.card = card;
+  }
+
+  return out;
+}
+
 // Mercado Pago SDK - importação condicional
 let MercadoPagoConfig: unknown;
 let Preference: unknown;
@@ -250,7 +282,7 @@ export const paymentService = {
       currency: 'BRL',
       payerEmail: data?.email || undefined,
       payerName: data?.name || undefined,
-      mpResponseJson: JSON.stringify(mpResponse),
+      mpResponseJson: JSON.stringify(sanitizeMpResponse(mpResponse)),
     });
 
     return {
@@ -381,7 +413,7 @@ export const paymentService = {
     await paymentRepository.updateStatus(
       payment.id,
       newStatus,
-      JSON.stringify(mpPayment)
+      JSON.stringify(sanitizeMpResponse(mpPayment))
     );
 
     // Provisionar licença se aprovado (com proteção contra duplicação e erro)
@@ -745,7 +777,7 @@ export const paymentService = {
       currency: mpResponse.currency_id || 'BRL',
       payerEmail,
       payerName,
-      mpResponseJson: JSON.stringify(mpResponse),
+      mpResponseJson: JSON.stringify(sanitizeMpResponse(mpResponse)),
     });
 
     // Se aprovado, provisionar licenças e enviar email

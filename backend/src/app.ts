@@ -30,7 +30,15 @@ app.disable('x-powered-by');
 // Security headers
 app.use(
   helmet({
-    contentSecurityPolicy: false, // Let frontend handle CSP
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        frameAncestors: ["'none'"],   // Previne clickjacking
+        formAction: ["'none'"],       // Previne form-action injection
+        scriptSrc: ["'none'"],
+        styleSrc: ["'none'"],
+      },
+    },
   })
 );
 
@@ -128,7 +136,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Audit middleware (fire-and-forget, logs mutations)
+app.use(auditMiddleware);
+
 // Rota de download (sem /api, compatibilidade com server.js antigo)
+// Posicionada APÓS o auditMiddleware para que downloads sejam auditados
 app.get('/downloads/:file', async (req, res) => {
   try {
     const ua = String(req.headers['user-agent'] || 'unknown');
@@ -179,9 +191,6 @@ app.get('/downloads/:file', async (req, res) => {
     res.status(500).json({ error: 'Falha ao enviar arquivo para download' });
   }
 });
-
-// Audit middleware (fire-and-forget, logs mutations)
-app.use(auditMiddleware);
 
 // Routes
 app.use(routes);

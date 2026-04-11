@@ -18,6 +18,10 @@ interface UserContext {
   name: string;
 }
 
+// Rastreia votos por (userId, ideiaId) para prevenir vote stuffing.
+// Em memória: eficaz enquanto o processo está vivo; PM2 restart limpa o estado.
+const votedPairs = new Set<string>();
+
 export const ideiaService = {
   /**
    * Lista todas as ideias com comentarios, ordenadas por votos desc
@@ -83,15 +87,25 @@ export const ideiaService = {
   },
 
   /**
-   * Incrementa voto de uma ideia
+   * Incrementa voto de uma ideia.
+   * Cada usuário pode votar uma única vez por ideia (deduplicação em memória).
    */
-  async vote(ideiaId: number) {
+  async vote(ideiaId: number, userId: number) {
+    const key = `${userId}-${ideiaId}`;
+    if (votedPairs.has(key)) {
+      // Retorna contagem atual sem incrementar
+      const ideia = await prisma.ideia.findUnique({ where: { id: ideiaId }, select: { id: true, votos: true } });
+      if (!ideia) throw Object.assign(new Error('Ideia não encontrada'), { code: 'P2025' });
+      return { id: ideia.id, votos: ideia.votos, already_voted: true };
+    }
+
     const ideia = await prisma.ideia.update({
       where: { id: ideiaId },
       data: { votos: { increment: 1 } },
     });
 
-    logger.info({ ideiaId }, 'Voto registrado na ideia');
+    votedPairs.add(key);
+    logger.info({ ideiaId, userId }, 'Voto registrado na ideia');
 
     return { id: ideia.id, votos: ideia.votos };
   },

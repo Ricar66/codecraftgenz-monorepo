@@ -36,17 +36,49 @@ function extractEntityId(path: string): string | null {
 }
 
 const SENSITIVE_KEYS = new Set([
-  'password', 'passwordHash', 'password_hash', 'token',
-  'secret', 'creditCard', 'cvv', 'accessToken', 'refreshToken',
+  // Senhas
+  'password', 'passwordHash', 'password_hash', 'senha', 'newPassword',
+  'currentPassword', 'new_password', 'old_password', 'confirm_password',
+  'confirmPassword',
+  // Tokens e segredos
+  'token', 'accessToken', 'refreshToken', 'secret', 'admin_token',
+  'adminToken', 'x-admin-token', 'apiKey', 'api_key',
+  // Dados de cartão (PCI)
+  'creditCard', 'credit_card', 'cvv', 'cvc', 'cardNumber', 'card_number',
+  'cardToken', 'card_token',
+  // Documentos e dados pessoais sensíveis
+  'cpf', 'cnpj', 'number', // payer.identification.number (CPF no MP)
+  // Chaves privadas
+  'privateKey', 'private_key',
 ]);
+
+/**
+ * Sanitiza recursivamente um objeto, redactando chaves sensíveis em qualquer nível.
+ */
+function sanitizeValue(value: unknown, depth = 0): unknown {
+  if (depth > 5) return '[MAX_DEPTH]';
+  if (value === null || value === undefined) return value;
+  if (typeof value !== 'object') return value;
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeValue(item, depth + 1));
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    if (SENSITIVE_KEYS.has(key.toLowerCase()) || SENSITIVE_KEYS.has(key)) {
+      sanitized[key] = '[REDACTED]';
+    } else {
+      sanitized[key] = sanitizeValue(val, depth + 1);
+    }
+  }
+  return sanitized;
+}
 
 function sanitizeBody(body: unknown): string | null {
   if (!body || typeof body !== 'object') return null;
-  const sanitized = { ...(body as Record<string, unknown>) };
-  for (const key of Object.keys(sanitized)) {
-    if (SENSITIVE_KEYS.has(key)) sanitized[key] = '[REDACTED]';
-  }
   try {
+    const sanitized = sanitizeValue(body);
     const str = JSON.stringify(sanitized);
     return str.length > 4000 ? str.substring(0, 4000) : str;
   } catch {

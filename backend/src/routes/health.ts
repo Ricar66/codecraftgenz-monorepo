@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { sendSuccess, sendError } from '../utils/response.js';
 import { env, isProd } from '../config/env.js';
@@ -6,31 +6,7 @@ import { isFtpConfigured } from '../services/ftp.service.js';
 import { emailService } from '../services/email.service.js';
 import { licenseService } from '../services/license.service.js';
 import { sensitiveLimiter } from '../middlewares/rateLimiter.js';
-
-/**
- * Middleware para validar token de admin via header
- * Mais seguro que passar via body/query
- */
-function requireAdminToken(req: Request, res: Response, next: NextFunction): void {
-  // Aceita token via header (preferido) ou body (legacy)
-  const headerToken = req.headers['x-admin-token'] as string | undefined;
-  const bodyToken = req.body?.admin_token as string | undefined;
-  const queryToken = req.query?.admin_token as string | undefined;
-
-  const token = headerToken || bodyToken || queryToken;
-
-  if (!token) {
-    sendError(res, 401, 'UNAUTHORIZED', 'Token de admin requerido. Use header x-admin-token');
-    return;
-  }
-
-  if (token !== env.ADMIN_RESET_TOKEN) {
-    sendError(res, 403, 'FORBIDDEN', 'Token de admin inválido');
-    return;
-  }
-
-  next();
-}
+import { authenticate, authorizeAdmin } from '../middlewares/auth.js';
 
 // Mercado Pago SDK - importação condicional
 let MercadoPagoConfig: unknown;
@@ -232,7 +208,7 @@ router.get('/email', async (_req, res) => {
  * POST /health/admin/test-email
  * Send a test email (requires admin token via header)
  */
-router.post('/admin/test-email', sensitiveLimiter, requireAdminToken, async (req, res) => {
+router.post('/admin/test-email', sensitiveLimiter, authenticate, authorizeAdmin, async (req, res) => {
   const { to } = req.body;
 
   if (!to) {
@@ -267,7 +243,7 @@ router.post('/admin/test-email', sensitiveLimiter, requireAdminToken, async (req
  * POST /health/admin/test-ftp
  * Test FTP upload by sending a small test file
  */
-router.post('/admin/test-ftp', sensitiveLimiter, requireAdminToken, async (_req, res) => {
+router.post('/admin/test-ftp', sensitiveLimiter, authenticate, authorizeAdmin, async (_req, res) => {
   if (!isFtpConfigured()) {
     sendError(res, 503, 'FTP_NOT_CONFIGURED', 'FTP não está configurado');
     return;
@@ -303,7 +279,7 @@ router.post('/admin/test-ftp', sensitiveLimiter, requireAdminToken, async (_req,
  * GET /health/admin/ftp-list
  * List files in the downloads directory (for debugging)
  */
-router.get('/admin/ftp-list', sensitiveLimiter, requireAdminToken, async (_req, res) => {
+router.get('/admin/ftp-list', sensitiveLimiter, authenticate, authorizeAdmin, async (_req, res) => {
   if (!isFtpConfigured()) {
     sendError(res, 503, 'FTP_NOT_CONFIGURED', 'FTP não está configurado');
     return;
@@ -348,7 +324,7 @@ router.get('/admin/ftp-list', sensitiveLimiter, requireAdminToken, async (_req, 
  * POST /health/admin/create-payment
  * Cria um pagamento aprovado para testes (requer admin token via header)
  */
-router.post('/admin/create-payment', sensitiveLimiter, requireAdminToken, async (req, res) => {
+router.post('/admin/create-payment', sensitiveLimiter, authenticate, authorizeAdmin, async (req, res) => {
   const { app_id, email, name, amount = 0 } = req.body;
 
   if (!app_id || !email) {
@@ -388,7 +364,7 @@ router.post('/admin/create-payment', sensitiveLimiter, requireAdminToken, async 
  * GET /health/admin/licenses
  * Lista licenças com filtros (requer admin token via header)
  */
-router.get('/admin/licenses', sensitiveLimiter, requireAdminToken, async (req, res) => {
+router.get('/admin/licenses', sensitiveLimiter, authenticate, authorizeAdmin, async (req, res) => {
   const { app_id, email, page = '1', limit = '50' } = req.query as Record<string, string>;
 
   try {
@@ -438,7 +414,7 @@ router.get('/admin/licenses', sensitiveLimiter, requireAdminToken, async (req, r
  * DELETE /health/admin/licenses/:id
  * Remove uma licença específica (requer admin token via header)
  */
-router.delete('/admin/licenses/:id', sensitiveLimiter, requireAdminToken, async (req, res) => {
+router.delete('/admin/licenses/:id', sensitiveLimiter, authenticate, authorizeAdmin, async (req, res) => {
   const licenseId = Number(req.params.id);
 
   if (!licenseId || isNaN(licenseId)) {
@@ -461,7 +437,7 @@ router.delete('/admin/licenses/:id', sensitiveLimiter, requireAdminToken, async 
  * POST /health/admin/provision-license
  * Provisiona uma licença para um app (requer admin token via header)
  */
-router.post('/admin/provision-license', sensitiveLimiter, requireAdminToken, async (req, res) => {
+router.post('/admin/provision-license', sensitiveLimiter, authenticate, authorizeAdmin, async (req, res) => {
   const { app_id, email, name, payment_id } = req.body;
 
   if (!app_id || !email) {
@@ -500,7 +476,7 @@ router.post('/admin/provision-license', sensitiveLimiter, requireAdminToken, asy
  * POST /health/admin/clear-licenses
  * Limpa todas as licenças e logs de ativação (CUIDADO!)
  */
-router.post('/admin/clear-licenses', sensitiveLimiter, requireAdminToken, async (req, res) => {
+router.post('/admin/clear-licenses', sensitiveLimiter, authenticate, authorizeAdmin, async (req, res) => {
   const { app_id } = req.body;
 
   try {

@@ -25,23 +25,27 @@ export const authService = {
       where: { email: data.email },
     });
 
+    // Mensagem genérica para todos os casos de falha — evita enumeração de contas
+    const genericError = AppError.unauthorized('Email ou senha inválidos');
+
     if (!user) {
-      throw AppError.unauthorized('Email ou senha invalidos');
+      throw genericError;
     }
 
     if (user.status !== 'ativo') {
-      throw AppError.forbidden('Conta desativada ou suspensa');
+      // Não revelar se a conta existe com status inativo — mesma mensagem genérica
+      throw genericError;
     }
 
-    // Se o usuario e guest, nao pode fazer login (precisa criar senha)
+    // Conta guest não tem senha definida — mesma mensagem para não revelar o tipo
     if (user.isGuest) {
-      throw AppError.badRequest('Esta conta foi criada automaticamente. Por favor, defina uma senha usando "Esqueci minha senha".');
+      throw genericError;
     }
 
     const isValidPassword = await bcrypt.compare(data.password, user.passwordHash);
 
     if (!isValidPassword) {
-      throw AppError.unauthorized('Email ou senha invalidos');
+      throw genericError;
     }
 
     // Verificar se existem compras de usuarios guest com mesmo email
@@ -407,8 +411,13 @@ async function verifyGoogleToken(credential: string): Promise<{ email: string; n
 
     const payload = await response.json() as Record<string, string>;
 
-    // Verify the audience matches our client ID
-    if (env.GOOGLE_CLIENT_ID && payload.aud !== env.GOOGLE_CLIENT_ID) {
+    // Audience check é obrigatório — falha fechado se GOOGLE_CLIENT_ID não estiver configurado
+    if (!env.GOOGLE_CLIENT_ID) {
+      logger.error('GOOGLE_CLIENT_ID não configurado — login Google desabilitado');
+      return null;
+    }
+
+    if (payload.aud !== env.GOOGLE_CLIENT_ID) {
       logger.warn({ aud: payload.aud }, 'Google token audience mismatch');
       return null;
     }
