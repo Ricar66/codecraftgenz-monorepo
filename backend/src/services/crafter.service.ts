@@ -1,6 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import type { CreateCrafterInput, UpdateCrafterInput } from '../schemas/crafter.schema.js';
+import { triggerCrafterRole } from './discord-oauth.service.js';
 
 export const crafterService = {
   async getAll(options: {
@@ -90,6 +91,12 @@ export const crafterService = {
         pontos: 0,
       },
     });
+
+    // Notificar bot para atribuir cargo Crafter no Discord (se vinculado)
+    if (data.user_id) {
+      triggerCrafterRole(data.user_id).catch(() => {});
+    }
+
     return mapCrafter(crafter);
   },
 
