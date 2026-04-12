@@ -80,6 +80,14 @@ const envSchema = z.object({
   GOOGLE_CALENDAR_CLIENT_ID: z.string().optional(),
   GOOGLE_CALENDAR_CLIENT_SECRET: z.string().optional(),
   BACKEND_URL: z.string().default('http://localhost:8080'),
+
+  // Discord Bot
+  DISCORD_CLIENT_ID: z.string().optional(),
+  DISCORD_CLIENT_SECRET: z.string().optional(),
+  DISCORD_REDIRECT_URI: z.string().optional(),
+  INTERNAL_BOT_URL: z.string().default('http://127.0.0.1:3001'),
+  INTERNAL_WEBHOOK_SECRET: z.string().optional(),
+  DISCORD_TOKEN_ENCRYPT_KEY: z.string().optional(),
 });
 
 // Parse and validate environment variables
