@@ -1,6 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { leadService } from './lead.service.js';
+import { notifyBot } from './discord-oauth.service.js';
 import { logger } from '../utils/logger.js';
 import type {
   CreateChallengeInput,
@@ -47,6 +48,14 @@ export const challengeService = {
         createdBy,
       },
     });
+
+    // Notifica Discord bot sobre novo desafio
+    notifyBot('/hook/new-challenge', {
+      nome: challenge.name,
+      dificuldade: challenge.difficulty,
+      pontos: challenge.basePoints ?? 0,
+    }).catch(() => {});
+
     return mapChallenge(challenge);
   },
 

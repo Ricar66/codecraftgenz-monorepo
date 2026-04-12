@@ -4,6 +4,7 @@ import type { CreateAppInput, UpdateAppInput, FeedbackInput } from '../schemas/a
 import { prisma } from '../db/prisma.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
+import { notifyBot } from './discord-oauth.service.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -38,6 +39,13 @@ export const appService = {
     }
 
     const app = await appRepository.create({ ...data, creatorId });
+
+    // Notifica Discord bot sobre novo app
+    notifyBot('/hook/new-app', {
+      nome: app.name,
+      categoria: app.category,
+    }).catch(() => {});
+
     return mapApp(app);
   },
 
@@ -84,6 +92,15 @@ export const appService = {
     }
 
     const app = await appRepository.update(id, data);
+
+    // Notifica Discord bot quando app é publicado
+    if (data.status === 'published' || data.status === 'available') {
+      notifyBot('/hook/new-app', {
+        nome: app.name,
+        categoria: app.category,
+      }).catch(() => {});
+    }
+
     return mapApp(app);
   },
 
