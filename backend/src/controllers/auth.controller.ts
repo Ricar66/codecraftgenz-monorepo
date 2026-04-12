@@ -64,7 +64,14 @@ export const authController = {
    * POST /api/v1/auth/logout
    */
   async logout(_req: Request, res: Response): Promise<void> {
-    res.clearCookie('token');
+    // Must pass the same options used when setting the cookie so the browser matches and removes it
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' as const : 'lax' as const,
+      domain: isProd ? env.COOKIE_DOMAIN : undefined,
+      path: '/',
+    });
     sendSuccess(res, { message: 'Logout realizado com sucesso' });
   },
 
