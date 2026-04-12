@@ -14,16 +14,6 @@ function encryptToken(token: string): string {
   return iv.toString('hex') + ':' + cipher.update(token, 'utf8', 'hex') + cipher.final('hex');
 }
 
-// decryptToken reserved for future use (refresh token flow)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function _decryptToken(encrypted: string): string {
-  const key = env.DISCORD_TOKEN_ENCRYPT_KEY;
-  if (!key) return encrypted;
-  const [ivHex, data] = encrypted.split(':');
-  const iv = Buffer.from(ivHex, 'hex');
-  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key.padEnd(32).slice(0, 32)), iv);
-  return decipher.update(data, 'hex', 'utf8') + decipher.final('utf8');
-}
 
 export function generateAuthUrl(userId: number): string {
   const state = Buffer.from(JSON.stringify({ userId, ts: Date.now() })).toString('base64url');

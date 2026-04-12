@@ -9,7 +9,8 @@ const router = Router();
 router.get('/auth/url', authenticate, async (req: any, res) => {
   try {
     if (!process.env.DISCORD_CLIENT_ID || !process.env.DISCORD_REDIRECT_URI) {
-      return res.status(503).json({ error: 'Discord OAuth não configurado' });
+      res.status(503).json({ error: 'Discord OAuth não configurado' });
+      return;
     }
     const url = discordOAuth.generateAuthUrl(req.user.id);
     res.json({ url });
@@ -65,7 +66,7 @@ router.get('/bot-status', authenticate, async (_req, res) => {
   try {
     const botUrl = process.env.INTERNAL_BOT_URL ?? 'http://127.0.0.1:3001';
     const secret = process.env.INTERNAL_WEBHOOK_SECRET;
-    if (!secret) return res.json({ online: false, reason: 'not configured' });
+    if (!secret) { res.json({ online: false, reason: 'not configured' }); return; }
 
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 3000);
