@@ -267,6 +267,7 @@ function mapApp(app: {
   version: string;
   status: string;
   featured: boolean;
+  licenseType?: string;
   downloadCount: number;
   creatorId: number;
   createdAt: Date;
@@ -289,6 +290,7 @@ function mapApp(app: {
     version: app.version,
     status: app.status,
     featured: app.featured,
+    license_type: app.licenseType ?? 'vitalicia',
     download_count: app.downloadCount,
     creator_id: app.creatorId,
     creator: app.creator

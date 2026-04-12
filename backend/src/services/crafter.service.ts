@@ -3,16 +3,60 @@ import { AppError } from '../utils/AppError.js';
 import type { CreateCrafterInput, UpdateCrafterInput } from '../schemas/crafter.schema.js';
 
 export const crafterService = {
-  async getAll() {
-    const crafters = await prisma.crafter.findMany({
-      include: {
-        equipe: {
-          select: { id: true, nome: true },
-        },
+  async getAll(options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    active_only?: boolean;
+    order_by?: string;
+    order_direction?: 'asc' | 'desc';
+  } = {}) {
+    const page = Math.max(1, options.page || 1);
+    const limit = Math.min(100, Math.max(1, options.limit || 20));
+    const skip = (page - 1) * limit;
+    const orderDir = options.order_direction === 'asc' ? 'asc' : 'desc';
+
+    const validOrderFields: Record<string, object> = {
+      nome: { nome: orderDir },
+      email: { email: orderDir },
+      points: { pontos: orderDir },
+      pontos: { pontos: orderDir },
+      active: { active: orderDir },
+    };
+    const orderBy = validOrderFields[options.order_by || ''] || { pontos: orderDir };
+
+    const where: Record<string, unknown> = {};
+    if (options.active_only === true) where.active = true;
+    if (options.active_only === false) where.active = false;
+    if (options.search) {
+      where.OR = [
+        { nome: { contains: options.search } },
+        { email: { contains: options.search } },
+      ];
+    }
+
+    const [crafters, total] = await Promise.all([
+      prisma.crafter.findMany({
+        where,
+        include: { equipe: { select: { id: true, nome: true } } },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.crafter.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+    return {
+      data: crafters.map(mapCrafter),
+      pagination: {
+        total,
+        page,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
       },
-      orderBy: { pontos: 'desc' },
-    });
-    return crafters.map(mapCrafter);
+    };
   },
 
   async getById(id: number) {
@@ -42,6 +86,7 @@ export const crafterService = {
         skillsJson: data.skills ? JSON.stringify(data.skills) : null,
         equipeId: data.equipe_id,
         userId: data.user_id,
+        active: true,
         pontos: 0,
       },
     });
@@ -57,15 +102,16 @@ export const crafterService = {
     const crafter = await prisma.crafter.update({
       where: { id },
       data: {
-        nome: data.nome,
-        email: data.email,
-        bio: data.bio,
-        avatarUrl: data.avatar_url,
-        githubUrl: data.github_url,
-        linkedinUrl: data.linkedin_url,
-        skillsJson: data.skills ? JSON.stringify(data.skills) : undefined,
-        equipeId: data.equipe_id,
-        pontos: data.pontos,
+        ...(data.nome !== undefined && { nome: data.nome }),
+        ...(data.email !== undefined && { email: data.email }),
+        ...(data.bio !== undefined && { bio: data.bio }),
+        ...(data.avatar_url !== undefined && { avatarUrl: data.avatar_url }),
+        ...(data.github_url !== undefined && { githubUrl: data.github_url }),
+        ...(data.linkedin_url !== undefined && { linkedinUrl: data.linkedin_url }),
+        ...(data.skills !== undefined && { skillsJson: JSON.stringify(data.skills) }),
+        ...(data.equipe_id !== undefined && { equipeId: data.equipe_id }),
+        ...(data.pontos !== undefined && { pontos: data.pontos }),
+        ...(data.active !== undefined && { active: data.active }),
       },
     });
     return mapCrafter(crafter);
@@ -177,6 +223,7 @@ function mapCrafter(crafter: {
   linkedinUrl: string | null;
   skillsJson: string | null;
   pontos: number;
+  active: boolean;
   equipeId: number | null;
   userId: number | null;
   createdAt: Date;
@@ -202,6 +249,7 @@ function mapCrafter(crafter: {
     linkedin_url: crafter.linkedinUrl,
     skills,
     pontos: crafter.pontos,
+    active: crafter.active,
     equipe_id: crafter.equipeId,
     user_id: crafter.userId,
     equipe: crafter.equipe

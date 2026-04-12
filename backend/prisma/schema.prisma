@@ -28,6 +28,7 @@ model User {
   mfaEnabled    Boolean   @default(false)
   mfaSecret     String?
   onboardingCompleted Boolean @default(false)
+  interestsJson String?   @db.Text  // area + skills from onboarding (not a Crafter profile)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -106,6 +107,7 @@ model App {
   version         String    @default("1.0.0")
   status          String    @default("draft")
   featured        Boolean   @default(false)
+  licenseType     String    @default("vitalicia")
   downloadCount   Int       @default(0)
 
   creatorId       Int
@@ -210,6 +212,7 @@ model Crafter {
   linkedinUrl String?
   skillsJson  String?   @db.Text
   pontos      Int       @default(0)
+  active      Boolean   @default(true)
   equipeId    Int?
   userId      Int?      @unique
   createdAt   DateTime  @default(now())

@@ -177,7 +177,20 @@ export const authService = {
         status: true,
         mfaEnabled: true,
         onboardingCompleted: true,
+        interestsJson: true,
         createdAt: true,
+        crafter: {
+          select: {
+            id: true,
+            nome: true,
+            bio: true,
+            skillsJson: true,
+            pontos: true,
+            githubUrl: true,
+            linkedinUrl: true,
+            active: true,
+          },
+        },
       },
     });
 
@@ -185,7 +198,42 @@ export const authService = {
       throw AppError.notFound('Usuário');
     }
 
-    return user;
+    // Parse interests and crafter skills
+    let interests: { area?: string; skills?: string[] } = {};
+    if (user.interestsJson) {
+      try { interests = JSON.parse(user.interestsJson); } catch { interests = {}; }
+    }
+
+    let crafterProfile = null;
+    if (user.crafter) {
+      let skills: string[] = [];
+      if (user.crafter.skillsJson) {
+        try { skills = JSON.parse(user.crafter.skillsJson); } catch { skills = []; }
+      }
+      crafterProfile = {
+        id: user.crafter.id,
+        nome: user.crafter.nome,
+        bio: user.crafter.bio,
+        skills,
+        pontos: user.crafter.pontos,
+        github_url: user.crafter.githubUrl,
+        linkedin_url: user.crafter.linkedinUrl,
+        active: user.crafter.active,
+      };
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      status: user.status,
+      mfaEnabled: user.mfaEnabled,
+      onboardingCompleted: user.onboardingCompleted,
+      interests,
+      crafter: crafterProfile,
+      createdAt: user.createdAt,
+    };
   },
 
   /**
@@ -306,34 +354,24 @@ export const authService = {
   },
 
   /**
-   * Complete onboarding — marks user as onboarded and upserts Crafter profile
+   * Complete onboarding — marks user as onboarded and saves interests (area/skills).
+   * Does NOT create a Crafter record — that happens only through the "Ser Crafter" flow
+   * (via inscription) or manually by an admin.
    */
   async completeOnboarding(userId: number, data: { area?: string; skills?: string[]; bio?: string }) {
-    // Mark onboarding complete on User
+    const interests: Record<string, unknown> = {};
+    if (data.area) interests.area = data.area;
+    if (data.skills && data.skills.length > 0) interests.skills = data.skills;
+
     await prisma.user.update({
       where: { id: userId },
-      data: { onboardingCompleted: true },
+      data: {
+        onboardingCompleted: true,
+        ...(Object.keys(interests).length > 0
+          ? { interestsJson: JSON.stringify(interests) }
+          : {}),
+      },
     });
-
-    // Upsert Crafter profile with area/skills/bio if provided
-    if (data.area || (data.skills && data.skills.length > 0) || data.bio) {
-      const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
-      const skillsList = [data.area, ...(data.skills || [])].filter(Boolean) as string[];
-      await prisma.crafter.upsert({
-        where: { userId },
-        update: {
-          ...(data.bio ? { bio: data.bio } : {}),
-          ...(skillsList.length > 0 ? { skillsJson: JSON.stringify(skillsList) } : {}),
-        },
-        create: {
-          nome: user?.name || '',
-          email: user?.email,
-          bio: data.bio,
-          skillsJson: skillsList.length > 0 ? JSON.stringify(skillsList) : undefined,
-          userId,
-        },
-      });
-    }
   },
 
   /**

@@ -28,6 +28,7 @@ export const updateCrafterSchema = z.object({
     skills: z.array(z.string()).optional(),
     equipe_id: z.number().int().positive().nullable().optional(),
     pontos: z.number().int().min(0).optional(),
+    active: z.boolean().optional(),
   }),
 });
 

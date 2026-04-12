@@ -4,9 +4,18 @@ import { success } from '../utils/response.js';
 import type { CreateCrafterInput, UpdateCrafterInput } from '../schemas/crafter.schema.js';
 
 export const crafterController = {
-  async getAll(_req: Request, res: Response) {
-    const crafters = await crafterService.getAll();
-    res.json(success(crafters));
+  async getAll(req: Request, res: Response) {
+    const { page, limit, search, active_only, order_by, order_direction } = req.query;
+    const result = await crafterService.getAll({
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 20,
+      search: search as string | undefined,
+      active_only: active_only === 'true' ? true : active_only === 'false' ? false : undefined,
+      order_by: order_by as string | undefined,
+      order_direction: order_direction === 'asc' ? 'asc' : 'desc',
+    });
+    // Return with pagination at top level so frontend can read response.pagination
+    res.json({ success: true, ...result });
   },
 
   async getById(req: Request, res: Response) {

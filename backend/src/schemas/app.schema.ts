@@ -51,6 +51,7 @@ export const createAppSchema = z.object({
     version: z.string().max(32).default('1.0.0'),
     status: appStatus.default('draft'),
     featured: z.union([z.boolean(), z.string().transform((v) => v === 'true' || v === '1')]).default(false),
+    license_type: z.string().max(32).optional(),
   }),
 });
 
@@ -72,6 +73,7 @@ export const updateAppSchema = z.object({
     version: z.string().max(32).optional(),
     status: appStatus.optional(),
     featured: z.union([z.boolean(), z.string().transform((v) => v === 'true' || v === '1')]).optional(),
+    license_type: z.string().max(32).optional(),
   }),
 });
 

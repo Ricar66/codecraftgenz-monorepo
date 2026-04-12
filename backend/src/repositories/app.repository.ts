@@ -97,6 +97,7 @@ export const appRepository = {
         version: data.version ?? '1.0.0',
         status: data.status ?? 'draft',
         featured: data.featured ?? false,
+        licenseType: data.license_type ?? 'vitalicia',
         creatorId: data.creatorId,
       },
     });
@@ -119,6 +120,7 @@ export const appRepository = {
         version: data.version,
         status: data.status,
         featured: data.featured,
+        licenseType: data.license_type,
       },
     });
   },

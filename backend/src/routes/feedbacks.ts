@@ -74,13 +74,13 @@ router.post('/', rateLimiter.sensitive, async (req, res): Promise<void> => {
 });
 
 /**
- * GET /api/feedbacks/latest - Buscar últimos 6 feedbacks para carrossel
+ * GET /api/feedbacks/latest - Buscar feedbacks para carrossel (até 50)
  * Rota pública otimizada para a página inicial
  */
 router.get('/latest', async (_req, res) => {
   try {
     const feedbacks = await prisma.feedback.findMany({
-      take: 6,
+      take: 50,
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
