@@ -126,6 +126,20 @@ export const authController = {
   },
 
   /**
+   * PATCH /api/v1/auth/onboarding
+   * Complete onboarding
+   */
+  async completeOnboarding(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { area, skills, bio } = req.body;
+      await authService.completeOnboarding(req.user!.id, { area, skills, bio });
+      sendSuccess(res, { message: 'Onboarding concluído com sucesso' });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
    * POST /api/v1/auth/google
    * Login/Register with Google OAuth
    */

@@ -91,4 +91,10 @@ router.post(
   authController.googleAuth
 );
 
+/**
+ * PATCH /api/v1/auth/onboarding
+ * Complete onboarding
+ */
+router.patch('/onboarding', authenticate, authController.completeOnboarding);
+
 export default router;

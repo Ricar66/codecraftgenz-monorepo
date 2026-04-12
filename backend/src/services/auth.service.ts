@@ -85,6 +85,7 @@ export const authService = {
         email: user.email,
         name: user.name,
         role: user.role,
+        onboardingCompleted: user.onboardingCompleted,
       },
     };
   },
@@ -157,6 +158,7 @@ export const authService = {
         email: user.email,
         name: user.name,
         role: user.role,
+        onboardingCompleted: user.onboardingCompleted,
       },
     };
   },
@@ -174,6 +176,7 @@ export const authService = {
         role: true,
         status: true,
         mfaEnabled: true,
+        onboardingCompleted: true,
         createdAt: true,
       },
     });
@@ -303,6 +306,37 @@ export const authService = {
   },
 
   /**
+   * Complete onboarding — marks user as onboarded and upserts Crafter profile
+   */
+  async completeOnboarding(userId: number, data: { area?: string; skills?: string[]; bio?: string }) {
+    // Mark onboarding complete on User
+    await prisma.user.update({
+      where: { id: userId },
+      data: { onboardingCompleted: true },
+    });
+
+    // Upsert Crafter profile with area/skills/bio if provided
+    if (data.area || (data.skills && data.skills.length > 0) || data.bio) {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
+      const skillsList = [data.area, ...(data.skills || [])].filter(Boolean) as string[];
+      await prisma.crafter.upsert({
+        where: { userId },
+        update: {
+          ...(data.bio ? { bio: data.bio } : {}),
+          ...(skillsList.length > 0 ? { skillsJson: JSON.stringify(skillsList) } : {}),
+        },
+        create: {
+          nome: user?.name || '',
+          email: user?.email,
+          bio: data.bio,
+          skillsJson: skillsList.length > 0 ? JSON.stringify(skillsList) : undefined,
+          userId,
+        },
+      });
+    }
+  },
+
+  /**
    * Google OAuth - login or register with Google ID token
    */
   async googleAuth(credential: string) {
@@ -390,6 +424,7 @@ export const authService = {
         email: user.email,
         name: user.name,
         role: user.role,
+        onboardingCompleted: user.onboardingCompleted,
       },
     };
   },
