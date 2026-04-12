@@ -14,7 +14,9 @@ function encryptToken(token: string): string {
   return iv.toString('hex') + ':' + cipher.update(token, 'utf8', 'hex') + cipher.final('hex');
 }
 
-function decryptToken(encrypted: string): string {
+// decryptToken reserved for future use (refresh token flow)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _decryptToken(encrypted: string): string {
   const key = env.DISCORD_TOKEN_ENCRYPT_KEY;
   if (!key) return encrypted;
   const [ivHex, data] = encrypted.split(':');

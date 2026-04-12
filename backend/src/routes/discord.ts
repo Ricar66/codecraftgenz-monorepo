@@ -76,7 +76,7 @@ router.get('/bot-status', authenticate, async (_req, res) => {
     }).finally(() => clearTimeout(timeout));
 
     if (response.ok) {
-      const data = await response.json();
+      const data = await response.json() as Record<string, unknown>;
       res.json({ online: true, ...data });
     } else {
       res.json({ online: false });
@@ -139,10 +139,11 @@ router.put('/config', authenticate, async (req, res) => {
 // POST /api/discord/trigger/:action — triggers manuais
 router.post('/trigger/:action', authenticate, async (req, res) => {
   try {
-    const { action } = req.params;
+    const action = req.params['action'] as string;
     const validActions = ['news', 'vagas', 'ranking'];
     if (!validActions.includes(action)) {
-      return res.status(400).json({ error: 'Ação inválida' });
+      res.status(400).json({ error: 'Ação inválida' });
+      return;
     }
     const result = await discordOAuth.notifyBot(`/hook/trigger/${action}`, {});
     res.json(result);
