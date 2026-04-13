@@ -121,15 +121,16 @@ router.get('/config', authenticate, async (_req, res) => {
 // PUT /api/discord/config — salvar configurações
 router.put('/config', authenticate, async (req, res) => {
   try {
-    const configs = req.body as Record<string, string>;
+    const configs = req.body as Record<string, unknown>;
     await Promise.all(
-      Object.entries(configs).map(([key, value]) =>
-        prisma.botConfig.upsert({
+      Object.entries(configs).map(([key, value]) => {
+        const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+        return prisma.botConfig.upsert({
           where: { key },
-          update: { value },
-          create: { key, value },
-        })
-      )
+          update: { value: stringValue },
+          create: { key, value: stringValue },
+        });
+      })
     );
     res.json({ success: true });
   } catch (err: any) {
