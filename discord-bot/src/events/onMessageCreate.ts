@@ -33,7 +33,7 @@ export async function onMessageCreate(message: Message) {
     ? message.channel.parent
     : message.channel;
 
-  const channelName = parentChannel?.name ?? (message.channel as any).name ?? '';
+  const channelName = (parentChannel as any)?.name ?? '';
   const isTech = isTechChannel(channelName);
 
   // Pontuação base: thread reply = +2, técnico = +3, geral = +1
