@@ -142,7 +142,7 @@ router.put('/config', authenticate, async (req, res) => {
 router.post('/trigger/:action', authenticate, async (req, res) => {
   try {
     const action = req.params['action'] as string;
-    const validActions = ['news', 'vagas', 'ranking'];
+    const validActions = ['news', 'vagas', 'ranking', 'promotion'];
     if (!validActions.includes(action)) {
       res.status(400).json({ error: 'Ação inválida' });
       return;
@@ -151,6 +151,45 @@ router.post('/trigger/:action', authenticate, async (req, res) => {
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: err.message, online: false });
+  }
+});
+
+// GET /api/discord/ranking — ranking de engajamento dos membros
+router.get('/ranking', authenticate, async (req, res) => {
+  try {
+    const page  = Math.max(1, parseInt((req.query.page  as string) ?? '1'));
+    const limit = Math.min(100, parseInt((req.query.limit as string) ?? '50'));
+    const role  = req.query.role as string | undefined;
+
+    const where = role ? { currentRole: role } : {};
+
+    const [members, total] = await Promise.all([
+      prisma.memberScore.findMany({
+        where,
+        orderBy: { score: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          discordId: true,
+          username: true,
+          displayName: true,
+          score: true,
+          messagesTotal: true,
+          messagesTech: true,
+          reactionsReceived: true,
+          threadReplies: true,
+          voiceMinutes: true,
+          currentRole: true,
+          promotedAt: true,
+          lastSeen: true,
+        },
+      }),
+      prisma.memberScore.count({ where }),
+    ]);
+
+    res.json({ members, total, page, pages: Math.ceil(total / limit) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 

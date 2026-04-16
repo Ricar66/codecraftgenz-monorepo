@@ -6,8 +6,10 @@ export const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildVoiceStates,
   ],
-  partials: [Partials.GuildMember],
+  partials: [Partials.GuildMember, Partials.Message, Partials.Reaction],
 });
 
 // Slash commands collection

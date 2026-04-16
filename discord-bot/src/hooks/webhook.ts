@@ -10,6 +10,7 @@ import { logger } from '../utils/logger';
 import { runNewsJob } from '../jobs/news.job';
 import { runVagasJob } from '../jobs/vagas.job';
 import { runRankingJob } from '../jobs/ranking.job';
+import { runPromotionJob } from '../jobs/promotion.job';
 
 export function createHookApp() {
   const app = express();
@@ -106,6 +107,11 @@ export function createHookApp() {
   app.post('/hook/trigger/ranking', async (_req, res) => {
     runRankingJob().catch(e => logger.error(e));
     res.json({ success: true, message: 'Job de ranking iniciado' });
+  });
+
+  app.post('/hook/trigger/promotion', async (_req, res) => {
+    runPromotionJob().catch(e => logger.error(e));
+    res.json({ success: true, message: 'Job de promoção iniciado' });
   });
 
   return app;

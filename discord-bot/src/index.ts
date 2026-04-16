@@ -7,10 +7,13 @@ import { prisma } from './db/prisma';
 import { onReady } from './events/ready';
 import { onGuildMemberAdd } from './events/guildMemberAdd';
 import { onInteractionCreate } from './events/interactionCreate';
+import { onMessageCreate, onMessageReactionAdd } from './events/onMessageCreate';
+import { onVoiceStateUpdate } from './events/onVoiceStateUpdate';
 import { createHookApp } from './hooks/webhook';
 import { runNewsJob } from './jobs/news.job';
 import { runVagasJob } from './jobs/vagas.job';
 import { runRankingJob } from './jobs/ranking.job';
+import { runPromotionJob } from './jobs/promotion.job';
 import * as rankCommand from './commands/rank';
 import * as desafiosCommand from './commands/desafios';
 
@@ -22,6 +25,9 @@ import * as desafiosCommand from './commands/desafios';
 client.once('ready', () => onReady(client));
 client.on('guildMemberAdd', onGuildMemberAdd);
 client.on('interactionCreate', onInteractionCreate);
+client.on('messageCreate', onMessageCreate);
+client.on('messageReactionAdd', onMessageReactionAdd);
+client.on('voiceStateUpdate', onVoiceStateUpdate);
 
 // Cron jobs
 // Notícias: 9h e 18h todos os dias
@@ -40,6 +46,12 @@ cron.schedule('0 10 * * *', () => {
 cron.schedule('0 12 * * 1', () => {
   logger.info('Executando job de ranking semanal...');
   runRankingJob();
+});
+
+// Promoção automática: meia-noite todos os dias
+cron.schedule('0 0 * * *', () => {
+  logger.info('Executando job de promoção...');
+  runPromotionJob();
 });
 
 // Webhook server interno (localhost only)
