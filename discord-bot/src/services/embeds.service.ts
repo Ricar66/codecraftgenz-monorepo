@@ -1,4 +1,4 @@
-import { EmbedBuilder, ColorResolvable } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ColorResolvable } from 'discord.js';
 
 const BRAND_COLOR = 0xD12BF2 as ColorResolvable;
 const CYAN_COLOR = 0x00E4F2 as ColorResolvable;
@@ -83,12 +83,127 @@ export function newsEmbed(item: { title: string; link: string; contentSnippet?: 
     .setTimestamp();
 }
 
+// ── Detecção de stack no título/snippet ───────────────────────────────────────
+const STACK_KEYWORDS: Record<string, string> = {
+  'react':       'React',
+  'vue':         'Vue.js',
+  'angular':     'Angular',
+  'next':        'Next.js',
+  'nuxt':        'Nuxt',
+  'svelte':      'Svelte',
+  'node':        'Node.js',
+  'nestjs':      'NestJS',
+  'express':     'Express',
+  'typescript':  'TypeScript',
+  'javascript':  'JavaScript',
+  'python':      'Python',
+  'django':      'Django',
+  'fastapi':     'FastAPI',
+  'flask':       'Flask',
+  'java':        'Java',
+  'spring':      'Spring',
+  'kotlin':      'Kotlin',
+  'php':         'PHP',
+  'laravel':     'Laravel',
+  'ruby':        'Ruby',
+  'rails':       'Rails',
+  'go':          'Go',
+  'rust':        'Rust',
+  'aws':         'AWS',
+  'gcp':         'GCP',
+  'azure':       'Azure',
+  'docker':      'Docker',
+  'kubernetes':  'Kubernetes',
+  'postgresql':  'PostgreSQL',
+  'mysql':       'MySQL',
+  'mongodb':     'MongoDB',
+  'mobile':      'Mobile',
+  'flutter':     'Flutter',
+  'react native':'React Native',
+  'ios':         'iOS',
+  'android':     'Android',
+};
+
+function detectStacks(text: string): string {
+  const lower = text.toLowerCase();
+  const found = Object.entries(STACK_KEYWORDS)
+    .filter(([key]) => lower.includes(key))
+    .map(([, label]) => label);
+  const unique = [...new Set(found)].slice(0, 5);
+  return unique.join(' • ');
+}
+
+// Extrai "Empresa" do padrão "Cargo @ Empresa" (usado pelo Remotive)
+function parseTitle(raw: string): { jobTitle: string; company: string | null } {
+  const at = raw.lastIndexOf(' @ ');
+  if (at !== -1) {
+    return { jobTitle: raw.slice(0, at).trim(), company: raw.slice(at + 3).trim() };
+  }
+  return { jobTitle: raw, company: null };
+}
+
+// Cor por fonte
+const SOURCE_COLORS: Record<string, number> = {
+  'ProgramaThor':      0x00B140,
+  'We Work Remotely':  0x4A90D9,
+  'RemoteOK':          0x00D1A7,
+  'Remotive':          0xFF6B6B,
+  'Nerdin':            0xF59E0B,
+};
+
+// Emoji por fonte
+const SOURCE_EMOJIS: Record<string, string> = {
+  'ProgramaThor':      '🇧🇷',
+  'We Work Remotely':  '🌎',
+  'RemoteOK':          '💻',
+  'Remotive':          '🌐',
+  'Nerdin':            '🇧🇷',
+};
+
 export function vagaEmbed(vaga: { title: string; link: string; contentSnippet?: string; company?: string }) {
-  return new EmbedBuilder()
-    .setColor(0x22C55E as ColorResolvable)
-    .setTitle(`💼 ${vaga.title}`)
-    .setURL(vaga.link)
-    .setDescription(vaga.contentSnippet ? vaga.contentSnippet.slice(0, 200) + '...' : '')
-    .setFooter({ text: vaga.company ?? 'ProgramaThor' })
+  const { jobTitle, company: parsedCompany } = parseTitle(vaga.title);
+  const empresa = parsedCompany ?? vaga.company ?? '';
+  const color = (SOURCE_COLORS[vaga.company ?? ''] ?? 0x22C55E) as ColorResolvable;
+  const sourceEmoji = SOURCE_EMOJIS[vaga.company ?? ''] ?? '💼';
+
+  const stackLine = detectStacks(`${vaga.title} ${vaga.contentSnippet ?? ''}`);
+
+  const embed = new EmbedBuilder()
+    .setColor(color)
+    .setTitle(`${sourceEmoji} ${jobTitle}`)
+    .setURL(vaga.link);
+
+  // Campos estruturados
+  const fields: { name: string; value: string; inline: boolean }[] = [];
+
+  if (empresa) {
+    fields.push({ name: '🏢 Empresa', value: empresa, inline: true });
+  }
+
+  if (vaga.contentSnippet) {
+    // Snippet pode conter localização/modalidade
+    const snippet = vaga.contentSnippet.slice(0, 120);
+    fields.push({ name: '📍 Local / Modalidade', value: snippet, inline: true });
+  }
+
+  if (stackLine) {
+    fields.push({ name: '🛠️ Stack detectada', value: stackLine, inline: false });
+  }
+
+  if (fields.length > 0) embed.addFields(fields);
+
+  embed
+    .setFooter({ text: `via ${vaga.company ?? 'Job Board'} • CodeCraft Gen-Z` })
     .setTimestamp();
+
+  // Botão de candidatura
+  const button = new ButtonBuilder()
+    .setLabel('Ver vaga e candidatar-se')
+    .setURL(vaga.link)
+    .setStyle(ButtonStyle.Link)
+    .setEmoji('🔗');
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
+
+  return { embed, row };
 }
