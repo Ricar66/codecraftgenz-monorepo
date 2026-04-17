@@ -84,33 +84,36 @@ const VOICE_RENAMES: Record<string, string> = {
   'eventos-codecraft': '🎭 Eventos',
 };
 
-// ── Topics dos canais ─────────────────────────────────────────────────────────
+// ── Topics dos canais — busca por substring do nome ──────────────────────────
+// chave: substring que identifica o canal (sem emojis, lowercase)
 const CHANNEL_TOPICS: Record<string, string> = {
-  '👋・boas-vindas':             '🏠 Bem-vindo(a) à CodeCraft Gen-Z! Leia as regras e se apresente.',
-  '📋・regras':                  '📌 Regras da comunidade. Leia antes de participar.',
-  '📢・anúncios':                '🔔 Anúncios oficiais, novidades da plataforma e novos apps. Somente admins postam aqui.',
-  '❓・como-funciona':           '💡 Entenda o sistema de pontos, cargos e como aproveitar a comunidade.',
-  '🌟・apresentações':           '👋 Se apresente! Conte quem você é, sua stack e seus objetivos. Ganhe +3 pts!',
-  '💬・geral':                   '💬 Conversa livre sobre tech, carreira, vida dev e tudo mais.',
-  '😂・humor-e-memes':           '😂 Memes, humor dev e aquele clássico "funciona na minha máquina".',
-  '📰・noticias-tech':           '📰 Notícias do mundo tech postadas pelo bot 2x por dia. Fique por dentro.',
-  '🙋・tire-suas-duvidas':       '❓ Tem dúvida? Pergunte aqui! A comunidade responde. Threads abertas automaticamente. +3 pts por ajudar.',
-  '👨‍💻・code-review':           '🔍 Poste seu código e peça feedback. Seja construtivo. +3 pts por participar.',
-  '🚀・mostre-seu-projeto':      '🚀 Mostre o que você está construindo! Projetos, portfólios, side projects. +3 pts.',
-  '🛠️・ferramentas-e-recursos':  '🛠️ Ferramentas, extensões, libs e recursos úteis para devs.',
-  '💼・freela-e-oportunidades':  '💼 Vagas de freela, oportunidades de projetos e parcerias. Vagas postadas diariamente pelo bot.',
-  '💸・vagas-e-freelas':         '💼 Vagas tech de várias plataformas, postadas automaticamente todo dia às 10h.',
-  '💡・empreendedorismo':        '💡 Conversa sobre negócios, produtos, SaaS e empreendedorismo tech.',
-  '🎯・metas-e-progresso':       '🎯 Compartilhe suas metas de estudo e carreira. Accountability coletivo.',
-  '📚・recursos-gratuitos':      '📚 Links de cursos, documentações, livros e materiais gratuitos.',
-  '⚔️・desafios-codecraft':      '⚔️ Desafios de programação da plataforma. Novo desafio toda segunda-feira! Participe em codecraftgenz.com.br/desafios',
-  '🏆・ranking-semanal':         '🏆 Ranking dos Crafters mais ativos. Postado toda segunda-feira. Compete!',
-  '🛍️・apps-codecraft':          '🛍️ Novos apps do marketplace. Acesse codecraftgenz.com.br/aplicativos',
-  '💡・ideias-de-produto':       '💡 Tem uma ideia de feature ou produto? Proponha aqui! Votamos juntos.',
-  '🤝・busco-parceiro':          '🤝 Quer formar dupla ou equipe? Poste aqui com sua stack e o que está construindo.',
-  '💎・elite-lounge':            '💎 Canal exclusivo para Crafter Elite (500+ pts). Acesso direto à equipe CodeCraft.',
-  '⚡・acesso-antecipado':       '⚡ Teste beta de novos recursos antes de todo mundo.',
-  '🎙️・feedback-direto':        '🎙️ Feedback direto para o time CodeCraft. Sua opinião molda o produto.',
+  'boas-vindas':           '🏠 Bem-vindo(a) à CodeCraft Gen-Z! Leia as regras e se apresente aqui.',
+  'regras':                '📌 Regras da comunidade. Leia antes de participar.',
+  'anúncios':              '🔔 Anúncios oficiais, novidades da plataforma e novos apps. Somente admins postam aqui.',
+  'anuncios':              '🔔 Anúncios oficiais, novidades da plataforma e novos apps. Somente admins postam aqui.',
+  'como-funciona':         '💡 Entenda o sistema de pontos, cargos e como aproveitar a comunidade ao máximo.',
+  'apresentações':         '👋 Se apresente! Conte quem você é, sua stack e seus objetivos. Ganhe +3 pts!',
+  'apresentacoes':         '👋 Se apresente! Conte quem você é, sua stack e seus objetivos. Ganhe +3 pts!',
+  'geral':                 '💬 Conversa livre sobre tech, carreira, vida de dev e tudo mais.',
+  'humor-e-memes':         '😂 Memes, humor dev e o clássico "funciona na minha máquina".',
+  'noticias-tech':         '📰 Notícias do mundo tech postadas automaticamente 2x por dia. Fique por dentro.',
+  'tire-suas-duvidas':     '🙋 Tem dúvida? Pergunte! Threads abertas automaticamente. +3 pts por ajudar.',
+  'code-review':           '🔍 Poste seu código e peça feedback. Seja construtivo. Ganhe +3 pts por participar.',
+  'mostre-seu-projeto':    '🚀 Mostre o que você está construindo! Projetos, portfólios, side projects. +3 pts.',
+  'ferramentas-e-recursos':'🛠️ Ferramentas, extensões, libs e recursos úteis para devs.',
+  'freela-e-oportunidades':'💼 Vagas de freela, projetos e parcerias. Vagas postadas diariamente pelo bot.',
+  'vagas-e-freelas':       '💸 Vagas tech de 5 plataformas diferentes, postadas todo dia às 10h. Use /vagas para ver as últimas.',
+  'empreendedorismo':      '💡 Negócios, produtos, SaaS e empreendedorismo tech. Compartilhe sua jornada.',
+  'metas-e-progresso':     '🎯 Compartilhe suas metas de estudo e carreira. Accountability coletivo funciona!',
+  'recursos-gratuitos':    '📚 Cursos, documentações, livros e materiais gratuitos. Só links de qualidade.',
+  'desafios-codecraft':    '⚔️ Desafios de programação. Novo desafio toda segunda-feira! Participe em codecraftgenz.com.br/desafios',
+  'ranking-semanal':       '🏆 Top 10 Crafters mais ativos. Postado toda segunda-feira às 12h. Compete!',
+  'apps-codecraft':        '🛍️ Novos apps no marketplace. Acesse codecraftgenz.com.br/aplicativos para comprar.',
+  'ideias-de-produto':     '💡 Tem ideia de feature ou produto? Proponha aqui! A comunidade vota.',
+  'busco-parceiro':        '🤝 Quer montar equipe ou achar parceiro de projeto? Poste sua stack aqui.',
+  'elite-lounge':          '💎 Canal exclusivo Crafter Elite (500+ pts). Acesso direto à equipe CodeCraft.',
+  'acesso-antecipado':     '⚡ Beta de novos recursos antes de todo mundo. Feedback vale muito aqui.',
+  'feedback-direto':       '🎙️ Feedback direto para o time CodeCraft. Sua opinião molda o produto.',
 };
 
 // ── Nomes das categorias ──────────────────────────────────────────────────────
@@ -221,7 +224,9 @@ async function main() {
   for (const channel of guild.channels.cache.values()) {
     if (channel.type !== ChannelType.GuildText) continue;
 
-    const topic = CHANNEL_TOPICS[channel.name];
+    const normalizedChannelName = normalize(channel.name);
+    const topicKey = Object.keys(CHANNEL_TOPICS).find(key => normalizedChannelName.includes(normalize(key)));
+    const topic = topicKey ? CHANNEL_TOPICS[topicKey] : undefined;
     if (!topic) continue;
 
     const tc = channel as TextChannel;
@@ -328,7 +333,8 @@ async function main() {
   };
 
   for (const role of guild.roles.cache.values()) {
-    const color = roleColors[role.name];
+    const colorKey = Object.keys(roleColors).find(key => role.name.includes(key));
+    const color = colorKey ? roleColors[colorKey] : undefined;
     if (!color) continue;
 
     try {
