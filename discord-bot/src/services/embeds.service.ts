@@ -7,13 +7,20 @@ const GOLD_COLOR = 0xF59E0B as ColorResolvable;
 export function welcomeEmbed(username: string) {
   return new EmbedBuilder()
     .setColor(BRAND_COLOR)
-    .setTitle(`👋 Bem-vindo(a), ${username}!`)
+    .setTitle(`👋 Bem-vindo(a), ${username}! Você chegou à CodeCraft Gen-Z 🚀`)
     .setDescription(
-      'Seja bem-vindo(a) à **CodeCraft Gen-Z** — a comunidade de devs que estão crescendo de verdade.\n\n' +
-      '📋 Leia as regras em <#rules>\n' +
-      '👋 Se apresente em <#apresentacoes>\n' +
-      '💬 Bata um papo em <#geral>\n\n' +
-      '🚀 Acesse a plataforma em **codecraftgenz.com.br**'
+      'Aqui devs crescem de verdade — não só aprendem, **constroem e vendem**.\n\n' +
+      '🎯 **O que você pode fazer aqui:**\n' +
+      '• Resolver desafios e subir no ranking\n' +
+      '• Vender seus apps no marketplace\n' +
+      '• Encontrar mentores e parceiros\n' +
+      '• Ver vagas e freelas todo dia\n\n' +
+      '📋 **Comece agora:**\n' +
+      '→ Se apresente em **#apresentações** (+3 pts)\n' +
+      '→ Use `/meu-rank` para ver seus pontos\n' +
+      '→ Acesse **codecraftgenz.com.br** para criar sua conta\n\n' +
+      '💡 **Quanto mais você participa, mais você sobe:**\n' +
+      'Novato → Crafter (100 pts) → Crafter Elite (500 pts)'
     )
     .setFooter({ text: 'CodeCraft Gen-Z • Devs que evoluem juntos' })
     .setTimestamp();
@@ -33,6 +40,17 @@ export function rankingEmbed(crafters: Array<{ nome: string; pontos: number }>) 
     .setTimestamp();
 }
 
+const DIFFICULTY_EMOJI: Record<string, string> = {
+  facil: '🟢',
+  easy: '🟢',
+  medio: '🟡',
+  médio: '🟡',
+  medium: '🟡',
+  dificil: '🔴',
+  difícil: '🔴',
+  hard: '🔴',
+};
+
 export function challengeEmbed(challenge: {
   nome?: string;
   name?: string;
@@ -44,20 +62,28 @@ export function challengeEmbed(challenge: {
   recompensa?: number;
 }) {
   const name = challenge.nome ?? challenge.name ?? 'Novo Desafio';
-  const diff = challenge.difficulty ?? challenge.dificuldade ?? 'N/A';
+  const diffRaw = challenge.difficulty ?? challenge.dificuldade ?? 'medio';
+  const diffEmoji = DIFFICULTY_EMOJI[diffRaw.toLowerCase()] ?? '🎯';
   const reward = challenge.reward ?? challenge.recompensa ?? 0;
+  const descricao = challenge.description ?? challenge.descricao ?? '';
 
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor(CYAN_COLOR)
     .setTitle(`🚀 Novo Desafio: ${name}`)
     .addFields(
-      { name: 'Dificuldade', value: diff, inline: true },
-      { name: 'Recompensa', value: `${reward} pts`, inline: true },
+      { name: 'Dificuldade', value: `${diffEmoji} ${diffRaw}`, inline: true },
+      { name: 'Recompensa', value: `⭐ ${reward} pts`, inline: true },
     )
-    .setDescription('Acesse a plataforma para participar!')
+    .setDescription(
+      (descricao ? descricao.slice(0, 300) + '\n\n' : '') +
+      '🔗 Acesse a plataforma para participar!\n' +
+      'https://codecraftgenz.com.br/desafios'
+    )
     .setURL('https://codecraftgenz.com.br/desafios')
     .setFooter({ text: 'CodeCraft Gen-Z • Desafios' })
     .setTimestamp();
+
+  return embed;
 }
 
 export function appEmbed(app: { name?: string; nome?: string; category?: string; categoria?: string }) {

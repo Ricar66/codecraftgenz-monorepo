@@ -13,6 +13,7 @@ const envSchema = z.object({
   DISCORD_CHANNEL_DESAFIOS: z.string().optional(),
   DISCORD_CHANNEL_ANUNCIOS: z.string().optional(),
   DISCORD_CHANNEL_APRESENTACOES: z.string().optional(),
+  DISCORD_CHANNEL_GERAL: z.string().optional(),
   DISCORD_ROLE_CRAFTER: z.string().optional(),
   DISCORD_ROLE_CRAFTER_ELITE: z.string().optional(),
   DISCORD_ROLE_NOVATO: z.string().optional(),

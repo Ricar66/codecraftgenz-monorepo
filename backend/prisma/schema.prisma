@@ -780,21 +780,24 @@ model JobState {
 }
 
 model MemberScore {
-  id                Int      @id @default(autoincrement())
-  discordId         String   @unique @db.VarChar(32)
-  username          String   @db.VarChar(100)
-  displayName       String?  @db.VarChar(100)
-  score             Int      @default(0)
-  messagesTotal     Int      @default(0)
-  messagesTech      Int      @default(0)
-  reactionsReceived Int      @default(0)
-  threadReplies     Int      @default(0)
-  voiceMinutes      Int      @default(0)
-  currentRole       String   @default("novato") @db.VarChar(20)
-  promotedAt        DateTime?
-  lastSeen          DateTime @default(now())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  Int      @id @default(autoincrement())
+  discordId           String   @unique @db.VarChar(32)
+  username            String   @db.VarChar(100)
+  displayName         String?  @db.VarChar(100)
+  score               Int      @default(0)
+  messagesTotal       Int      @default(0)
+  messagesTech        Int      @default(0)
+  reactionsReceived   Int      @default(0)
+  threadReplies       Int      @default(0)
+  voiceMinutes        Int      @default(0)
+  currentRole         String   @default("novato") @db.VarChar(20)
+  promotedAt          DateTime?
+  streakDays          Int      @default(0)
+  streakLastDate      DateTime?
+  weeklyScoreSnapshot Int      @default(0)
+  lastSeen            DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@index([score])
   @@index([currentRole])

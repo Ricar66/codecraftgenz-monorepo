@@ -14,12 +14,19 @@ import { runNewsJob } from './jobs/news.job';
 import { runVagasJob } from './jobs/vagas.job';
 import { runRankingJob } from './jobs/ranking.job';
 import { runPromotionJob } from './jobs/promotion.job';
+import { runDesafioSemanalJob } from './jobs/desafio-semanal.job';
+import { runEnqueteJob } from './jobs/enquete.job';
+import { runWeeklySnapshotJob } from './jobs/snapshot.job';
 import * as rankCommand from './commands/rank';
 import * as desafiosCommand from './commands/desafios';
+import * as meuRankCommand from './commands/meu-rank';
+import * as vagasCmdCommand from './commands/vagas-cmd';
 
 // Registrar comandos no client
 (client as any).commands.set(rankCommand.data.name, rankCommand);
 (client as any).commands.set(desafiosCommand.data.name, desafiosCommand);
+(client as any).commands.set(meuRankCommand.data.name, meuRankCommand);
+(client as any).commands.set(vagasCmdCommand.data.name, vagasCmdCommand);
 
 // Eventos do Discord
 client.once('ready', () => onReady(client));
@@ -52,6 +59,24 @@ cron.schedule('0 12 * * 1', () => {
 cron.schedule('0 0 * * *', () => {
   logger.info('Executando job de promoção...');
   runPromotionJob();
+});
+
+// Desafio da semana: segunda-feira 9h
+cron.schedule('0 9 * * 1', () => {
+  logger.info('Executando job de desafio semanal...');
+  runDesafioSemanalJob();
+});
+
+// Enquete semanal: quarta-feira 14h
+cron.schedule('0 14 * * 3', () => {
+  logger.info('Executando job de enquete semanal...');
+  runEnqueteJob();
+});
+
+// Snapshot semanal: domingo 23h50
+cron.schedule('50 23 * * 0', () => {
+  logger.info('Executando job de snapshot semanal...');
+  runWeeklySnapshotJob();
 });
 
 // Webhook server interno (localhost only)

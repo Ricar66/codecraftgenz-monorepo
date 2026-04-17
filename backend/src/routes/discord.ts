@@ -142,7 +142,7 @@ router.put('/config', authenticate, async (req, res) => {
 router.post('/trigger/:action', authenticate, async (req, res) => {
   try {
     const action = req.params['action'] as string;
-    const validActions = ['news', 'vagas', 'ranking', 'promotion'];
+    const validActions = ['news', 'vagas', 'ranking', 'promotion', 'desafio-semanal', 'enquete', 'snapshot'];
     if (!validActions.includes(action)) {
       res.status(400).json({ error: 'Ação inválida' });
       return;
@@ -181,6 +181,7 @@ router.get('/ranking', authenticate, async (req, res) => {
           voiceMinutes: true,
           currentRole: true,
           promotedAt: true,
+          streakDays: true,
           lastSeen: true,
         },
       }),

@@ -11,6 +11,9 @@ import { runNewsJob } from '../jobs/news.job';
 import { runVagasJob } from '../jobs/vagas.job';
 import { runRankingJob } from '../jobs/ranking.job';
 import { runPromotionJob } from '../jobs/promotion.job';
+import { runDesafioSemanalJob } from '../jobs/desafio-semanal.job';
+import { runEnqueteJob } from '../jobs/enquete.job';
+import { runWeeklySnapshotJob } from '../jobs/snapshot.job';
 
 export function createHookApp() {
   const app = express();
@@ -112,6 +115,21 @@ export function createHookApp() {
   app.post('/hook/trigger/promotion', async (_req, res) => {
     runPromotionJob().catch(e => logger.error(e));
     res.json({ success: true, message: 'Job de promoção iniciado' });
+  });
+
+  app.post('/hook/trigger/desafio-semanal', async (_req, res) => {
+    runDesafioSemanalJob().catch(e => logger.error(e));
+    res.json({ success: true, message: 'Job de desafio semanal iniciado' });
+  });
+
+  app.post('/hook/trigger/enquete', async (_req, res) => {
+    runEnqueteJob().catch(e => logger.error(e));
+    res.json({ success: true, message: 'Job de enquete iniciado' });
+  });
+
+  app.post('/hook/trigger/snapshot', async (_req, res) => {
+    runWeeklySnapshotJob().catch(e => logger.error(e));
+    res.json({ success: true, message: 'Job de snapshot iniciado' });
   });
 
   return app;
