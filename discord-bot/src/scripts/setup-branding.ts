@@ -19,7 +19,7 @@ import 'dotenv/config';
 import path from 'path';
 import dotenv from 'dotenv';
 import https from 'https';
-import { Client, GatewayIntentBits, ChannelType, TextChannel, VoiceChannel, CategoryChannel, Guild, REST, Routes } from 'discord.js';
+import { Client, GatewayIntentBits, ChannelType, TextChannel, VoiceChannel, CategoryChannel, Guild, REST, Routes, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ColorResolvable } from 'discord.js';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
@@ -382,6 +382,126 @@ async function main() {
     } catch (err: any) {
       console.error(`  ❌  Emoji :${emoji.name}: ${err.message?.slice(0, 80)}`);
     }
+  }
+
+  // ── 9. Welcome Screen (tela de entrada) ────────────────────────────────────
+  console.log('\n── 9. WELCOME SCREEN ──────────────────────');
+
+  try {
+    const welcomeChannelId = guild.channels.cache.find(
+      c => c.name.includes('boas-vindas') && c.type === ChannelType.GuildText
+    )?.id;
+    const regrasId = guild.channels.cache.find(
+      c => c.name.includes('regras') && c.type === ChannelType.GuildText
+    )?.id;
+    const apresentacoesId = guild.channels.cache.find(
+      c => (c.name.includes('apresenta') ) && c.type === ChannelType.GuildText
+    )?.id;
+    const vagasId = guild.channels.cache.find(
+      c => c.name.includes('vagas') && c.type === ChannelType.GuildText
+    )?.id;
+    const geralId = guild.channels.cache.find(
+      c => c.name.includes('geral') && c.type === ChannelType.GuildText
+    )?.id;
+
+    const welcomeChannels = [];
+    if (welcomeChannelId) welcomeChannels.push({ channel_id: welcomeChannelId, description: 'Comece por aqui' });
+    if (regrasId)         welcomeChannels.push({ channel_id: regrasId,         description: 'Leia as regras' });
+    if (apresentacoesId)  welcomeChannels.push({ channel_id: apresentacoesId,  description: 'Se apresente (+3 pts)' });
+    if (vagasId)          welcomeChannels.push({ channel_id: vagasId,          description: 'Vagas tech diárias' });
+    if (geralId)          welcomeChannels.push({ channel_id: geralId,          description: 'Converse com a galera' });
+
+    await rest.patch(Routes.guildWelcomeScreen(GUILD_ID), {
+      body: {
+        enabled: true,
+        description: '👋 Bem-vindo(a)! Aqui devs constroem, crescem e vendem juntos. Acumule pontos, suba de cargo e entre no marketplace. 🚀',
+        welcome_channels: welcomeChannels.slice(0, 5),
+      },
+    });
+    console.log('  ✅  Welcome Screen configurado');
+  } catch (err: any) {
+    console.log(`  ⚠️  Welcome Screen: ${err.message?.slice(0, 100)}`);
+  }
+
+  // ── 10. Embed rico no #boas-vindas ──────────────────────────────────────────
+  console.log('\n── 10. EMBED BOAS-VINDAS ──────────────────');
+
+  const boasVindasChannel = guild.channels.cache.find(
+    c => c.name.includes('boas-vindas') && c.type === ChannelType.GuildText
+  ) as TextChannel | undefined;
+
+  if (boasVindasChannel) {
+    try {
+      // Apagar mensagens antigas do bot no canal
+      const messages = await boasVindasChannel.messages.fetch({ limit: 20 });
+      const botMessages = messages.filter(m => m.author.id === client.user!.id);
+      for (const [, msg] of botMessages) {
+        await msg.delete().catch(() => {});
+        await sleep(300);
+      }
+
+      // Embed principal — identidade da comunidade
+      const mainEmbed = new EmbedBuilder()
+        .setColor(0xD12BF2 as ColorResolvable)
+        .setTitle('🚀 Bem-vindo(a) à CodeCraft Gen-Z')
+        .setDescription(
+          '> *A comunidade onde devs brasileiros param de só aprender e começam a **construir, vender e crescer**.*\n\n' +
+          '**CodeCraft Gen-Z** é uma plataforma completa para desenvolvedores:\n' +
+          '⚔️ **Desafios** — resolva problemas reais e ganhe pontos\n' +
+          '🏆 **Ranking** — suba no placar semanal da comunidade\n' +
+          '🛍️ **Marketplace** — venda seus apps para outros devs\n' +
+          '💼 **Vagas & Freelas** — oportunidades postadas todo dia\n' +
+          '🤝 **Mentoria** — conecte-se com devs experientes\n\n' +
+          '🌐 **Plataforma:** [codecraftgenz.com.br](https://codecraftgenz.com.br)'
+        )
+        .setImage('https://codecraftgenz.com.br/og-image.png')
+        .setFooter({ text: 'CodeCraft Gen-Z • Devs que evoluem juntos' });
+
+      // Embed do sistema de pontos
+      const pointsEmbed = new EmbedBuilder()
+        .setColor(0x00E4F2 as ColorResolvable)
+        .setTitle('⭐ Como funciona o sistema de pontos')
+        .addFields(
+          { name: '💬 Mensagens gerais', value: '+1 pt cada', inline: true },
+          { name: '👨‍💻 Canais técnicos', value: '+3 pts cada', inline: true },
+          { name: '🧵 Participar de threads', value: '+2 pts cada', inline: true },
+          { name: '🎤 Canal de voz', value: '+1 pt por hora', inline: true },
+          { name: '🔥 Sequência diária', value: '+10 bônus a cada 7 dias', inline: true },
+          { name: '👋 Apresentação', value: '+3 pts (só uma vez)', inline: true },
+        )
+        .setDescription(
+          '**Cargos que você pode alcançar:**\n' +
+          '🔰 **Novato** → ⚒️ **Crafter** (100 pts) → 💎 **Crafter Elite** (500 pts)\n\n' +
+          'Use `/meu-rank` para ver seus pontos e posição no ranking!'
+        );
+
+      // Botões de ação
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setLabel('Criar conta na plataforma')
+          .setURL('https://codecraftgenz.com.br/register')
+          .setStyle(ButtonStyle.Link)
+          .setEmoji('🚀'),
+        new ButtonBuilder()
+          .setLabel('Ver desafios')
+          .setURL('https://codecraftgenz.com.br/desafios')
+          .setStyle(ButtonStyle.Link)
+          .setEmoji('⚔️'),
+        new ButtonBuilder()
+          .setLabel('Marketplace')
+          .setURL('https://codecraftgenz.com.br/aplicativos')
+          .setStyle(ButtonStyle.Link)
+          .setEmoji('🛍️'),
+      );
+
+      const msg = await boasVindasChannel.send({ embeds: [mainEmbed, pointsEmbed], components: [row] });
+      await msg.pin().catch(() => {});
+      console.log('  ✅  Embed rico postado e fixado em #boas-vindas');
+    } catch (err: any) {
+      console.error(`  ❌  Embed boas-vindas: ${err.message}`);
+    }
+  } else {
+    console.log('  ⚠️  Canal #boas-vindas não encontrado');
   }
 
   // ── Resumo ──────────────────────────────────────────────────────────────────
