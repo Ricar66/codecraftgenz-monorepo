@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/node';
 import 'express-async-errors';
 import express from 'express';
 import cors from 'cors';
@@ -17,6 +18,14 @@ import { auditMiddleware } from './middlewares/audit.js';
 
 // Diretório de downloads
 const DOWNLOADS_DIR = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
+
+// Initialize Sentry (must be called before creating the Express app)
+Sentry.init({
+  dsn: process.env.SENTRY_DSN || '',
+  environment: process.env.NODE_ENV || 'production',
+  enabled: !!process.env.SENTRY_DSN,
+  tracesSampleRate: 0.1,
+});
 
 // Create Express app
 const app = express();
@@ -197,6 +206,10 @@ app.use(routes);
 
 // 404 handler
 app.use(notFoundHandler);
+
+// Sentry error handler (must be before the generic error handler)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.use(Sentry.expressErrorHandler() as any);
 
 // Error handler (must be last)
 app.use(errorHandler);

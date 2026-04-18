@@ -30,6 +30,8 @@ import noticiasRoutes from './noticias.js';
 import metaRoutes from './meta.routes.js';
 import testRoutes from './test.js';
 import discordRoutes from './discord.js';
+import referralRoutes from './referral.js';
+import backupRoutes from './backup.js';
 
 const router = Router();
 
@@ -66,6 +68,8 @@ router.use('/api/noticias', noticiasRoutes); // News (RSS feeds)
 router.use('/api/metas', metaRoutes); // Metas / Goals team calendar
 router.use('/api', integrationRoutes); // Mercado Livre OAuth
 router.use('/api/discord', discordRoutes); // Discord OAuth + Bot management
+router.use('/api/referral', referralRoutes); // Referral program
 router.use('/api/test', testRoutes); // Test routes (blocked in production)
+router.use('/api/backup', backupRoutes); // Backup status (admin only)
 
 export default router;

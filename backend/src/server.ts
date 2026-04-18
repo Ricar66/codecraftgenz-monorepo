@@ -3,6 +3,9 @@ import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { prisma } from './db/prisma.js';
 import { startNewsCron } from './services/news.cron.js';
+import { startEmailDripCron } from './jobs/email-drip.job.js';
+import cron from 'node-cron';
+import { runBackupJob } from './jobs/backup.job.js';
 
 const PORT = env.PORT;
 
@@ -17,6 +20,17 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     .then(() => {
       logger.info('✅ Database connected');
       startNewsCron();
+      startEmailDripCron();
+
+      // Backup diário às 3h
+      cron.schedule('0 3 * * *', async () => {
+        try {
+          await runBackupJob();
+        } catch (err) {
+          logger.error({ err }, 'Backup job failed');
+        }
+      });
+      logger.info('Backup cron job scheduled (daily at 03:00)');
     })
     .catch((err) => {
       logger.error({ err }, '❌ Database connection failed');
