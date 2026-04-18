@@ -6,6 +6,9 @@ import type {
   UpdateChallengeInput,
   SubmitChallengeInput,
   ReviewSubmissionInput,
+  SubmitRepoInput,
+  ListSubmissionsQuery,
+  ReviewRepoSubmissionInput,
 } from '../schemas/challenge.schema.js';
 
 export const challengeController = {
@@ -67,6 +70,38 @@ export const challengeController = {
     const submissionId = Number(req.params.id);
     const data = req.validated?.body as ReviewSubmissionInput;
     const result = await challengeService.reviewSubmission(submissionId, data);
+    res.json(success(result));
+  },
+
+  // =============================================================
+  // Novo fluxo de submissão
+  // =============================================================
+
+  async submitRepo(req: Request, res: Response) {
+    const challengeId = Number(req.params.id);
+    const userId = req.user!.id;
+    const data = req.validated?.body as SubmitRepoInput;
+    const result = await challengeService.submitRepo(challengeId, userId, data);
+    res.status(201).json(success(result));
+  },
+
+  async getMySubmission(req: Request, res: Response) {
+    const challengeId = Number(req.params.id);
+    const userId = req.user!.id;
+    const result = await challengeService.getMySubmission(challengeId, userId);
+    res.json(success(result));
+  },
+
+  async listSubmissions(req: Request, res: Response) {
+    const query = req.validated?.query as ListSubmissionsQuery;
+    const result = await challengeService.listSubmissions(query);
+    res.json(success(result));
+  },
+
+  async reviewRepoSubmission(req: Request, res: Response) {
+    const submissionId = Number(req.params.submissionId);
+    const data = req.validated?.body as ReviewRepoSubmissionInput;
+    const result = await challengeService.reviewRepoSubmission(submissionId, data);
     res.json(success(result));
   },
 };

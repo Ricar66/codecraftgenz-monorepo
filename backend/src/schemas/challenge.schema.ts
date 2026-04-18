@@ -42,6 +42,7 @@ export const challengeIdSchema = z.object({
   }),
 });
 
+// Legacy: entrega por crafter_id no body (mantido para compatibilidade)
 export const submitChallengeSchema = z.object({
   params: z.object({
     id: z.string().transform(Number),
@@ -53,6 +54,7 @@ export const submitChallengeSchema = z.object({
   }),
 });
 
+// Review legacy (score 0-100)
 export const reviewSubmissionSchema = z.object({
   params: z.object({
     id: z.string().transform(Number),
@@ -64,7 +66,49 @@ export const reviewSubmissionSchema = z.object({
   }),
 });
 
+// =============================================================
+// Novo fluxo de submissão (GitHub/GitLab repo)
+// =============================================================
+
+// Regex simples para validar URLs de github.com ou gitlab.com (com ou sem www)
+const REPO_URL_REGEX = /^https?:\/\/(www\.)?(github|gitlab)\.com\/[\w.-]+\/[\w.-]+(\/?|\.git)?$/i;
+
+export const submitRepoSchema = z.object({
+  params: z.object({
+    id: z.string().transform(Number),
+  }),
+  body: z.object({
+    repoUrl: z
+      .string()
+      .url('URL inválida')
+      .regex(REPO_URL_REGEX, 'URL deve ser do GitHub ou GitLab'),
+    description: z.string().max(4000).optional(),
+  }),
+});
+
+export const listSubmissionsQuerySchema = z.object({
+  query: z.object({
+    status: z.enum(['pending', 'approved', 'rejected']).optional(),
+    page: z.string().transform(Number).default('1'),
+    limit: z.string().transform(Number).default('20'),
+  }),
+});
+
+export const reviewRepoSubmissionSchema = z.object({
+  params: z.object({
+    submissionId: z.string().transform(Number),
+  }),
+  body: z.object({
+    status: z.enum(['approved', 'rejected']),
+    feedback: z.string().max(2000).optional(),
+    points: z.number().int().min(0).max(100000).optional(),
+  }),
+});
+
 export type CreateChallengeInput = z.infer<typeof createChallengeSchema>['body'];
 export type UpdateChallengeInput = z.infer<typeof updateChallengeSchema>['body'];
 export type SubmitChallengeInput = z.infer<typeof submitChallengeSchema>['body'];
 export type ReviewSubmissionInput = z.infer<typeof reviewSubmissionSchema>['body'];
+export type SubmitRepoInput = z.infer<typeof submitRepoSchema>['body'];
+export type ListSubmissionsQuery = z.infer<typeof listSubmissionsQuerySchema>['query'];
+export type ReviewRepoSubmissionInput = z.infer<typeof reviewRepoSubmissionSchema>['body'];
