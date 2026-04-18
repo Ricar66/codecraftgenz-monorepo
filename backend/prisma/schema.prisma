@@ -49,6 +49,7 @@ model User {
   emailDrips    EmailDrip[]
   referralsMade    Referral[] @relation("ReferralsMade")
   referralReceived Referral?  @relation("ReferralReceived")
+  pushSubscriptions PushSubscription[]
 
   @@map("users")
 }
@@ -392,24 +393,28 @@ model Desafio {
 }
 
 model ChallengeSubmission {
-  id            Int       @id @default(autoincrement())
-  desafioId     Int
-  oderId        Int
-  deliveryUrl   String?   
-  deliveryText  String?   
-  notes         String?   
-  status        String    @default("subscribed") 
-  score         Int?
-  reviewFeedback String?  
-  submittedAt   DateTime?
-  reviewedAt    DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             Int       @id @default(autoincrement())
+  desafioId      Int
+  userId         Int
+  repoUrl        String?
+  description    String?   @db.Text
+  deliveryUrl    String?
+  deliveryText   String?
+  notes          String?
+  status         String    @default("pending") // pending | approved | rejected | subscribed | submitted
+  score          Int?
+  points         Int       @default(0)
+  feedback       String?   @db.Text
+  reviewFeedback String?
+  submittedAt    DateTime? @default(now())
+  reviewedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  desafio       Desafio   @relation(fields: [desafioId], references: [id], onDelete: Cascade)
-  user          User      @relation(fields: [oderId], references: [id], onDelete: Cascade)
+  desafio        Desafio   @relation(fields: [desafioId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([desafioId, oderId])
+  @@unique([desafioId, userId])
   @@map("challenge_submissions")
 }
 
@@ -856,4 +861,23 @@ model ProcessedWebhook {
   processedAt DateTime @default(now())
 
   @@map("processed_webhooks")
+}
+
+// =============================================
+// PUSH NOTIFICATIONS (PWA)
+// =============================================
+
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  endpoint  String   @db.Text
+  p256dh    String   @db.Text
+  auth      String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([endpoint(length: 500)])
+  @@index([userId])
+  @@map("push_subscriptions")
 }

@@ -32,6 +32,7 @@ import testRoutes from './test.js';
 import discordRoutes from './discord.js';
 import referralRoutes from './referral.js';
 import backupRoutes from './backup.js';
+import notificationRoutes from './notifications.js';
 
 const router = Router();
 
@@ -46,6 +47,7 @@ router.use('/api/apps', appRoutes);
 router.use('/api/payments', paymentRoutes);
 router.use('/api', licenseRoutes); // Licenses has custom paths
 router.use('/api/desafios', challengeRoutes);
+router.use('/api/challenges', challengeRoutes); // Alias para submissões (nomenclatura EN)
 router.use('/api/crafters', crafterRoutes);
 router.use('/api/ranking', crafterRoutes); // Alias para ranking
 router.use('/api/equipes', teamRoutes);
@@ -71,5 +73,6 @@ router.use('/api/discord', discordRoutes); // Discord OAuth + Bot management
 router.use('/api/referral', referralRoutes); // Referral program
 router.use('/api/test', testRoutes); // Test routes (blocked in production)
 router.use('/api/backup', backupRoutes); // Backup status (admin only)
+router.use('/api/notifications', notificationRoutes); // Push Notifications (PWA)
 
 export default router;

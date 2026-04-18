@@ -81,6 +81,11 @@ const envSchema = z.object({
   GOOGLE_CALENDAR_CLIENT_SECRET: z.string().optional(),
   BACKEND_URL: z.string().default('http://localhost:8080'),
 
+  // Push Notifications (PWA - VAPID)
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_EMAIL: z.string().default('mailto:contato@codecraftgenz.com.br'),
+
   // Discord Bot
   DISCORD_CLIENT_ID: z.string().optional(),
   DISCORD_CLIENT_SECRET: z.string().optional(),
