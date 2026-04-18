@@ -45,7 +45,7 @@ router.get('/events', authenticate, authorizeAdmin, async (req, res) => {
   const event_name = req.query.event_name as string | undefined;
 
   const result = await analyticsService.getEvents({ limit, offset, category, period, event_name });
-  res.json(success(result.data));
+  res.json(success({ data: result.data, total: result.total }));
 });
 
 // ─────────────────────────────────────────────────────────────
