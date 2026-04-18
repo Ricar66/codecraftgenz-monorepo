@@ -21,6 +21,7 @@ export const registerSchema = {
       .min(8, 'Senha deve ter pelo menos 8 caracteres')
       .regex(/\d/, 'Senha deve conter pelo menos 1 número'),
     name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
+    referralCode: z.string().trim().min(4).max(32).optional(),
   }),
 };
 

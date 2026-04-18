@@ -29,6 +29,8 @@ model User {
   mfaSecret     String?
   onboardingCompleted Boolean @default(false)
   interestsJson String?   @db.Text  // area + skills from onboarding (not a Crafter profile)
+  referralCode  String?   @unique
+  points        Int       @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -44,8 +46,47 @@ model User {
   metasCreated  Meta[]            @relation("MetaAuthor")
   metaAssignees MetaAssignee[]
   discordLink   DiscordLink?
+  emailDrips    EmailDrip[]
+  referralsMade    Referral[] @relation("ReferralsMade")
+  referralReceived Referral?  @relation("ReferralReceived")
 
   @@map("users")
+}
+
+// =============================================
+// EMAIL DRIP (Onboarding sequence)
+// =============================================
+
+model EmailDrip {
+  id           String    @id @default(cuid())
+  userId       Int
+  step         Int       // 1, 2, 3
+  sentAt       DateTime?
+  scheduledFor DateTime
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, step])
+  @@index([scheduledFor, sentAt])
+  @@map("email_drips")
+}
+
+// =============================================
+// REFERRALS
+// =============================================
+
+model Referral {
+  id         String   @id @default(cuid())
+  referrerId Int
+  referredId Int      @unique
+  points     Int      @default(50)
+  createdAt  DateTime @default(now())
+
+  referrer   User     @relation("ReferralsMade", fields: [referrerId], references: [id])
+  referred   User     @relation("ReferralReceived", fields: [referredId], references: [id])
+
+  @@index([referrerId])
+  @@map("referrals")
 }
 
 model PasswordReset {

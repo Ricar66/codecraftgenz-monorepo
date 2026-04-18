@@ -9,6 +9,8 @@ import type { LoginInput, RegisterInput } from '../schemas/auth.schema.js';
 import { leadService } from './lead.service.js';
 import { env } from '../config/env.js';
 import { emailService } from './email.service.js';
+import { emailDripService } from './email-drip.service.js';
+import { referralService } from './referral.service.js';
 
 const SALT_ROUNDS = 10;
 
@@ -142,6 +144,18 @@ export const authService = {
       email: user.email,
       origin: 'registration',
     }).catch((e) => { logger.warn({ error: e }, 'Non-critical async operation failed'); });
+
+    // Agenda drip de onboarding (3 emails: dia 0, 3, 7) — fire-and-forget
+    void emailDripService.scheduleOnboardingDrip(user.id, user.email, user.name).catch((e) => {
+      logger.warn({ error: e, userId: user.id }, 'Failed to schedule onboarding drip');
+    });
+
+    // Processa código de indicação, se informado — nunca falha o cadastro
+    if (data.referralCode) {
+      void referralService.useCode(data.referralCode, user.id).catch((e) => {
+        logger.warn({ error: e, userId: user.id }, 'Failed to process referral code on register');
+      });
+    }
 
     // Generate token
     const token = generateToken({
