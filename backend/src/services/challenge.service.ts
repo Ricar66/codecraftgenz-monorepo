@@ -8,6 +8,9 @@ import type {
   UpdateChallengeInput,
   SubmitChallengeInput,
   ReviewSubmissionInput,
+  SubmitRepoInput,
+  ListSubmissionsQuery,
+  ReviewRepoSubmissionInput,
 } from '../schemas/challenge.schema.js';
 
 export const challengeService = {
@@ -123,7 +126,7 @@ export const challengeService = {
 
     // Verificar se já está inscrito
     const existing = await prisma.challengeSubmission.findFirst({
-      where: { desafioId: challengeId, oderId: userId },
+      where: { desafioId: challengeId, userId },
     });
 
     if (existing) {
@@ -133,7 +136,7 @@ export const challengeService = {
     const submission = await prisma.challengeSubmission.create({
       data: {
         desafioId: challengeId,
-        oderId: userId,
+        userId,
         status: 'subscribed',
       },
     });
@@ -155,7 +158,7 @@ export const challengeService = {
 
   async submit(challengeId: number, userId: number, data: SubmitChallengeInput) {
     const submission = await prisma.challengeSubmission.findFirst({
-      where: { desafioId: challengeId, oderId: userId },
+      where: { desafioId: challengeId, userId },
     });
 
     if (!submission) {
@@ -207,7 +210,7 @@ export const challengeService = {
 
       if (desafio) {
         const crafter = await prisma.crafter.findFirst({
-          where: { userId: submission.oderId },
+          where: { userId: submission.userId },
         });
 
         if (crafter) {
@@ -222,7 +225,205 @@ export const challengeService = {
 
     return { submission_id: updated.id, status: updated.status, score: updated.score };
   },
+
+  // =============================================================
+  // Novo fluxo: submissão por URL de repositório (GitHub/GitLab)
+  // =============================================================
+
+  async submitRepo(challengeId: number, userId: number, data: SubmitRepoInput) {
+    const challenge = await prisma.desafio.findUnique({ where: { id: challengeId } });
+    if (!challenge) {
+      throw AppError.notFound('Desafio');
+    }
+
+    if (challenge.status !== 'active') {
+      throw AppError.badRequest('Este desafio não está mais aberto para submissões');
+    }
+
+    const existing = await prisma.challengeSubmission.findFirst({
+      where: { desafioId: challengeId, userId },
+    });
+
+    if (existing) {
+      throw AppError.conflict('Você já submeteu uma solução para este desafio');
+    }
+
+    const submission = await prisma.challengeSubmission.create({
+      data: {
+        desafioId: challengeId,
+        userId,
+        repoUrl: data.repoUrl,
+        deliveryUrl: data.repoUrl, // mantém compatibilidade com fluxo legado
+        description: data.description,
+        status: 'pending',
+        submittedAt: new Date(),
+      },
+    });
+
+    // Captura lead
+    const subUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    });
+    if (subUser) {
+      leadService
+        .captureLead({
+          nome: subUser.name || undefined,
+          email: subUser.email,
+          origin: 'challenge_subscribe',
+          originId: challengeId,
+          originRef: challenge.name,
+        })
+        .catch((e) => {
+          logger.warn({ error: e }, 'Non-critical async operation failed');
+        });
+    }
+
+    return mapSubmission(submission);
+  },
+
+  async getMySubmission(challengeId: number, userId: number) {
+    const submission = await prisma.challengeSubmission.findFirst({
+      where: { desafioId: challengeId, userId },
+    });
+    return submission ? mapSubmission(submission) : null;
+  },
+
+  async listSubmissions(query: ListSubmissionsQuery) {
+    const { status, page, limit } = query;
+    const where = status ? { status } : {};
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      prisma.challengeSubmission.findMany({
+        where,
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          desafio: { select: { id: true, name: true, basePoints: true } },
+        },
+        orderBy: { submittedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.challengeSubmission.count({ where }),
+    ]);
+
+    return {
+      items: items.map((s) => ({
+        ...mapSubmission(s),
+        user: s.user,
+        challenge: s.desafio,
+      })),
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+  },
+
+  async reviewRepoSubmission(submissionId: number, data: ReviewRepoSubmissionInput) {
+    const submission = await prisma.challengeSubmission.findUnique({
+      where: { id: submissionId },
+      include: { desafio: true },
+    });
+
+    if (!submission) {
+      throw AppError.notFound('Submissão');
+    }
+
+    const points = data.points ?? (data.status === 'approved' ? submission.desafio.basePoints : 0);
+
+    const updated = await prisma.challengeSubmission.update({
+      where: { id: submissionId },
+      data: {
+        status: data.status,
+        feedback: data.feedback,
+        points: data.status === 'approved' ? points : 0,
+        reviewedAt: new Date(),
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        desafio: { select: { id: true, name: true, basePoints: true } },
+      },
+    });
+
+    // Se aprovado, adiciona pontos ao usuário e atualiza o crafter se existir
+    if (data.status === 'approved' && points > 0) {
+      await prisma.user.update({
+        where: { id: submission.userId },
+        data: { points: { increment: points } },
+      });
+
+      const crafter = await prisma.crafter.findFirst({
+        where: { userId: submission.userId },
+      });
+
+      if (crafter) {
+        await prisma.crafter.update({
+          where: { id: crafter.id },
+          data: { pontos: { increment: points } },
+        });
+      }
+
+      // Atualiza MemberScore do Discord se o usuário tiver conta vinculada
+      const discordLink = await prisma.discordLink.findUnique({
+        where: { userId: submission.userId },
+      });
+
+      if (discordLink) {
+        try {
+          await prisma.memberScore.update({
+            where: { discordId: discordLink.discordId },
+            data: { score: { increment: points } },
+          });
+        } catch (e) {
+          logger.warn({ error: e }, 'Falha ao incrementar MemberScore do Discord');
+        }
+      }
+    }
+
+    return {
+      ...mapSubmission(updated),
+      user: updated.user,
+      challenge: updated.desafio,
+    };
+  },
 };
+
+function mapSubmission(submission: {
+  id: number;
+  desafioId: number;
+  userId: number;
+  repoUrl: string | null;
+  description: string | null;
+  deliveryUrl: string | null;
+  deliveryText: string | null;
+  notes: string | null;
+  status: string;
+  score: number | null;
+  points: number;
+  feedback: string | null;
+  reviewFeedback: string | null;
+  submittedAt: Date | null;
+  reviewedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: submission.id,
+    desafio_id: submission.desafioId,
+    user_id: submission.userId,
+    repo_url: submission.repoUrl ?? submission.deliveryUrl,
+    description: submission.description ?? submission.notes,
+    status: submission.status,
+    points: submission.points,
+    feedback: submission.feedback ?? submission.reviewFeedback,
+    submitted_at: submission.submittedAt,
+    reviewed_at: submission.reviewedAt,
+    created_at: submission.createdAt,
+    updated_at: submission.updatedAt,
+  };
+}
 
 function mapChallenge(challenge: {
   id: number;
