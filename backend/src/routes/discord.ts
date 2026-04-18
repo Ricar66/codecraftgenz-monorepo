@@ -194,4 +194,72 @@ router.get('/ranking', authenticate, async (req, res) => {
   }
 });
 
+// GET /api/discord/ranking/public — ranking público (sem autenticação)
+// Mesmo shape da rota privada, porém expõe apenas campos seguros para exibição.
+router.get('/ranking/public', async (req, res) => {
+  try {
+    const page  = Math.max(1, parseInt((req.query.page  as string) ?? '1'));
+    const limit = Math.min(100, parseInt((req.query.limit as string) ?? '20'));
+    const role  = req.query.role as string | undefined;
+
+    const where = role ? { currentRole: role } : {};
+
+    const [members, total] = await Promise.all([
+      prisma.memberScore.findMany({
+        where,
+        orderBy: { score: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          discordId: true,
+          username: true,
+          displayName: true,
+          score: true,
+          currentRole: true,
+          streakDays: true,
+          messagesTotal: true,
+        },
+      }),
+      prisma.memberScore.count({ where }),
+    ]);
+
+    res.json({ members, total, page, pages: Math.ceil(total / limit) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/discord/funnel — métricas do funil Discord → Site (admin)
+router.get('/funnel', authenticate, async (_req, res) => {
+  try {
+    const [totalDiscordMembers, linkedAccounts, purchasedAfterLink] = await Promise.all([
+      prisma.memberScore.count(),
+      prisma.discordLink.count(),
+      // Usuários com DiscordLink que tiveram ao menos um pagamento aprovado após o link.
+      prisma.user.count({
+        where: {
+          discordLink: { isNot: null },
+          payments: {
+            some: { status: 'approved' },
+          },
+        },
+      }),
+    ]);
+
+    const conversionRate = totalDiscordMembers > 0
+      ? Math.round((linkedAccounts / totalDiscordMembers) * 10000) / 100
+      : 0;
+
+    res.json({
+      totalDiscordMembers,
+      linkedAccounts,
+      conversionRate,
+      purchasedAfterLink,
+      topReferralSources: [],
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
