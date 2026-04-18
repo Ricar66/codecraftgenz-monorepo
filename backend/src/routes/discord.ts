@@ -35,7 +35,7 @@ router.get('/callback', async (req, res) => {
 
   try {
     await discordOAuth.handleCallback(code, state);
-    res.redirect(`${frontendUrl}/perfil?discord=linked`);
+    res.redirect(`${frontendUrl}/perfil?tab=conta&discord=linked`);
   } catch (err: any) {
     res.redirect(`${frontendUrl}/perfil?discord=error&reason=${encodeURIComponent(err.message)}`);
   }
