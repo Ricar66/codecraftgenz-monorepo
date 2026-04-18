@@ -803,3 +803,16 @@ model MemberScore {
   @@index([currentRole])
   @@map("member_scores")
 }
+
+// =============================================
+// WEBHOOK IDEMPOTENCY (Mercado Pago)
+// =============================================
+
+model ProcessedWebhook {
+  id          String   @id @default(cuid())
+  externalId  String   @unique
+  action      String
+  processedAt DateTime @default(now())
+
+  @@map("processed_webhooks")
+}

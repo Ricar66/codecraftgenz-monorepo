@@ -378,6 +378,21 @@ export const paymentService = {
   async handleWebhook(type: string, dataId: string) {
     logger.info({ type, dataId }, 'Webhook recebido');
 
+    // Idempotência: se esse evento já foi processado antes, ignora.
+    // Usamos "<type>:<dataId>" como externalId para evitar colisão entre tipos (ex.: payment.create vs payment.updated).
+    const externalId = `${type}:${dataId}`;
+    try {
+      const alreadyProcessed = await prisma.processedWebhook.findUnique({
+        where: { externalId },
+      });
+      if (alreadyProcessed) {
+        logger.info({ externalId }, 'Webhook já processado — ignorando (idempotência)');
+        return { processed: true, reason: 'Webhook duplicado — ignorado', duplicate: true };
+      }
+    } catch (err) {
+      logger.warn({ err }, 'Falha ao verificar idempotência do webhook — seguindo adiante');
+    }
+
     if (type !== 'payment') {
       return { processed: false, reason: 'Tipo não é payment' };
     }
@@ -480,6 +495,18 @@ export const paymentService = {
       } catch (emailError) {
         logger.error({ error: emailError, paymentId: payment.id }, 'Erro ao enviar email via webhook');
       }
+    }
+
+    // Marca evento como processado (idempotência). Upsert evita race condition
+    // quando o MP faz reentregas ou dispara chamadas concorrentes para o mesmo evento.
+    try {
+      await prisma.processedWebhook.upsert({
+        where: { externalId },
+        create: { externalId, action: type },
+        update: {},
+      });
+    } catch (err) {
+      logger.warn({ err, externalId }, 'Falha ao registrar webhook processado (não crítico)');
     }
 
     return {

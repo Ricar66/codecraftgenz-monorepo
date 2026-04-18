@@ -79,12 +79,21 @@ export const emailLimiter = rateLimit({
 });
 
 /**
+ * Aliases alinhados à especificação de segurança (login/register/senha).
+ * Mantém `authLimiter`/`sensitiveLimiter` para compatibilidade com chamadas existentes.
+ */
+export const loginLimiter = authLimiter;
+export const strictLimiter = sensitiveLimiter;
+
+/**
  * Combined rate limiter object for easy import
  */
 export const rateLimiter = {
   default: defaultLimiter,
   auth: authLimiter,
+  login: loginLimiter,
   sensitive: sensitiveLimiter,
+  strict: strictLimiter,
   api: apiLimiter,
   email: emailLimiter,
 };
