@@ -803,3 +803,11 @@ model MemberScore {
   @@index([currentRole])
   @@map("member_scores")
 }
+
+model TutorialPostLog {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  sentAt    DateTime @default(now())
+
+  @@map("tutorial_post_logs")
+}
