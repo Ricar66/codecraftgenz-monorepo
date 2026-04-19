@@ -17,6 +17,7 @@ import { runPromotionJob } from './jobs/promotion.job';
 import { runDesafioSemanalJob } from './jobs/desafio-semanal.job';
 import { runEnqueteJob } from './jobs/enquete.job';
 import { runWeeklySnapshotJob } from './jobs/snapshot.job';
+import { runTutorialJob } from './jobs/tutorial.job';
 import * as rankCommand from './commands/rank';
 import * as desafiosCommand from './commands/desafios';
 import * as meuRankCommand from './commands/meu-rank';
@@ -77,6 +78,12 @@ cron.schedule('0 14 * * 3', () => {
 cron.schedule('50 23 * * 0', () => {
   logger.info('Executando job de snapshot semanal...');
   runWeeklySnapshotJob();
+});
+
+// Tutorial diário: 9h todos os dias
+cron.schedule('0 9 * * *', () => {
+  logger.info('Executando job de tutorial diário...');
+  runTutorialJob();
 });
 
 // Webhook server interno (localhost only)

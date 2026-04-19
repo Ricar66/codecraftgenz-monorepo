@@ -881,3 +881,15 @@ model PushSubscription {
   @@index([userId])
   @@map("push_subscriptions")
 }
+
+// =============================================
+// TUTORIAL POSTS (Discord #tutoriais)
+// =============================================
+
+model TutorialPostLog {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  sentAt    DateTime @default(now())
+
+  @@map("tutorial_post_logs")
+}
