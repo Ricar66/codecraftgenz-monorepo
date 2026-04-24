@@ -8,7 +8,7 @@ import { logger } from '../utils/logger.js';
 
 const LOGO_URL = 'https://codecraftgenz.com.br/logo-principal.png';
 const SITE_URL = 'https://codecraftgenz.com.br';
-const DISCORD_INVITE = 'https://discord.gg/47FUudrU';
+const DISCORD_INVITE = 'https://discord.gg/jKcuM5u6Qa';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
