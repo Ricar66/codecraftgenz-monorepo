@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { timingSafeEqual } from 'crypto';
 import { userService } from '../services/user.service.js';
 import { sendSuccess } from '../utils/response.js';
 import { env } from '../config/env.js';
@@ -111,7 +112,14 @@ export const userController = {
     try {
       const token = req.headers['x-admin-reset-token'];
 
-      if (!token || token !== env.ADMIN_RESET_TOKEN) {
+      const expected = Buffer.from(env.ADMIN_RESET_TOKEN || '');
+      const received = Buffer.from(String(token ?? ''));
+      const tokenValid =
+        expected.length > 0 &&
+        expected.length === received.length &&
+        timingSafeEqual(expected, received);
+
+      if (!token || !tokenValid) {
         res.status(403).json({ success: false, error: { message: 'Token de admin inválido' } });
         return;
       }

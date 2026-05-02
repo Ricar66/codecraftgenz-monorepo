@@ -66,7 +66,7 @@ export async function authenticate(
     }
 
     // Verify token
-    const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+    const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as JwtPayload;
 
     // Check if user still exists
     const user = await prisma.user.findUnique({
@@ -123,7 +123,7 @@ export async function optionalAuth(
       return;
     }
 
-    const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+    const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as JwtPayload;
     req.user = decoded;
 
     next();
@@ -161,6 +161,7 @@ export function authorize(...allowedRoles: string[]) {
  */
 export function generateToken(payload: Omit<JwtPayload, 'iat' | 'exp'>): string {
   return jwt.sign(payload, env.JWT_SECRET, {
+    algorithm: 'HS256',
     expiresIn: env.JWT_EXPIRES_IN as string,
   } as jwt.SignOptions);
 }

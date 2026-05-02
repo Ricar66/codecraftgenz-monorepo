@@ -8,6 +8,7 @@ import type {
   PasswordResetRequestInput,
   PasswordResetConfirmInput,
   ChangePasswordInput,
+  OnboardingInput,
 } from '../schemas/auth.schema.js';
 
 /**
@@ -16,7 +17,7 @@ import type {
 const cookieOptions = {
   httpOnly: true,
   secure: isProd,
-  sameSite: isProd ? ('none' as const) : ('lax' as const),
+  sameSite: 'lax' as const,
   domain: isProd ? env.COOKIE_DOMAIN : undefined,
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
@@ -68,7 +69,7 @@ export const authController = {
     res.clearCookie('token', {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'none' as const : 'lax' as const,
+      sameSite: 'lax' as const,
       domain: isProd ? env.COOKIE_DOMAIN : undefined,
       path: '/',
     });
@@ -138,7 +139,7 @@ export const authController = {
    */
   async completeOnboarding(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { area, skills, bio } = req.body;
+      const { area, skills, bio } = req.validated!.body as OnboardingInput;
       await authService.completeOnboarding(req.user!.id, { area, skills, bio });
       sendSuccess(res, { message: 'Onboarding concluído com sucesso' });
     } catch (error) {

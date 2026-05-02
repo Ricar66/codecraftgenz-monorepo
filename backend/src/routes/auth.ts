@@ -9,6 +9,7 @@ import {
   passwordResetRequestSchema,
   passwordResetConfirmSchema,
   changePasswordSchema,
+  onboardingSchema,
 } from '../schemas/auth.schema.js';
 
 const router = Router();
@@ -95,6 +96,6 @@ router.post(
  * PATCH /api/v1/auth/onboarding
  * Complete onboarding
  */
-router.patch('/onboarding', authenticate, authController.completeOnboarding);
+router.patch('/onboarding', authenticate, validate(onboardingSchema), authController.completeOnboarding);
 
 export default router;

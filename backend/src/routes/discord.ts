@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as discordOAuth from '../services/discord-oauth.service.js';
-import { authenticate } from '../middlewares/auth.js';
+import { authenticate, authorizeAdmin } from '../middlewares/auth.js';
 import { prisma } from '../db/prisma.js';
 
 const router = Router();
@@ -62,7 +62,7 @@ router.delete('/unlink', authenticate, async (req: any, res) => {
 });
 
 // GET /api/discord/bot-status — status do bot (apenas admin)
-router.get('/bot-status', authenticate, async (_req, res) => {
+router.get('/bot-status', authenticate, authorizeAdmin, async (_req, res) => {
   try {
     const botUrl = process.env.INTERNAL_BOT_URL ?? 'http://127.0.0.1:3001';
     const secret = process.env.INTERNAL_WEBHOOK_SECRET;
@@ -88,7 +88,7 @@ router.get('/bot-status', authenticate, async (_req, res) => {
 });
 
 // GET /api/discord/logs — logs do bot (apenas admin)
-router.get('/logs', authenticate, async (req, res) => {
+router.get('/logs', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const page = parseInt((req.query.page as string) ?? '1');
     const limit = 20;
@@ -107,7 +107,7 @@ router.get('/logs', authenticate, async (req, res) => {
 });
 
 // GET /api/discord/config — configurações do bot
-router.get('/config', authenticate, async (_req, res) => {
+router.get('/config', authenticate, authorizeAdmin, async (_req, res) => {
   try {
     const configs = await prisma.botConfig.findMany();
     const result: Record<string, string> = {};
@@ -119,7 +119,7 @@ router.get('/config', authenticate, async (_req, res) => {
 });
 
 // PUT /api/discord/config — salvar configurações
-router.put('/config', authenticate, async (req, res) => {
+router.put('/config', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const configs = req.body as Record<string, unknown>;
     await Promise.all(
@@ -139,7 +139,7 @@ router.put('/config', authenticate, async (req, res) => {
 });
 
 // POST /api/discord/trigger/:action — triggers manuais
-router.post('/trigger/:action', authenticate, async (req, res) => {
+router.post('/trigger/:action', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const action = req.params['action'] as string;
     const validActions = ['news', 'vagas', 'ranking', 'promotion', 'desafio-semanal', 'enquete', 'snapshot'];
@@ -155,7 +155,7 @@ router.post('/trigger/:action', authenticate, async (req, res) => {
 });
 
 // GET /api/discord/ranking — ranking de engajamento dos membros
-router.get('/ranking', authenticate, async (req, res) => {
+router.get('/ranking', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const page  = Math.max(1, parseInt((req.query.page  as string) ?? '1'));
     const limit = Math.min(100, parseInt((req.query.limit as string) ?? '50'));
@@ -230,7 +230,7 @@ router.get('/ranking/public', async (req, res) => {
 });
 
 // GET /api/discord/funnel — métricas do funil Discord → Site (admin)
-router.get('/funnel', authenticate, async (_req, res) => {
+router.get('/funnel', authenticate, authorizeAdmin, async (_req, res) => {
   try {
     const [totalDiscordMembers, linkedAccounts, purchasedAfterLink] = await Promise.all([
       prisma.memberScore.count(),

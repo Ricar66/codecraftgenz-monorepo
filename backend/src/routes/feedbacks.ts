@@ -90,6 +90,15 @@ router.get('/latest', async (_req, res) => {
       },
     });
 
+    // Anonimiza email para exibição pública (ex: "joao@gmail.com" -> "j***@gmail.com")
+    const anonymizeEmail = (email?: string): string | undefined => {
+      if (!email || typeof email !== 'string') return undefined;
+      const [local, domain] = email.split('@');
+      if (!local || !domain) return undefined;
+      const visible = local.slice(0, 1);
+      return `${visible}***@${domain}`;
+    };
+
     // Parse JSON comments e formatar para o frontend
     const parsed = feedbacks.map((f) => {
       try {
@@ -98,7 +107,7 @@ router.get('/latest', async (_req, res) => {
           id: f.id,
           nome: data.nome || 'Anônimo',
           mensagem: data.mensagem || data.comment || f.comment,
-          email: data.email,
+          email: anonymizeEmail(data.email),
           origem: data.origem || 'site',
           rating: f.rating,
           data_criacao: f.createdAt,

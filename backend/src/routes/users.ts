@@ -51,6 +51,6 @@ router.delete('/:id', authenticate, authorizeAdmin, validate(userIdSchema), user
  * POST /api/auth/admin/reset-password
  * Admin reset password (requires x-admin-reset-token header)
  */
-router.post('/admin/reset-password', validate(adminResetPasswordSchema), userController.adminResetPassword);
+router.post('/admin/reset-password', authenticate, authorizeAdmin, validate(adminResetPasswordSchema), userController.adminResetPassword);
 
 export default router;

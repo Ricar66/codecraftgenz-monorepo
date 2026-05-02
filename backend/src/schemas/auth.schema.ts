@@ -60,9 +60,21 @@ export const changePasswordSchema = {
   }),
 };
 
+/**
+ * Onboarding schema
+ */
+export const onboardingSchema = {
+  body: z.object({
+    area: z.string().trim().min(1).max(100).optional(),
+    skills: z.array(z.string().trim().min(1).max(50)).max(30).optional(),
+    bio: z.string().trim().max(1000).optional(),
+  }),
+};
+
 // Type exports
 export type LoginInput = z.infer<typeof loginSchema.body>;
 export type RegisterInput = z.infer<typeof registerSchema.body>;
 export type PasswordResetRequestInput = z.infer<typeof passwordResetRequestSchema.body>;
 export type PasswordResetConfirmInput = z.infer<typeof passwordResetConfirmSchema.body>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema.body>;
+export type OnboardingInput = z.infer<typeof onboardingSchema.body>;

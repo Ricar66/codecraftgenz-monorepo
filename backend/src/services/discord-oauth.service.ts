@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto, { createHmac, timingSafeEqual } from 'crypto';
 import { prisma } from '../db/prisma.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
@@ -15,8 +15,32 @@ function encryptToken(token: string): string {
 }
 
 
+function generateState(userId: number): string {
+  const payload = JSON.stringify({ userId, ts: Date.now() });
+  const hmac = createHmac('sha256', env.JWT_SECRET).update(payload).digest('hex');
+  return Buffer.from(`${payload}.${hmac}`).toString('base64url');
+}
+
+function verifyState(state: string): { userId: number; ts: number } {
+  const raw = Buffer.from(state, 'base64url').toString('utf8');
+  const lastDot = raw.lastIndexOf('.');
+  if (lastDot === -1) throw new Error('State inválido');
+  const payload = raw.slice(0, lastDot);
+  const receivedHmac = raw.slice(lastDot + 1);
+  const expectedHmac = createHmac('sha256', env.JWT_SECRET).update(payload).digest('hex');
+  const bufExpected = Buffer.from(expectedHmac);
+  const bufReceived = Buffer.from(receivedHmac);
+  if (
+    bufExpected.length !== bufReceived.length ||
+    !timingSafeEqual(bufExpected, bufReceived)
+  ) {
+    throw new Error('State inválido');
+  }
+  return JSON.parse(payload);
+}
+
 export function generateAuthUrl(userId: number): string {
-  const state = Buffer.from(JSON.stringify({ userId, ts: Date.now() })).toString('base64url');
+  const state = generateState(userId);
   const params = new URLSearchParams({
     client_id: env.DISCORD_CLIENT_ID ?? '',
     redirect_uri: env.DISCORD_REDIRECT_URI ?? '',
@@ -28,10 +52,10 @@ export function generateAuthUrl(userId: number): string {
 }
 
 export async function handleCallback(code: string, state: string) {
-  // Decodifica state
+  // Decodifica e verifica HMAC do state
   let userId: number;
   try {
-    const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
+    const decoded = verifyState(state);
     userId = decoded.userId;
     // Valida que o state não tem mais de 10 minutos
     if (Date.now() - decoded.ts > 10 * 60 * 1000) throw new Error('State expirado');

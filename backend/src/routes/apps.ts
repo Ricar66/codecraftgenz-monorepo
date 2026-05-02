@@ -120,6 +120,7 @@ router.get('/webhook', appController.webhookVerify);
 // Compra via preferência MP (redireciona para checkout)
 router.post(
   '/:id/purchase',
+  authenticate,
   rateLimiter.sensitive,
   validate(purchaseSchema),
   paymentController.purchase
@@ -138,6 +139,7 @@ router.get('/:id/payment/last', paymentController.getLastByApp);
 // Pagamento direto (cartão, PIX, boleto - sem redirecionamento)
 router.post(
   '/:id/payment/direct',
+  authenticate,
   rateLimiter.sensitive,
   validate(directPaymentSchema),
   paymentController.directPayment
