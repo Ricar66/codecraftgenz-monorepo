@@ -1,10 +1,12 @@
 import type { Request, Response } from 'express';
-import crypto from 'crypto';
+import crypto, { timingSafeEqual } from 'crypto';
 import { paymentService } from '../services/payment.service.js';
-import { success, paginated } from '../utils/response.js';
+import { success, paginated, sendError } from '../utils/response.js';
 import { logger } from '../utils/logger.js';
 import { env } from '../config/env.js';
 import type { PurchaseInput, DirectPaymentInput, UpdatePaymentInput, SearchPaymentsQuery } from '../schemas/payment.schema.js';
+
+const MAX_WEBHOOK_AGE_MS = 5 * 60 * 1000;
 
 export const paymentController = {
   async search(req: Request, res: Response) {
@@ -39,6 +41,13 @@ export const paymentController = {
     const email = req.query.email as string | undefined;
     const preferenceId = req.query.preference_id as string | undefined;
     const paymentId = req.query.payment_id as string | undefined;
+
+    // Sem auth: exigir payment_id ou preference_id (não aceitar busca apenas por email)
+    if (!req.user && !paymentId && !preferenceId) {
+      sendError(res, 401, 'AUTH_REQUIRED', 'Autenticação ou payment_id/preference_id necessário');
+      return;
+    }
+
     const result = await paymentService.getPurchaseStatus(appId, email, preferenceId, paymentId);
     res.json(success(result));
   },
@@ -71,6 +80,20 @@ export const paymentController = {
         return;
       }
 
+      // Validar idade do webhook (proteção contra replay attacks)
+      const tsNum = Number(ts);
+      if (!Number.isFinite(tsNum) || tsNum <= 0) {
+        logger.warn({ ts }, 'Timestamp do webhook inválido');
+        res.status(401).json({ error: 'Timestamp inválido' });
+        return;
+      }
+      const webhookAgeMs = Date.now() - tsNum * 1000;
+      if (Math.abs(webhookAgeMs) > MAX_WEBHOOK_AGE_MS) {
+        logger.warn({ ts, age: webhookAgeMs }, 'Webhook timestamp expirado');
+        res.status(401).json({ error: 'Timestamp expirado' });
+        return;
+      }
+
       // Montar template para verificação
       // O template é: id:[data.id];request-id:[x-request-id];ts:[ts];
       const dataId = req.body?.data?.id;
@@ -82,8 +105,20 @@ export const paymentController = {
         .update(template)
         .digest('hex');
 
-      if (v1 !== expectedSignature) {
-        logger.warn({ expected: expectedSignature, received: v1 }, 'Assinatura de webhook inválida');
+      // Comparação timing-safe — protege contra ataques de timing
+      let signatureValid = false;
+      try {
+        const expectedBuf = Buffer.from(expectedSignature, 'hex');
+        const receivedBuf = Buffer.from(v1, 'hex');
+        signatureValid =
+          expectedBuf.length === receivedBuf.length &&
+          expectedBuf.length > 0 &&
+          timingSafeEqual(expectedBuf, receivedBuf);
+      } catch {
+        signatureValid = false;
+      }
+      if (!signatureValid) {
+        logger.warn({ requestId: xRequestId }, 'Assinatura de webhook inválida');
         res.status(401).json({ error: 'Assinatura inválida' });
         return;
       }

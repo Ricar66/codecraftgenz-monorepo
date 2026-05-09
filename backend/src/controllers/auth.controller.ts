@@ -35,10 +35,11 @@ export const authController = {
       const data = req.validated!.body as LoginInput;
       const result = await authService.login(data);
 
-      // Set cookie
-      res.cookie('token', result.token, cookieOptions);
+      // Set cookie e remover token do corpo da resposta
+      const { token, ...safeResult } = result;
+      res.cookie('token', token, cookieOptions);
 
-      sendSuccess(res, result);
+      sendSuccess(res, safeResult);
     } catch (error) {
       next(error);
     }
@@ -52,10 +53,18 @@ export const authController = {
       const data = req.validated!.body as RegisterInput;
       const result = await authService.register(data);
 
-      // Set cookie
-      res.cookie('token', result.token, cookieOptions);
+      // Caso especial: email já cadastrado — não autenticar, retornar mensagem neutra.
+      // O service já envia email para o dono da conta avisando da tentativa.
+      if ('duplicateAttempt' in result && result.duplicateAttempt) {
+        sendSuccess(res, { message: result.message }, 201);
+        return;
+      }
 
-      sendSuccess(res, result, 201);
+      // Set cookie e remover token do corpo da resposta
+      const { token, ...safeResult } = result;
+      res.cookie('token', token, cookieOptions);
+
+      sendSuccess(res, safeResult, 201);
     } catch (error) {
       next(error);
     }
@@ -162,10 +171,50 @@ export const authController = {
 
       const result = await authService.googleAuth(credential);
 
-      // Set cookie
-      res.cookie('token', result.token, cookieOptions);
+      // Set cookie e remover token do corpo da resposta
+      const { token, ...safeResult } = result;
+      res.cookie('token', token, cookieOptions);
 
-      sendSuccess(res, result);
+      sendSuccess(res, safeResult);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * DELETE /api/v1/auth/account
+   * LGPD Art. 18 — auto-deleção de conta.
+   */
+  async deleteAccount(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await authService.deleteAccount(req.user!.id);
+
+      // Limpar cookie com mesmas opções do set
+      res.clearCookie('token', {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'lax' as const,
+        domain: isProd ? env.COOKIE_DOMAIN : undefined,
+        path: '/',
+      });
+
+      sendSuccess(res, { message: 'Conta excluída com sucesso' });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * GET /api/v1/auth/export-data
+   * LGPD Art. 18 — portabilidade dos dados.
+   */
+  async exportData(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await authService.exportData(req.user!.id);
+      const filename = `codecraft-meus-dados-${req.user!.id}-${Date.now()}.json`;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.status(200).send(JSON.stringify(data, null, 2));
     } catch (error) {
       next(error);
     }

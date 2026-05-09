@@ -14,7 +14,7 @@ const router = Router();
 const useCodeSchema = z.object({
   body: z.object({
     code: z.string().min(4).max(32),
-    newUserId: z.number().int().positive(),
+    // newUserId removido — usuário é tomado de req.user (JWT) para evitar abuso
   }),
 });
 
@@ -50,12 +50,12 @@ router.get('/stats', authenticate, async (req, res) => {
 
 /**
  * POST /api/referral/use — processa a utilização de um código de indicação.
- * Público: chamado logo após o cadastro para registrar a indicação.
+ * Autenticado: usa req.user.id como newUserId (anti-abuse).
  */
-router.post('/use', validate(useCodeSchema), async (req, res) => {
+router.post('/use', authenticate, validate(useCodeSchema), async (req, res) => {
   try {
-    const { code, newUserId } = (req as any).validated?.body;
-    const result = await referralService.useCode(code, newUserId);
+    const { code } = (req as any).validated?.body;
+    const result = await referralService.useCode(code, req.user!.id);
 
     if (!result.ok) {
       // Falhas de validação de código não são erro 500 — retornam 400 com reason

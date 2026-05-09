@@ -65,7 +65,7 @@ router.post('/', rateLimiter.sensitive, async (req, res): Promise<void> => {
 
     res.json(success({ id: feedback.id, message: 'Feedback enviado com sucesso' }));
   } catch (error) {
-    console.error('Erro ao salvar feedback:', error);
+    logger.error({ err: error }, 'Erro ao salvar feedback');
     res.status(500).json({
       success: false,
       error: 'Erro interno ao processar feedback',
@@ -125,7 +125,7 @@ router.get('/latest', async (_req, res) => {
 
     res.json(success(parsed));
   } catch (error) {
-    console.error('Erro ao buscar últimos feedbacks:', error);
+    logger.error({ err: error }, 'Erro ao buscar últimos feedbacks');
     res.status(500).json({
       success: false,
       error: 'Erro interno ao buscar feedbacks',
@@ -140,10 +140,13 @@ router.get('/latest', async (_req, res) => {
 router.get('/', authenticate, authorizeAdmin, async (req, res) => {
   const { limit = '20', origem } = req.query;
 
+  // Sanitiza origem para evitar quebra do JSON-pattern do contains (e ataques de injection no padrão)
+  const safeOrigem = origem ? String(origem).replace(/["\\]/g, '').slice(0, 64) : '';
+
   try {
     const feedbacks = await prisma.feedback.findMany({
-      where: origem
-        ? { comment: { contains: `"origem":"${origem}"` } }
+      where: safeOrigem
+        ? { comment: { contains: `"origem":"${safeOrigem}"` } }
         : undefined,
       take: Math.min(Number(limit), 100),
       orderBy: { createdAt: 'desc' },
@@ -177,7 +180,7 @@ router.get('/', authenticate, authorizeAdmin, async (req, res) => {
 
     res.json(success(parsed));
   } catch (error) {
-    console.error('Erro ao buscar feedbacks:', error);
+    logger.error({ err: error }, 'Erro ao buscar feedbacks');
     res.status(500).json({
       success: false,
       error: 'Erro interno ao buscar feedbacks',

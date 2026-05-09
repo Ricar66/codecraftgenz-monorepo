@@ -9,9 +9,13 @@ import { runBackupJob } from './jobs/backup.job.js';
 
 const PORT = env.PORT;
 
+// Bind: em produção apenas loopback (Nginx faz proxy reverso) — defense-in-depth.
+// Em dev fica em 0.0.0.0 para acessar de outras máquinas/containers se necessário.
+const HOST = env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0';
+
 // Start server
-const server = app.listen(PORT, '0.0.0.0', () => {
-  logger.info(`🚀 Server running on port ${PORT}`);
+const server = app.listen(PORT, HOST, () => {
+  logger.info(`🚀 Server running on ${HOST}:${PORT}`);
   logger.info(`📱 Environment: ${env.NODE_ENV}`);
   logger.info(`🌐 URL: http://localhost:${PORT}`);
 

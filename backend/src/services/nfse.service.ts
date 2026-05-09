@@ -5,6 +5,7 @@ import { prisma } from '../db/prisma.js';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
+import { encryptField, decryptField } from '../utils/crypto.js';
 import { gerarXmlRps, gerarXmlLoteRps, gerarXmlCancelamento, gerarXmlConsultaLote, assinarXml } from './nfse-xml.service.js';
 import { enviarLoteRps, consultarLoteRps, cancelarNfse as soapCancelarNfse } from './nfse-soap.service.js';
 import type { CreateNfseInput, SearchNfseQuery } from '../schemas/nfse.schema.js';
@@ -53,15 +54,16 @@ export const nfseService = {
         prestadorIm: data.prestador.inscricao_municipal,
 
         tomadorTipo: data.tomador.tipo,
-        tomadorDocumento: data.tomador.documento,
-        tomadorRazaoSocial: data.tomador.razao_social ?? null,
-        tomadorEmail: data.tomador.email ?? null,
-        tomadorLogradouro: data.tomador.endereco?.logradouro ?? null,
-        tomadorNumero: data.tomador.endereco?.numero ?? null,
-        tomadorBairro: data.tomador.endereco?.bairro ?? null,
+        // Campos PII criptografados em repouso (AES-256-GCM)
+        tomadorDocumento: encryptField(data.tomador.documento) ?? data.tomador.documento,
+        tomadorRazaoSocial: encryptField(data.tomador.razao_social ?? null),
+        tomadorEmail: encryptField(data.tomador.email ?? null),
+        tomadorLogradouro: encryptField(data.tomador.endereco?.logradouro ?? null),
+        tomadorNumero: encryptField(data.tomador.endereco?.numero ?? null),
+        tomadorBairro: encryptField(data.tomador.endereco?.bairro ?? null),
         tomadorCodMunicipio: data.tomador.endereco?.codigo_municipio ?? null,
         tomadorUf: data.tomador.endereco?.uf ?? null,
-        tomadorCep: data.tomador.endereco?.cep ?? null,
+        tomadorCep: encryptField(data.tomador.endereco?.cep ?? null),
 
         descricaoServico: data.servico.descricao,
         itemListaServico: data.servico.item_lista_servico,
@@ -111,15 +113,16 @@ export const nfseService = {
       prestadorCnpj: invoice.prestadorCnpj,
       prestadorIm: invoice.prestadorIm,
       tomadorTipo: invoice.tomadorTipo,
-      tomadorDocumento: invoice.tomadorDocumento,
-      tomadorRazaoSocial: invoice.tomadorRazaoSocial ?? undefined,
-      tomadorEmail: invoice.tomadorEmail ?? undefined,
-      tomadorLogradouro: invoice.tomadorLogradouro ?? undefined,
-      tomadorNumero: invoice.tomadorNumero ?? undefined,
-      tomadorBairro: invoice.tomadorBairro ?? undefined,
+      // Descriptografa PII para envio à prefeitura
+      tomadorDocumento: decryptField(invoice.tomadorDocumento) ?? invoice.tomadorDocumento,
+      tomadorRazaoSocial: decryptField(invoice.tomadorRazaoSocial) ?? undefined,
+      tomadorEmail: decryptField(invoice.tomadorEmail) ?? undefined,
+      tomadorLogradouro: decryptField(invoice.tomadorLogradouro) ?? undefined,
+      tomadorNumero: decryptField(invoice.tomadorNumero) ?? undefined,
+      tomadorBairro: decryptField(invoice.tomadorBairro) ?? undefined,
       tomadorCodMunicipio: invoice.tomadorCodMunicipio ?? undefined,
       tomadorUf: invoice.tomadorUf ?? undefined,
-      tomadorCep: invoice.tomadorCep ?? undefined,
+      tomadorCep: decryptField(invoice.tomadorCep) ?? undefined,
       descricaoServico: invoice.descricaoServico,
       itemListaServico: invoice.itemListaServico,
       codTributacao: invoice.codTributacao ?? undefined,
@@ -486,9 +489,10 @@ function mapInvoice(invoice: {
     },
     tomador: {
       tipo: invoice.tomadorTipo,
-      documento: invoice.tomadorDocumento,
-      razao_social: invoice.tomadorRazaoSocial,
-      email: invoice.tomadorEmail,
+      // Descriptografa PII (backward-compat: legacy plaintext volta como está)
+      documento: decryptField(invoice.tomadorDocumento) ?? invoice.tomadorDocumento,
+      razao_social: decryptField(invoice.tomadorRazaoSocial),
+      email: decryptField(invoice.tomadorEmail),
     },
     servico: {
       descricao: invoice.descricaoServico,

@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
 import { success, error } from '../utils/response.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * GET /api/dashboard/stats
@@ -209,7 +210,7 @@ export const getStats = async (req: Request, res: Response) => {
       })
     );
   } catch (err) {
-    console.error('Dashboard stats error:', err);
+    logger.error({ err }, 'Dashboard stats error');
     res.status(500).json(error('Erro ao carregar estatísticas do dashboard'));
   }
 };
@@ -348,7 +349,7 @@ export const getKPIs = async (_req: Request, res: Response) => {
       })
     );
   } catch (err) {
-    console.error('Dashboard KPIs error:', err);
+    logger.error({ err }, 'Dashboard KPIs error');
     res.status(500).json(error('Erro ao carregar KPIs'));
   }
 };

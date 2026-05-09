@@ -3,6 +3,7 @@
 
 import { prisma } from '../db/prisma.js';
 import { logger } from '../utils/logger.js';
+import { maskEmail } from '../utils/crypto.js';
 
 export type LeadOrigin =
   | 'crafter_signup' | 'app_download' | 'app_purchase'
@@ -46,7 +47,7 @@ export const leadService = {
           userAgent: input.userAgent?.substring(0, 512) || null,
         },
       });
-      logger.info({ leadId: lead.id, origin: input.origin, email: input.email }, 'Lead capturado');
+      logger.info({ leadId: lead.id, origin: input.origin, email: maskEmail(input.email) }, 'Lead capturado');
       return lead;
     } catch (err) {
       logger.warn({ error: (err as Error).message, origin: input.origin }, 'Falha ao capturar lead');

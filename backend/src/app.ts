@@ -20,12 +20,23 @@ import { auditMiddleware } from './middlewares/audit.js';
 const DOWNLOADS_DIR = env.DOWNLOADS_DIR || path.join(process.cwd(), 'public', 'downloads');
 
 // Initialize Sentry (must be called before creating the Express app)
-Sentry.init({
-  dsn: process.env.SENTRY_DSN || '',
-  environment: process.env.NODE_ENV || 'production',
-  enabled: !!process.env.SENTRY_DSN,
-  tracesSampleRate: 0.1,
-});
+if (env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: env.SENTRY_DSN,
+    environment: env.NODE_ENV,
+    tracesSampleRate: 0.1,
+    beforeSend(event) {
+      // Sanitize PII from outgoing events (cookies, auth headers)
+      if (event.request?.headers) {
+        const h = event.request.headers as Record<string, string | undefined>;
+        if (h.cookie) delete h.cookie;
+        if (h.authorization) delete h.authorization;
+        if (h['x-internal-secret']) delete h['x-internal-secret'];
+      }
+      return event;
+    },
+  });
+}
 
 // Create Express app
 const app = express();

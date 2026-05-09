@@ -8,7 +8,12 @@ const SCOPES = 'identify email guilds.join';
 
 function encryptToken(token: string): string {
   const key = env.DISCORD_TOKEN_ENCRYPT_KEY;
-  if (!key) return token;
+  if (!key) {
+    if (env.NODE_ENV === 'production') {
+      throw new Error('DISCORD_TOKEN_ENCRYPT_KEY required');
+    }
+    return token; // dev fallback
+  }
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(key.padEnd(32).slice(0, 32)), iv);
   return iv.toString('hex') + ':' + cipher.update(token, 'utf8', 'hex') + cipher.final('hex');

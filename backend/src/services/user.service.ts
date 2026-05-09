@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
+import { maskEmail } from '../utils/crypto.js';
 
 const SALT_ROUNDS = 10;
 
@@ -251,7 +252,7 @@ export const userService = {
     });
 
     if (existingUser) {
-      logger.info({ userId: existingUser.id, email }, 'Existing user found for purchase');
+      logger.info({ userId: existingUser.id, email: maskEmail(email) }, 'Existing user found for purchase');
       return {
         user: existingUser,
         isNewGuest: false,
@@ -273,7 +274,7 @@ export const userService = {
       },
     });
 
-    logger.info({ userId: guestUser.id, email }, 'Guest user auto-created for purchase');
+    logger.info({ userId: guestUser.id, email: maskEmail(email) }, 'Guest user auto-created for purchase');
 
     return {
       user: guestUser,

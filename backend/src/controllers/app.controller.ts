@@ -83,6 +83,39 @@ export const appController = {
       return;
     }
 
+    // Validação de magic bytes para .exe (Windows PE: começa com "MZ" = 0x4D 0x5A)
+    // Defense-in-depth: além do filtro por extensão/mime, valida o conteúdo real do arquivo.
+    const ext = (file.originalname.match(/\.([^.]+)$/)?.[1] || '').toLowerCase();
+    if (ext === 'exe' || ext === 'msi') {
+      const buf = file.buffer;
+      if (!buf || buf.length < 2 || buf[0] !== 0x4D || buf[1] !== 0x5A) {
+        logger.warn({ appId, fileName: file.originalname, ext }, 'Magic bytes inválidos para executável');
+        sendError(res, 400, 'INVALID_FILE', 'Arquivo inválido — esperado executável Windows (PE)');
+        return;
+      }
+    } else if (ext === 'zip') {
+      // ZIP: PK\x03\x04 (0x50 0x4B 0x03 0x04) ou empty PK\x05\x06 / spanned PK\x07\x08
+      const buf = file.buffer;
+      const isZip = buf && buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4B
+        && (buf[2] === 0x03 || buf[2] === 0x05 || buf[2] === 0x07);
+      if (!isZip) {
+        logger.warn({ appId, fileName: file.originalname }, 'Magic bytes inválidos para ZIP');
+        sendError(res, 400, 'INVALID_FILE', 'Arquivo inválido — esperado arquivo ZIP');
+        return;
+      }
+    } else if (ext === '7z') {
+      // 7z: 37 7A BC AF 27 1C
+      const buf = file.buffer;
+      const is7z = buf && buf.length >= 6
+        && buf[0] === 0x37 && buf[1] === 0x7A && buf[2] === 0xBC
+        && buf[3] === 0xAF && buf[4] === 0x27 && buf[5] === 0x1C;
+      if (!is7z) {
+        logger.warn({ appId, fileName: file.originalname }, 'Magic bytes inválidos para 7z');
+        sendError(res, 400, 'INVALID_FILE', 'Arquivo inválido — esperado arquivo 7z');
+        return;
+      }
+    }
+
     try {
       const result = await appService.uploadExecutable(appId, file);
       res.json(success(result));

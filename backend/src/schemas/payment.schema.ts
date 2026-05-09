@@ -28,7 +28,7 @@ export const directPaymentSchema = z.object({
     description: z.string().optional(),
     binary_mode: z.boolean().optional(),
     capture: z.boolean().optional(),
-    external_reference: z.string().optional(),
+    // external_reference removido — backend sempre gera (paymentId) para evitar IDOR
     date_of_expiration: z.string().optional(), // ISO date for PIX expiration
     issuer_id: z.string().or(z.number()).optional(),
 

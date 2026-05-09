@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { paymentController } from '../controllers/payment.controller.js';
-import { authenticate, authorizeAdmin } from '../middlewares/auth.js';
+import { authenticate, authorizeAdmin, optionalAuth } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validate.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
 import {
@@ -25,6 +25,7 @@ router.post(
 
 router.get(
   '/apps/:id/purchase/status',
+  optionalAuth,
   rateLimiter.sensitive,
   paymentController.getPurchaseStatus
 );

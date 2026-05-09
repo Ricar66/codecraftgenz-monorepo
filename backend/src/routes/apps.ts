@@ -133,8 +133,8 @@ router.get(
   paymentController.getPurchaseStatus
 );
 
-// Último pagamento do app
-router.get('/:id/payment/last', paymentController.getLastByApp);
+// Último pagamento do app (admin only — expõe dados de payment)
+router.get('/:id/payment/last', authenticate, authorizeAdmin, paymentController.getLastByApp);
 
 // Pagamento direto (cartão, PIX, boleto - sem redirecionamento)
 router.post(

@@ -38,7 +38,10 @@ const envSchema = z.object({
   MERCADO_PAGO_PUBLIC_KEY: z.string().optional(),
   MP_PUBLIC_KEY: z.string().optional(),
   MP_ACCESS_TOKEN: z.string().optional(),
-  MP_WEBHOOK_SECRET: z.string().optional(),
+  MP_WEBHOOK_SECRET: z.string().optional().refine(
+    (val) => process.env.NODE_ENV !== 'production' || (val !== undefined && val.length > 0),
+    { message: 'MP_WEBHOOK_SECRET é obrigatório em produção' }
+  ),
   MP_SUCCESS_URL: z.string().optional(),
   MP_FAILURE_URL: z.string().optional(),
   MP_PENDING_URL: z.string().optional(),
@@ -60,7 +63,17 @@ const envSchema = z.object({
   PRIVATE_KEY_PEM_B64: z.string().optional(),
 
   // Admin
-  ADMIN_RESET_TOKEN: z.string().optional(),
+  // Em produção: obrigatório, min 32 chars, não pode ser default fraco.
+  ADMIN_RESET_TOKEN: z.string().optional().refine(
+    (val) => {
+      if (process.env.NODE_ENV !== 'production') return true;
+      if (!val || val.length < 32) return false;
+      if (val === 'codecraftgenz') return false;
+      if (val.startsWith('CHANGE_ME')) return false;
+      return true;
+    },
+    { message: 'ADMIN_RESET_TOKEN deve ser forte em produção (min 32 chars, não default)' }
+  ),
 
   // NFS-e (Nota Fiscal de Servico Eletronica)
   NFSE_ENVIRONMENT: z.enum(['sandbox', 'production']).default('sandbox'),
@@ -92,7 +105,19 @@ const envSchema = z.object({
   DISCORD_REDIRECT_URI: z.string().optional(),
   INTERNAL_BOT_URL: z.string().default('http://127.0.0.1:3001'),
   INTERNAL_WEBHOOK_SECRET: z.string().optional(),
-  DISCORD_TOKEN_ENCRYPT_KEY: z.string().optional(),
+  DISCORD_TOKEN_ENCRYPT_KEY: z.string().optional().refine(
+    (val) => process.env.NODE_ENV !== 'production' || (val !== undefined && val.length >= 32),
+    { message: 'DISCORD_TOKEN_ENCRYPT_KEY (min 32 chars) é obrigatório em produção' }
+  ),
+
+  // PII Encryption (criptografia de campos sensíveis em repouso: mfaSecret, invoices, etc.)
+  PII_ENCRYPT_KEY: z.string().min(32).optional().refine(
+    (val) => process.env.NODE_ENV !== 'production' || (val !== undefined && val.length >= 32),
+    { message: 'PII_ENCRYPT_KEY (min 32 chars) é obrigatória em produção' }
+  ),
+
+  // Sentry (error tracking)
+  SENTRY_DSN: z.string().url().optional(),
 });
 
 // Parse and validate environment variables

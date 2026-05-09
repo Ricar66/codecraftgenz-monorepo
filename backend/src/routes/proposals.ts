@@ -4,6 +4,7 @@ import { success, sendError } from '../utils/response.js';
 import { authenticate, authorizeAdmin } from '../middlewares/auth.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
 import { logger } from '../utils/logger.js';
+import { maskEmail } from '../utils/crypto.js';
 import { leadService } from '../services/lead.service.js';
 
 const router = Router();
@@ -131,7 +132,7 @@ router.post('/', rateLimiter.sensitive, async (req, res) => {
       userAgent: req.get('user-agent'),
     }).catch((e) => { logger.warn({ error: e }, 'Non-critical async operation failed'); });
 
-    logger.info({ id: proposal.id, email }, 'Nova proposta B2B recebida');
+    logger.info({ id: proposal.id, email: maskEmail(email) }, 'Nova proposta B2B recebida');
     res.status(201).json(success(proposal));
   } catch (error) {
     logger.error({ error }, 'Erro ao criar proposta');

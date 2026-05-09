@@ -2,6 +2,7 @@ import { licenseRepository } from '../repositories/license.repository.js';
 import { paymentRepository } from '../repositories/payment.repository.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
+import { maskEmail } from '../utils/crypto.js';
 import { prisma } from '../db/prisma.js';
 import { emailService } from './email.service.js';
 import type { ActivateDeviceInput, VerifyLicenseInput } from '../schemas/license.schema.js';
@@ -80,7 +81,7 @@ export const licenseService = {
         userAgent,
       });
 
-      logger.info({ appId, email, hardwareId: hardware_id }, 'Dispositivo ativado (licença existente)');
+      logger.info({ appId, email: maskEmail(email), hardwareId: hardware_id }, 'Dispositivo ativado (licença existente)');
 
       return {
         success: true,
@@ -154,7 +155,7 @@ export const licenseService = {
       userAgent,
     });
 
-    logger.info({ appId, email, hardwareId: hardware_id }, 'Dispositivo ativado');
+    logger.info({ appId, email: maskEmail(email), hardwareId: hardware_id }, 'Dispositivo ativado');
 
     return {
       success: true,
@@ -244,12 +245,12 @@ export const licenseService = {
 
       // Exige pagamento aprovado — sem pagamento, não provisiona
       if (approvedCount === 0) {
-        logger.warn({ appId, email }, 'Tentativa de provisionar licença sem pagamento aprovado');
+        logger.warn({ appId, email: maskEmail(email) }, 'Tentativa de provisionar licença sem pagamento aprovado');
         throw AppError.forbidden('Você não possui pagamento aprovado para este app');
       }
 
       if (existing.length >= approvedCount) {
-        logger.info({ appId, email, existing: existing.length, max: approvedCount }, 'Limite de licenças atingido, não criando nova');
+        logger.info({ appId, email: maskEmail(email), existing: existing.length, max: approvedCount }, 'Limite de licenças atingido, não criando nova');
         return existing[0];
       }
     }
@@ -262,7 +263,7 @@ export const licenseService = {
       appName: app.name,
     });
 
-    logger.info({ appId, email, licenseId: license.id }, 'Licença provisionada');
+    logger.info({ appId, email: maskEmail(email), licenseId: license.id }, 'Licença provisionada');
 
     // Enviar email de confirmação de compra (não bloqueia se falhar)
     const shouldSendEmail = options?.sendEmail !== false;
@@ -279,9 +280,9 @@ export const licenseService = {
           licenseKey: license.licenseKey || undefined,
           purchaseDate: new Date(),
         });
-        logger.info({ appId, email }, 'Email de compra enviado');
+        logger.info({ appId, email: maskEmail(email) }, 'Email de compra enviado');
       } catch (emailError) {
-        logger.warn({ appId, email, error: emailError }, 'Falha ao enviar email de compra');
+        logger.warn({ appId, email: maskEmail(email), error: emailError }, 'Falha ao enviar email de compra');
       }
     }
 

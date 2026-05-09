@@ -289,12 +289,16 @@ router.get('/admin/ftp-list', sensitiveLimiter, authenticate, authorizeAdmin, as
     const ftp = await import('basic-ftp');
     const client = new ftp.Client();
 
+    // FTP_SECURE=true habilita FTPS explícito (AUTH TLS) — recomendado em produção
+    // Hostinger às vezes não suporta FTPS implícito; deixar opt-in via env.
+    const ftpSecure = process.env.FTP_SECURE === 'true';
     await client.access({
       host: env.FTP_HOST!,
       user: env.FTP_USER!,
       password: env.FTP_PASSWORD!,
       port: env.FTP_PORT ?? 21,
-      secure: false,
+      secure: ftpSecure,
+      ...(ftpSecure ? { secureOptions: { rejectUnauthorized: true } } : {}),
     });
 
     const remotePath = env.FTP_REMOTE_PATH || '/public_html/downloads';

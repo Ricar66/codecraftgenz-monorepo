@@ -11,8 +11,20 @@ import { env } from '../config/env.js';
 import { emailService } from './email.service.js';
 import { emailDripService } from './email-drip.service.js';
 import { referralService } from './referral.service.js';
+import { encryptField, decryptField, maskEmail } from '../utils/crypto.js';
 
 const SALT_ROUNDS = 10;
+const PRIVACY_VERSION = '2026-05';
+
+/**
+ * Wrappers para criptografia do mfaSecret em repouso.
+ * USE estas funções ao gravar/ler o mfaSecret no banco.
+ *  - Ao gerar/salvar:  await prisma.user.update({ data: { mfaSecret: encryptMfaSecret(secret) } })
+ *  - Ao ler/usar:      const decoded = decryptMfaSecret(user.mfaSecret)
+ * Backward-compat: valores legacy (sem prefixo "v1:") são retornados como-estão.
+ */
+export const encryptMfaSecret = (secret: string | null | undefined) => encryptField(secret);
+export const decryptMfaSecret = (cipher: string | null | undefined) => decryptField(cipher);
 
 /**
  * Auth Service
@@ -113,11 +125,23 @@ export const authService = {
             name: data.name,
             passwordHash: hashedPassword,
             isGuest: false,
+            termsAcceptedAt: new Date(),
+            privacyVersion: PRIVACY_VERSION,
           },
         });
         logger.info({ userId: user.id }, 'Guest user converted to regular on register');
       } else {
-        throw AppError.conflict('Email ja cadastrado');
+        // Não revelar que o email já existe — evita enumeração de contas.
+        // Notifica o dono real do email sobre a tentativa (fire-and-forget) e
+        // retorna uma resposta neutra que NÃO autentica o cliente.
+        logger.info({ email: maskEmail(data.email) }, 'Duplicate register attempt blocked');
+        void emailService.sendDuplicateRegisterAttempt(data.email).catch((e) => {
+          logger.warn({ error: e }, 'Failed to send duplicate register notice');
+        });
+        return {
+          duplicateAttempt: true as const,
+          message: 'Verifique seu email para continuar.',
+        };
       }
     } else {
       // Hash password
@@ -132,6 +156,8 @@ export const authService = {
           role: 'viewer',
           status: 'ativo',
           isGuest: false,
+          termsAcceptedAt: new Date(),
+          privacyVersion: PRIVACY_VERSION,
         },
       });
 
@@ -260,7 +286,7 @@ export const authService = {
 
     // Don't reveal if email exists
     if (!user) {
-      logger.info({ email }, 'Password reset requested for non-existent email');
+      logger.info({ email: maskEmail(email) }, 'Password reset requested for non-existent email');
       return;
     }
 
@@ -389,6 +415,82 @@ export const authService = {
   },
 
   /**
+   * LGPD Art. 18 - Auto-deleção de conta
+   * Anonimiza dados fiscais (Payments) e deleta o usuário (cascade nas relações).
+   */
+  async deleteAccount(userId: number): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw AppError.notFound('Usuário');
+    }
+
+    // 1. Anonimizar pagamentos (manter para auditoria fiscal/NFS-e)
+    await prisma.payment.updateMany({
+      where: { userId },
+      data: {
+        payerEmail: 'anonimizado@deleted.local',
+        payerName: 'Anonimizado',
+      },
+    });
+
+    // 2. Anonimizar licenças associadas pelo email original (manter histórico)
+    await prisma.license.updateMany({
+      where: { userId },
+      data: {
+        email: 'anonimizado@deleted.local',
+      },
+    });
+
+    // 3. Deletar usuário — onDelete em cada relação cuida do resto
+    await prisma.user.delete({ where: { id: userId } });
+
+    logger.info({ userId }, 'User self-deleted (LGPD Art. 18)');
+  },
+
+  /**
+   * LGPD Art. 18 - Portabilidade dos dados
+   * Retorna todos os dados pessoais do usuário em JSON.
+   */
+  async exportData(userId: number) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        payments: true,
+        licenses: true,
+        feedbacks: true,
+        crafter: true,
+        challengeSubmissions: true,
+        discordLink: true,
+        emailDrips: true,
+        pushSubscriptions: true,
+        referralsMade: true,
+        referralReceived: true,
+      },
+    });
+
+    if (!user) {
+      throw AppError.notFound('Usuário');
+    }
+
+    // Buscar leads associados ao email (não tem FK direta com user)
+    const leads = await prisma.lead.findMany({
+      where: { email: user.email },
+    });
+
+    // Remover hashes/segredos antes de exportar
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash, mfaSecret, ...userPublic } = user;
+
+    return {
+      exportedAt: new Date().toISOString(),
+      lgpdNote:
+        'Dados pessoais exportados conforme LGPD Art. 18 (direito à portabilidade).',
+      user: userPublic,
+      leads,
+    };
+  },
+
+  /**
    * Google OAuth - login or register with Google ID token
    */
   async googleAuth(credential: string) {
@@ -449,6 +551,8 @@ export const authService = {
           role: 'viewer',
           status: 'ativo',
           isGuest: false,
+          termsAcceptedAt: new Date(),
+          privacyVersion: PRIVACY_VERSION,
         },
       });
 

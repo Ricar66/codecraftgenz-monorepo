@@ -5,6 +5,7 @@ import { userService } from './user.service.js';
 import { emailService } from './email.service.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
+import { maskEmail } from '../utils/crypto.js';
 import { env } from '../config/env.js';
 import type { PurchaseInput, DirectPaymentInput, SearchPaymentsQuery, UpdatePaymentInput } from '../schemas/payment.schema.js';
 import { prisma } from '../db/prisma.js';
@@ -140,9 +141,9 @@ export const paymentService = {
           data.name
         );
         resolvedUserId = user.id;
-        logger.info({ userId: user.id, email: data.email, isNewGuest }, 'Usuário resolvido para compra');
+        logger.info({ userId: user.id, email: maskEmail(data.email), isNewGuest }, 'Usuário resolvido para compra');
       } catch (err) {
-        logger.warn({ error: err, email: data?.email }, 'Falha ao resolver usuário para compra');
+        logger.warn({ error: err, email: maskEmail(data?.email) }, 'Falha ao resolver usuário para compra');
       }
     }
 
@@ -378,19 +379,22 @@ export const paymentService = {
   async handleWebhook(type: string, dataId: string) {
     logger.info({ type, dataId }, 'Webhook recebido');
 
-    // Idempotência: se esse evento já foi processado antes, ignora.
-    // Usamos "<type>:<dataId>" como externalId para evitar colisão entre tipos (ex.: payment.create vs payment.updated).
+    // Idempotência atômica via lock otimista:
+    // Tenta criar o registro de processamento PRIMEIRO. Se o unique constraint
+    // falhar (P2002), significa que outro processo já está/já processou — retornamos early.
+    // Isso elimina race condition entre findUnique + processamento + upsert.
     const externalId = `${type}:${dataId}`;
     try {
-      const alreadyProcessed = await prisma.processedWebhook.findUnique({
-        where: { externalId },
+      await prisma.processedWebhook.create({
+        data: { externalId, action: type },
       });
-      if (alreadyProcessed) {
-        logger.info({ externalId }, 'Webhook já processado — ignorando (idempotência)');
+    } catch (err: unknown) {
+      const errCode = (err as { code?: string })?.code;
+      if (errCode === 'P2002') {
+        logger.info({ externalId }, 'Webhook já processado/em processamento — ignorando (idempotência)');
         return { processed: true, reason: 'Webhook duplicado — ignorado', duplicate: true };
       }
-    } catch (err) {
-      logger.warn({ err }, 'Falha ao verificar idempotência do webhook — seguindo adiante');
+      logger.warn({ err, externalId }, 'Falha ao registrar webhook — seguindo adiante');
     }
 
     if (type !== 'payment') {
@@ -497,17 +501,8 @@ export const paymentService = {
       }
     }
 
-    // Marca evento como processado (idempotência). Upsert evita race condition
-    // quando o MP faz reentregas ou dispara chamadas concorrentes para o mesmo evento.
-    try {
-      await prisma.processedWebhook.upsert({
-        where: { externalId },
-        create: { externalId, action: type },
-        update: {},
-      });
-    } catch (err) {
-      logger.warn({ err, externalId }, 'Falha ao registrar webhook processado (não crítico)');
-    }
+    // Registro de processamento já foi criado no início (lock otimista) —
+    // não precisamos do upsert aqui.
 
     return {
       processed: true,
@@ -584,7 +579,7 @@ export const paymentService = {
       throw AppError.internal('Falha ao enviar email. Verifique as configurações de email.');
     }
 
-    logger.info({ paymentId: approvedPayment.id, email }, 'Email de confirmação reenviado');
+    logger.info({ paymentId: approvedPayment.id, email: maskEmail(email) }, 'Email de confirmação reenviado');
 
     return {
       sent: true,
@@ -628,9 +623,9 @@ export const paymentService = {
           payerName
         );
         resolvedUserId = user.id;
-        logger.info({ userId: user.id, email: payerEmail, isNewGuest }, 'Usuário resolvido para pagamento direto');
+        logger.info({ userId: user.id, email: maskEmail(payerEmail), isNewGuest }, 'Usuário resolvido para pagamento direto');
       } catch (err) {
-        logger.warn({ error: err, email: payerEmail }, 'Falha ao resolver usuário para pagamento direto');
+        logger.warn({ error: err, email: maskEmail(payerEmail) }, 'Falha ao resolver usuário para pagamento direto');
       }
     }
 
@@ -708,7 +703,7 @@ export const paymentService = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload: Record<string, any> = {
       description: data.description || `Pagamento do app ${app.name}${quantity > 1 ? ` (${quantity} licenças)` : ''}`,
-      external_reference: data.external_reference || String(paymentId),
+      external_reference: String(paymentId),
       transaction_amount: totalAmount,
       payment_method_id: data.payment_method_id,
       installments: installments,
@@ -820,7 +815,7 @@ export const paymentService = {
             sendEmail: false, // Email enviado separadamente abaixo
           });
         }
-        logger.info({ paymentId, appId, email: payerEmail, quantity }, 'Licenças provisionadas via pagamento direto');
+        logger.info({ paymentId, appId, email: maskEmail(payerEmail), quantity }, 'Licenças provisionadas via pagamento direto');
 
         // Obter chave de licença para o email
         licenseKey = await licenseService.getLicenseKeyByEmail(appId, payerEmail) || undefined;
@@ -856,7 +851,17 @@ export const paymentService = {
       });
     }
 
-    // Retornar resposta completa
+    // Whitelist de campos do PIX que podem ser expostos ao cliente
+    // (NUNCA retornar mpResponse completo — contém CPF, BIN, last4, etc)
+    const pixData = data.payment_method_id === 'pix'
+      ? {
+          qr_code: mpResponse.point_of_interaction?.transaction_data?.qr_code,
+          qr_code_base64: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64,
+          ticket_url: mpResponse.point_of_interaction?.transaction_data?.ticket_url,
+        }
+      : undefined;
+
+    // Retornar APENAS campos permitidos (whitelist) — sem dados sensíveis do MP
     return {
       success: true,
       payment_id: paymentId,
@@ -867,12 +872,15 @@ export const paymentService = {
       installments,
       total_amount: totalAmount,
       unit_price: unitPrice,
-      result: mpResponse,
-      // Dados para PIX
-      point_of_interaction: mpResponse.point_of_interaction,
-      qr_code: mpResponse.point_of_interaction?.transaction_data?.qr_code,
-      qr_code_base64: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64,
-      ticket_url: mpResponse.point_of_interaction?.transaction_data?.ticket_url,
+      // Dados para PIX (apenas QR/ticket — sem dados pessoais)
+      ...(pixData
+        ? {
+            point_of_interaction: { transaction_data: pixData },
+            qr_code: pixData.qr_code,
+            qr_code_base64: pixData.qr_code_base64,
+            ticket_url: pixData.ticket_url,
+          }
+        : {}),
     };
   },
 };
@@ -983,12 +991,12 @@ async function sendPurchaseEmail(options: {
     });
 
     if (emailSent) {
-      logger.info({ paymentId: options.paymentId, email: options.payerEmail }, '[EMAIL] Email de confirmação ENVIADO com sucesso');
+      logger.info({ paymentId: options.paymentId, email: maskEmail(options.payerEmail) }, '[EMAIL] Email de confirmação ENVIADO com sucesso');
     } else {
-      logger.error({ paymentId: options.paymentId, email: options.payerEmail }, '[EMAIL] Email de confirmação NÃO FOI ENVIADO - verifique as credenciais EMAIL_USER e EMAIL_PASS');
+      logger.error({ paymentId: options.paymentId, email: maskEmail(options.payerEmail) }, '[EMAIL] Email de confirmação NÃO FOI ENVIADO - verifique as credenciais EMAIL_USER e EMAIL_PASS');
     }
   } catch (error) {
-    logger.error({ error, paymentId: options.paymentId, email: options.payerEmail }, '[EMAIL] ERRO ao enviar email de confirmação');
+    logger.error({ error, paymentId: options.paymentId, email: maskEmail(options.payerEmail) }, '[EMAIL] ERRO ao enviar email de confirmação');
     // Não propaga erro - email é secundário
   }
 }

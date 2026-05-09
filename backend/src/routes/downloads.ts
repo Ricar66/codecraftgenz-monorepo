@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { sendError, success } from '../utils/response.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
+import { authenticate } from '../middlewares/auth.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 import path from 'path';
@@ -107,9 +108,10 @@ router.get('/images/:category/:file', rateLimiter.default, async (req, res): Pro
  * GET /api/downloads/app/:appId
  * Obter URL de download do app (com verificação de licença)
  */
-router.get('/app/:appId', rateLimiter.sensitive, async (req, res): Promise<void> => {
+router.get('/app/:appId', authenticate, rateLimiter.sensitive, async (req, res): Promise<void> => {
   const appId = Number(req.params.appId);
-  const email = req.query.email as string;
+  // Email vem do JWT do usuário autenticado, NÃO do query string
+  const email = req.user!.email;
 
   if (!email) {
     sendError(res, 400, 'EMAIL_REQUIRED', 'Email é obrigatório');
@@ -193,7 +195,7 @@ router.get('/:file/integrity', rateLimiter.default, async (req, res): Promise<vo
       modified: stats.mtime,
     }));
   } catch (error) {
-    console.error('Erro ao calcular hash:', error);
+    logger.error({ err: error, filename: sanitizedFilename }, 'Erro ao calcular hash');
     sendError(res, 500, 'INTEGRITY_ERROR', 'Erro ao verificar integridade do arquivo');
   }
 });
@@ -215,7 +217,7 @@ router.get('/:file', rateLimiter.default, async (req, res): Promise<void> => {
   if (await fileExistsLocally(filePath)) {
     res.download(filePath, sanitizedFilename, (err) => {
       if (err) {
-        console.error('Erro ao enviar arquivo:', err);
+        logger.error({ err, filename: sanitizedFilename }, 'Erro ao enviar arquivo (local)');
         if (!res.headersSent) {
           sendError(res, 500, 'DOWNLOAD_ERROR', 'Erro ao fazer download do arquivo');
         }
@@ -240,7 +242,7 @@ router.get('/:file', rateLimiter.default, async (req, res): Promise<void> => {
         logger.info({ filename: sanitizedFilename }, 'Arquivo recuperado da Hostinger, servindo ao usuário');
         res.download(filePath, sanitizedFilename, (err) => {
           if (err) {
-            console.error('Erro ao enviar arquivo:', err);
+            logger.error({ err, filename: sanitizedFilename }, 'Erro ao enviar arquivo (após FTP fetch)');
             if (!res.headersSent) {
               sendError(res, 500, 'DOWNLOAD_ERROR', 'Erro ao fazer download do arquivo');
             }

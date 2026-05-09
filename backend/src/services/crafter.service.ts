@@ -49,7 +49,8 @@ export const crafterService = {
 
     const totalPages = Math.ceil(total / limit);
     return {
-      data: crafters.map(mapCrafter),
+      // Rota pública — sem email
+      data: crafters.map(mapCrafterPublic),
       pagination: {
         total,
         page,
@@ -72,7 +73,8 @@ export const crafterService = {
     if (!crafter) {
       throw AppError.notFound('Crafter');
     }
-    return mapCrafter(crafter);
+    // Rota pública — sem email
+    return mapCrafterPublic(crafter);
   },
 
   async create(data: CreateCrafterInput) {
@@ -155,9 +157,10 @@ export const crafterService = {
         },
       },
     });
+    // Rota pública — sem email
     return crafters.map((c, index) => ({
       position: index + 1,
-      ...mapCrafter(c),
+      ...mapCrafterPublic(c),
     }));
   },
 
@@ -184,9 +187,10 @@ export const crafterService = {
         crafter: true,
       },
     });
+    // Rota pública — sem email
     return top3.map((item) => ({
       position: item.position,
-      crafter: item.crafter ? mapCrafter(item.crafter) : null,
+      crafter: item.crafter ? mapCrafterPublic(item.crafter) : null,
     }));
   },
 
@@ -220,7 +224,7 @@ export const crafterService = {
   },
 };
 
-function mapCrafter(crafter: {
+type CrafterRow = {
   id: number;
   nome: string;
   email: string | null;
@@ -236,16 +240,18 @@ function mapCrafter(crafter: {
   createdAt: Date;
   updatedAt: Date;
   equipe?: { id: number; nome: string } | null;
-}) {
-  let skills: string[] = [];
-  if (crafter.skillsJson) {
-    try {
-      skills = JSON.parse(crafter.skillsJson);
-    } catch {
-      skills = [];
-    }
-  }
+};
 
+function parseSkills(skillsJson: string | null): string[] {
+  if (!skillsJson) return [];
+  try {
+    return JSON.parse(skillsJson);
+  } catch {
+    return [];
+  }
+}
+
+function mapCrafter(crafter: CrafterRow) {
   return {
     id: crafter.id,
     nome: crafter.nome,
@@ -254,7 +260,32 @@ function mapCrafter(crafter: {
     avatar_url: crafter.avatarUrl,
     github_url: crafter.githubUrl,
     linkedin_url: crafter.linkedinUrl,
-    skills,
+    skills: parseSkills(crafter.skillsJson),
+    pontos: crafter.pontos,
+    active: crafter.active,
+    equipe_id: crafter.equipeId,
+    user_id: crafter.userId,
+    equipe: crafter.equipe
+      ? { id: crafter.equipe.id, nome: crafter.equipe.nome }
+      : null,
+    created_at: crafter.createdAt,
+    updated_at: crafter.updatedAt,
+  };
+}
+
+/**
+ * Versão pública de mapCrafter — SEM email (LGPD/PII).
+ * Usar em rotas não-autenticadas: GET /api/crafters, /ranking, /top3 e /:id.
+ */
+function mapCrafterPublic(crafter: CrafterRow) {
+  return {
+    id: crafter.id,
+    nome: crafter.nome,
+    bio: crafter.bio,
+    avatar_url: crafter.avatarUrl,
+    github_url: crafter.githubUrl,
+    linkedin_url: crafter.linkedinUrl,
+    skills: parseSkills(crafter.skillsJson),
     pontos: crafter.pontos,
     active: crafter.active,
     equipe_id: crafter.equipeId,

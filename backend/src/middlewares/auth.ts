@@ -68,10 +68,10 @@ export async function authenticate(
     // Verify token
     const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as JwtPayload;
 
-    // Check if user still exists
+    // Check if user still exists — busca também role (não confiar em JWT stale)
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, role: true },
     });
 
     if (!user) {
@@ -82,8 +82,8 @@ export async function authenticate(
       throw AppError.forbidden('Conta desativada ou suspensa');
     }
 
-    // Attach user to request
-    req.user = decoded;
+    // Attach user to request — usar role atualizado do banco, não do JWT
+    req.user = { ...decoded, role: user.role };
 
     next();
   } catch (error) {
@@ -124,7 +124,16 @@ export async function optionalAuth(
     }
 
     const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as JwtPayload;
-    req.user = decoded;
+
+    // Buscar role atualizado e validar status — não confiar em JWT stale
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, status: true, role: true },
+    });
+
+    if (user && user.status === 'ativo') {
+      req.user = { ...decoded, role: user.role };
+    }
 
     next();
   } catch {

@@ -860,4 +860,60 @@ export const emailService = {
       return false;
     }
   },
+
+  /**
+   * Avisa o usuário que houve uma tentativa de registro com seu email já cadastrado.
+   * Usado para evitar enumeração de contas no /register: ao invés de retornar 409,
+   * respondemos genérico e enviamos este email para o dono da conta.
+   */
+  async sendDuplicateRegisterAttempt(to: string): Promise<boolean> {
+    const transporter = createTransporter();
+    if (!transporter) {
+      logger.warn({ email: to }, 'Duplicate register notice not sent - credentials not configured');
+      return false;
+    }
+
+    const resetLink = `${env.FRONTEND_URL}/forgot-password`;
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:'Inter',system-ui,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+    <div style="background:linear-gradient(135deg,#1a1a2e,#0d0d1a);border-radius:16px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#6366f1,#D12BF2);padding:32px 40px;text-align:center;">
+        <h1 style="color:#fff;font-size:22px;font-weight:700;margin:0;">⚠️ Tentativa de cadastro</h1>
+        <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;">CodeCraft Gen-Z</p>
+      </div>
+      <div style="padding:32px 40px;">
+        <p style="color:#e0e0e0;font-size:15px;margin:0 0 16px;">Olá,</p>
+        <p style="color:#a0a0b0;font-size:14px;margin:0 0 16px;">Detectamos uma tentativa de criar uma nova conta usando este email, mas você já tem uma conta na CodeCraft Gen-Z.</p>
+        <p style="color:#a0a0b0;font-size:14px;margin:0 0 24px;">Se foi você que tentou se cadastrar novamente, basta fazer login normalmente. Se esqueceu sua senha, redefina pelo link abaixo.</p>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="${resetLink}" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#D12BF2);color:#fff;font-weight:700;font-size:15px;padding:14px 32px;border-radius:10px;text-decoration:none;">Esqueci minha senha</a>
+        </div>
+        <p style="color:#6b7280;font-size:12px;margin:24px 0 0;">Se você não tentou se cadastrar, recomendamos trocar sua senha imediatamente — alguém pode estar tentando acessar sua conta.</p>
+      </div>
+      <div style="background:rgba(255,255,255,0.02);padding:16px 40px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);">
+        <p style="color:#4b5563;font-size:12px;margin:0;">© ${new Date().getFullYear()} CodeCraft Gen-Z · <a href="https://codecraftgenz.com.br" style="color:#6366f1;text-decoration:none;">codecraftgenz.com.br</a></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    try {
+      const info = await transporter.sendMail({
+        from: `"CodeCraft Gen-Z" <${env.EMAIL_USER}>`,
+        to,
+        subject: '⚠️ Tentativa de cadastro com seu email — CodeCraft Gen-Z',
+        text: `Detectamos uma tentativa de criar uma nova conta usando este email, mas você já tem uma conta cadastrada.\n\nSe foi você, faça login normalmente. Se esqueceu a senha, redefina em:\n${resetLink}\n\nSe você não tentou se cadastrar, recomendamos trocar sua senha imediatamente.\n\nEquipe CodeCraft Gen-Z`,
+        html,
+      });
+      logger.info({ messageId: info.messageId, to }, 'Duplicate register notice sent');
+      return true;
+    } catch (err) {
+      logger.warn({ err, to }, 'Failed to send duplicate register notice');
+      return false;
+    }
+  },
 };

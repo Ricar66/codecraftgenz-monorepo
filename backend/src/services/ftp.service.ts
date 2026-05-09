@@ -7,12 +7,15 @@ import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
 // Configurações FTP da Hostinger (via variáveis de ambiente)
+// FTP_SECURE=true habilita FTPS explícito (AUTH TLS). Default false porque
+// nem todos os servidores Hostinger suportam — opt-in para evitar regressões.
+const FTP_SECURE = process.env.FTP_SECURE === 'true';
 const FTP_CONFIG = {
   host: env.FTP_HOST || '',
   user: env.FTP_USER || '',
   password: env.FTP_PASSWORD || '',
   port: env.FTP_PORT ?? 21,
-  secure: false, // FTP padrão (não FTPS)
+  secure: FTP_SECURE as boolean,
   remotePath: env.FTP_REMOTE_PATH || '/domains/codecraftgenz.com.br/public_html/downloads',
   publicUrl: env.FTP_PUBLIC_URL || 'https://codecraftgenz.com.br/downloads',
 };
@@ -69,6 +72,7 @@ export const uploadToHostinger = async (
       password: FTP_CONFIG.password,
       port: FTP_CONFIG.port,
       secure: FTP_CONFIG.secure,
+      ...(FTP_CONFIG.secure ? { secureOptions: { rejectUnauthorized: true } } : {}),
     });
 
     const ftpRoot = await client.pwd();
@@ -144,6 +148,7 @@ export const deleteFromHostinger = async (fileName: string): Promise<void> => {
       password: FTP_CONFIG.password,
       port: FTP_CONFIG.port,
       secure: FTP_CONFIG.secure,
+      ...(FTP_CONFIG.secure ? { secureOptions: { rejectUnauthorized: true } } : {}),
     });
 
     await client.cd(FTP_CONFIG.remotePath);
@@ -183,6 +188,7 @@ export const downloadFromHostinger = async (
       password: FTP_CONFIG.password,
       port: FTP_CONFIG.port,
       secure: FTP_CONFIG.secure,
+      ...(FTP_CONFIG.secure ? { secureOptions: { rejectUnauthorized: true } } : {}),
     });
 
     // Suporte a subdiretorios (ex: "images/projetos/foto.jpg")

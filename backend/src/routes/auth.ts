@@ -98,4 +98,16 @@ router.post(
  */
 router.patch('/onboarding', authenticate, validate(onboardingSchema), authController.completeOnboarding);
 
+/**
+ * DELETE /api/v1/auth/account
+ * LGPD Art. 18 — auto-deleção de conta
+ */
+router.delete('/account', authenticate, sensitiveLimiter, authController.deleteAccount);
+
+/**
+ * GET /api/v1/auth/export-data
+ * LGPD Art. 18 — portabilidade de dados (download JSON)
+ */
+router.get('/export-data', authenticate, sensitiveLimiter, authController.exportData);
+
 export default router;
