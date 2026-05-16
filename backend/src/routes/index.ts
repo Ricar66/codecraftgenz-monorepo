@@ -33,6 +33,7 @@ import discordRoutes from './discord.js';
 import referralRoutes from './referral.js';
 import backupRoutes from './backup.js';
 import notificationRoutes from './notifications.js';
+import updatesRoutes from './updates.js';
 
 const router = Router();
 
@@ -74,5 +75,6 @@ router.use('/api/referral', referralRoutes); // Referral program
 router.use('/api/test', testRoutes); // Test routes (blocked in production)
 router.use('/api/backup', backupRoutes); // Backup status (admin only)
 router.use('/api/notifications', notificationRoutes); // Push Notifications (PWA)
+router.use('/api/updates', updatesRoutes); // Auto-update manifest universal para apps Tauri/WPF
 
 export default router;

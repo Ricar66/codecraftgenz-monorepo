@@ -1,5 +1,6 @@
-import { Router, Request } from 'express';
+import { Router, Request, Response } from 'express';
 import multer, { FileFilterCallback } from 'multer';
+import { prisma } from '../db/prisma.js';
 import { appController } from '../controllers/app.controller.js';
 import { paymentController } from '../controllers/payment.controller.js';
 import { licenseController } from '../controllers/license.controller.js';
@@ -176,6 +177,66 @@ router.post(
   '/:id/resend-email',
   rateLimiter.sensitive,
   paymentController.resendConfirmationEmail
+);
+
+// =============================================
+// RELEASE — publicação de nova versão (auto-update)
+// =============================================
+router.post(
+  '/:id/release',
+  authenticate,
+  authorizeAdmin,
+  async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const { version, executableUrl, changelog, signature, slug } = req.body ?? {};
+
+    if (!version || typeof version !== 'string') {
+      return res.status(400).json({ error: 'Campo "version" é obrigatório' });
+    }
+    if (!executableUrl || typeof executableUrl !== 'string') {
+      return res.status(400).json({ error: 'Campo "executableUrl" é obrigatório' });
+    }
+
+    const data: {
+      version: string;
+      executableUrl: string;
+      changelog: string | null;
+      signature: string | null;
+      releaseDate: Date;
+      slug?: string;
+    } = {
+      version,
+      executableUrl,
+      changelog: typeof changelog === 'string' ? changelog : null,
+      signature: typeof signature === 'string' ? signature : null,
+      releaseDate: new Date(),
+    };
+
+    if (typeof slug === 'string' && slug.trim().length > 0) {
+      data.slug = slug.trim().toLowerCase();
+    }
+
+    try {
+      const updated = await prisma.app.update({
+        where: { id },
+        data,
+      });
+      return res.json(updated);
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'P2025') {
+        return res.status(404).json({ error: 'App não encontrado' });
+      }
+      if (code === 'P2002') {
+        return res.status(409).json({ error: 'Slug já está em uso' });
+      }
+      throw err;
+    }
+  }
 );
 
 export default router;

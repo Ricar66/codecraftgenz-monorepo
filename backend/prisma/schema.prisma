@@ -155,6 +155,10 @@ model App {
   featured        Boolean   @default(false)
   licenseType     String    @default("vitalicia")
   downloadCount   Int       @default(0)
+  slug            String?   @unique @db.VarChar(64)
+  changelog       String?   @db.Text
+  signature       String?   @db.Text
+  releaseDate     DateTime?
 
   creatorId       Int
   projectId       Int?
