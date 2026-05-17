@@ -201,6 +201,30 @@ router.post(
       return res.status(400).json({ error: 'Campo "executableUrl" é obrigatório' });
     }
 
+    // Semver validation (ex: 1.2.0 ou 1.2.0.0)
+    const SEMVER_RE = /^\d+\.\d+\.\d+(\.\d+)?(-[a-zA-Z0-9.]+)?$/;
+    if (!SEMVER_RE.test(version)) {
+      return res.status(400).json({ error: 'version deve ser semver: ex: 1.2.0 ou 1.2.0.0' });
+    }
+
+    // executableUrl — somente HTTPS e domínio codecraftgenz.com.br
+    const ALLOWED_DOWNLOAD_ORIGINS = [
+      'https://codecraftgenz.com.br',
+      'https://files.codecraftgenz.com.br',
+    ];
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(executableUrl);
+    } catch {
+      return res.status(400).json({ error: 'executableUrl inválida' });
+    }
+    if (parsedUrl.protocol !== 'https:') {
+      return res.status(400).json({ error: 'executableUrl deve usar HTTPS' });
+    }
+    if (!ALLOWED_DOWNLOAD_ORIGINS.some(o => parsedUrl.origin === o)) {
+      return res.status(400).json({ error: 'executableUrl fora do domínio permitido (codecraftgenz.com.br)' });
+    }
+
     const data: {
       version: string;
       executableUrl: string;
@@ -216,8 +240,14 @@ router.post(
       releaseDate: new Date(),
     };
 
+    // Slug validation — apenas letras minúsculas, números e hífens
+    const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,62}$/;
     if (typeof slug === 'string' && slug.trim().length > 0) {
-      data.slug = slug.trim().toLowerCase();
+      const normalizedSlug = slug.trim().toLowerCase();
+      if (!SLUG_RE.test(normalizedSlug)) {
+        return res.status(400).json({ error: 'slug inválido — use apenas letras minúsculas, números e hífens' });
+      }
+      data.slug = normalizedSlug;
     }
 
     try {
@@ -225,7 +255,14 @@ router.post(
         where: { id },
         data,
       });
-      return res.json(updated);
+      return res.json({
+        id: updated.id,
+        name: updated.name,
+        version: updated.version,
+        slug: updated.slug,
+        executableUrl: updated.executableUrl,
+        releaseDate: updated.releaseDate,
+      });
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
       if (code === 'P2025') {

@@ -103,6 +103,11 @@ namespace SEU_NAMESPACE           // <-- troque aqui
 
                 if (result == DialogResult.Yes)     // <-- diferente do WPF
                 {
+                    if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var uri) ||
+                        uri.Scheme != Uri.UriSchemeHttps ||
+                        !uri.Host.EndsWith("codecraftgenz.com.br", StringComparison.OrdinalIgnoreCase))
+                        return;
+
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = downloadUrl,

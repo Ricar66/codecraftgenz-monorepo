@@ -87,6 +87,11 @@ namespace SEU_NAMESPACE.Services   // <-- troque aqui
 
                 if (result == MessageBoxResult.Yes)
                 {
+                    if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var uri) ||
+                        uri.Scheme != Uri.UriSchemeHttps ||
+                        !uri.Host.EndsWith("codecraftgenz.com.br", StringComparison.OrdinalIgnoreCase))
+                        return;
+
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = downloadUrl,

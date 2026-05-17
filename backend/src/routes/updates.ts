@@ -1,12 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
+import { rateLimiter } from '../middlewares/rateLimiter.js';
 
 const router = Router();
 
 // GET /api/updates/:slug
 // Endpoint público de auto-update — formato compatível com Tauri updater v1/v2.
 // 204 = sem dados de update (app não cadastrado ou sem versão/url).
-router.get('/:slug', async (req: Request, res: Response) => {
+router.get('/:slug', rateLimiter.api, async (req: Request, res: Response) => {
   const slugParam = req.params.slug;
   const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam;
 
