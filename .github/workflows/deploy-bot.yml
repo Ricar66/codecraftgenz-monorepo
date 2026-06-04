@@ -31,10 +31,10 @@ jobs:
             set -e
             cd /var/www/codecraft-backend
             git pull origin main
-            cd discord-bot
-            npm ci
-            npm run build
-            pm2 restart codecraft-bot --update-env
+            # Garante que os arquivos pertencem ao user `codecraft` (PM2 roda sob ele)
+            chown -R codecraft:codecraft .
+            # Build + restart sob o user correto. PM2 do root nao conhece os processos do codecraft.
+            runuser -l codecraft -c 'cd /var/www/codecraft-backend/discord-bot && npm ci && npm run build && pm2 restart codecraft-bot --update-env'
             echo "Discord bot deploy concluido com sucesso."
 
       - name: Notify Discord
