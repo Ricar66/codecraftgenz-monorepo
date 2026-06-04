@@ -275,6 +275,7 @@ function mapApp(app: {
   description: string | null;
   shortDescription: string | null;
   price: unknown;
+  originalPrice?: unknown;
   category: string | null;
   tags: string | null;
   thumbUrl: string | null;
@@ -298,6 +299,7 @@ function mapApp(app: {
     description: app.description,
     short_description: app.shortDescription,
     price: Number(app.price),
+    original_price: app.originalPrice == null ? null : Number(app.originalPrice),
     category: app.category,
     tags: parseJson(app.tags, []),
     thumb_url: app.thumbUrl,
@@ -326,6 +328,7 @@ function mapAppDetailed(app: {
   description: string | null;
   shortDescription: string | null;
   price: unknown;
+  originalPrice?: unknown;
   category: string | null;
   tags: string | null;
   thumbUrl: string | null;

@@ -9,8 +9,8 @@ function resolveImageUrl(url: string | null): string | null {
   if (!url) return null;
   // Ja e absoluta
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
-  // Relativa -> absoluta usando a URL do backend
-  const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 8080}`;
+  // Relativa -> absoluta usando a URL do backend (VPS)
+  const baseUrl = process.env.BACKEND_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || 'https://api.codecraftgenz.com.br';
   return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 

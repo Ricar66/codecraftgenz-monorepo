@@ -118,6 +118,25 @@ const envSchema = z.object({
 
   // Sentry (error tracking)
   SENTRY_DSN: z.string().url().optional(),
+
+  // =============================================
+  // PAINEL INTERNO (tarefas/delegação)
+  // =============================================
+  // Secret JWT separado do site (isolamento de tokens entre serviços).
+  PANEL_JWT_SECRET: z.string().min(32).optional().refine(
+    (val) => process.env.NODE_ENV !== 'production' || (val !== undefined && val.length >= 32),
+    { message: 'PANEL_JWT_SECRET (min 32 chars) é obrigatório em produção' }
+  ),
+  // Lista de emails autorizados a logar no painel (CSV, case-insensitive).
+  PANEL_ALLOWED_EMAILS: z.string().optional(),
+  // Duração da sessão do painel (default 8h).
+  PANEL_SESSION_HOURS: z.coerce.number().int().positive().default(8),
+  // Custo do bcrypt (default 12 — recomendado OWASP para 2026).
+  PANEL_BCRYPT_COST: z.coerce.number().int().min(10).max(15).default(12),
+  // Diretório fora do webroot para armazenar anexos.
+  PANEL_UPLOAD_DIR: z.string().default('/var/panel-uploads'),
+  // Tamanho máximo de upload (bytes). Default 10MB.
+  PANEL_UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(10 * 1024 * 1024),
 });
 
 // Parse and validate environment variables

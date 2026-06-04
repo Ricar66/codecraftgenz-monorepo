@@ -144,6 +144,7 @@ model App {
   description     String?   @db.Text
   shortDescription String?  @db.Text
   price           Decimal   @default(0) @db.Decimal(10, 2)
+  originalPrice   Decimal?  @db.Decimal(10, 2) // "preço de" antes do desconto (exibido riscado). Opcional.
   category        String?   
   tags            String?   
   thumbUrl        String?   
@@ -899,4 +900,144 @@ model TutorialPostLog {
   sentAt    DateTime @default(now())
 
   @@map("tutorial_post_logs")
+}
+
+// =============================================
+// PAINEL INTERNO — TAREFAS / DELEGAÇÃO
+// =============================================
+// Sistema isolado do core: auth separado (JWT com aud=panel),
+// allowlist por email em env (PANEL_ALLOWED_EMAILS),
+// sem relação com tabela `users` para impedir privilege escalation cruzada.
+
+enum PanelTaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum PanelTaskStatus {
+  PENDING
+  DONE
+}
+
+model PanelUser {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique @db.VarChar(190)
+  name         String    @db.VarChar(120)
+  passwordHash String    @db.VarChar(255)
+  status       String    @default("ativo") @db.VarChar(20)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions     PanelSession[]
+  tasksCreated PanelTask[]    @relation("PanelTaskCreator")
+  comments     PanelTaskComment[]
+  attachments  PanelTaskAttachment[]
+
+  @@map("panel_users")
+}
+
+model PanelSession {
+  id         String   @id @default(cuid())
+  userId     Int
+  tokenHash  String   @unique @db.VarChar(255)
+  ip         String?  @db.VarChar(45)
+  userAgent  String?  @db.VarChar(255)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  user       PanelUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("panel_sessions")
+}
+
+model PanelTask {
+  id           Int               @id @default(autoincrement())
+  title        String            @db.VarChar(200)
+  description  String?           @db.Text
+  delegatedById Int
+  delegatedAt  DateTime          @default(now())
+  dueDate      DateTime?
+  priority     PanelTaskPriority @default(MEDIUM)
+  tags         String?           @db.VarChar(500)
+  status       PanelTaskStatus   @default(PENDING)
+  completedAt  DateTime?
+  completedBy  String?           @db.VarChar(120)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  delegatedBy  PanelUser              @relation("PanelTaskCreator", fields: [delegatedById], references: [id])
+  assignees    PanelTaskAssignee[]
+  checklist    PanelTaskChecklistItem[]
+  comments     PanelTaskComment[]
+  attachments  PanelTaskAttachment[]
+
+  @@index([status, priority])
+  @@index([delegatedById])
+  @@map("panel_tasks")
+}
+
+model PanelTaskAssignee {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  email     String   @db.VarChar(190)
+  createdAt DateTime @default(now())
+
+  task      PanelTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, email])
+  @@index([email])
+  @@map("panel_task_assignees")
+}
+
+model PanelTaskChecklistItem {
+  id        Int       @id @default(autoincrement())
+  taskId    Int
+  content   String    @db.VarChar(300)
+  done      Boolean   @default(false)
+  doneAt    DateTime?
+  doneBy    String?   @db.VarChar(120)
+  position  Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  task      PanelTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, position])
+  @@map("panel_task_checklist_items")
+}
+
+model PanelTaskComment {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  authorId  Int
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  task      PanelTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    PanelUser @relation(fields: [authorId], references: [id])
+
+  @@index([taskId])
+  @@map("panel_task_comments")
+}
+
+model PanelTaskAttachment {
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  uploaderId  Int
+  filename    String   @db.VarChar(255) // nome original sanitizado (display)
+  storedAs    String   @unique @db.VarChar(255) // UUID + ext no storage
+  mimetype    String   @db.VarChar(120)
+  size        Int
+  createdAt   DateTime @default(now())
+
+  task        PanelTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploader    PanelUser @relation(fields: [uploaderId], references: [id])
+
+  @@index([taskId])
+  @@map("panel_task_attachments")
 }

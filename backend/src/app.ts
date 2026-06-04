@@ -108,6 +108,7 @@ app.use(
       'Cache-Control',
       'Pragma',
       'x-csrf-token',
+      'x-panel-csrf',
       'x-device-id',
       'x-mp-device-id',
       'x-tracking-id',

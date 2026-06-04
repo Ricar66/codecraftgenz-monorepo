@@ -42,6 +42,11 @@ export const createAppSchema = z.object({
     description: z.string().max(4000).optional().nullable(),
     short_description: z.string().max(512).optional().nullable(),
     price: z.union([z.number(), z.string().transform(Number)]).pipe(z.number().min(0)).default(0),
+    original_price: z
+      .union([z.number(), z.string().transform(Number), z.null()])
+      .pipe(z.number().min(0).nullable())
+      .optional()
+      .nullable(),
     category: z.string().max(64).optional().nullable(),
     tags: z.union([z.array(z.string()), z.string()]).optional().nullable(),
     thumb_url: urlOrDataUri.optional().nullable(),
@@ -64,6 +69,11 @@ export const updateAppSchema = z.object({
     description: z.string().max(4000).optional().nullable(),
     short_description: z.string().max(512).optional().nullable(),
     price: z.union([z.number(), z.string().transform(Number)]).pipe(z.number().min(0)).optional(),
+    original_price: z
+      .union([z.number(), z.string().transform(Number), z.null()])
+      .pipe(z.number().min(0).nullable())
+      .optional()
+      .nullable(),
     category: z.string().max(64).optional().nullable(),
     tags: z.union([z.array(z.string()), z.string()]).optional().nullable(),
     thumb_url: urlOrDataUri.optional().nullable(),
