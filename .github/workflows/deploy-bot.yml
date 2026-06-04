@@ -28,6 +28,9 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            LOG=/var/log/deploy-bot.log
+            exec > >(tee -a $LOG) 2>&1
+            echo "===== Deploy Bot $(date -u +%Y-%m-%dT%H:%M:%SZ) ====="
             set -ex
             cd /var/www/codecraft-backend
             git pull origin main

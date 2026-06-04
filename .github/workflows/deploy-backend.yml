@@ -28,12 +28,15 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            # Redireciona toda a saida (stdout + stderr) pra log persistente na VPS.
+            # Permite debug por SSH quando o appleboy/ssh-action trunca output.
+            LOG=/var/log/deploy-backend.log
+            exec > >(tee -a $LOG) 2>&1
+            echo "===== Deploy Backend $(date -u +%Y-%m-%dT%H:%M:%SZ) ====="
             set -ex
             cd /var/www/codecraft-backend
             git pull origin main
             chown -R codecraft:codecraft .
-            # Sub-shells separados pra cada etapa: se quebrar, sabemos onde.
-            # sudo -u ... -i e mais previsivel que runuser em SSH nao-interativo.
             sudo -u codecraft -i bash -c 'cd /var/www/codecraft-backend/backend && npm ci'
             sudo -u codecraft -i bash -c 'cd /var/www/codecraft-backend/backend && npm run build'
             sudo -u codecraft -i bash -c 'pm2 restart codecraft-backend --update-env'
