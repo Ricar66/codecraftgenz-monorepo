@@ -28,13 +28,15 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            set -e
+            set -ex
             cd /var/www/codecraft-backend
             git pull origin main
-            # Garante que os arquivos pertencem ao user `codecraft` (PM2 roda sob ele)
             chown -R codecraft:codecraft .
-            # Build + restart sob o user correto. PM2 do root nao conhece os processos do codecraft.
-            runuser -l codecraft -c 'cd /var/www/codecraft-backend/backend && npm ci && npm run build && pm2 restart codecraft-backend --update-env'
+            # Sub-shells separados pra cada etapa: se quebrar, sabemos onde.
+            # sudo -u ... -i e mais previsivel que runuser em SSH nao-interativo.
+            sudo -u codecraft -i bash -c 'cd /var/www/codecraft-backend/backend && npm ci'
+            sudo -u codecraft -i bash -c 'cd /var/www/codecraft-backend/backend && npm run build'
+            sudo -u codecraft -i bash -c 'pm2 restart codecraft-backend --update-env'
             echo "Backend deploy concluido com sucesso."
 
       - name: Notify Discord
