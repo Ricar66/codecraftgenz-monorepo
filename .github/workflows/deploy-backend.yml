@@ -27,20 +27,10 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            # Redireciona toda a saida (stdout + stderr) pra log persistente na VPS.
-            # Permite debug por SSH quando o appleboy/ssh-action trunca output.
-            LOG=/var/log/deploy-backend.log
-            exec > >(tee -a $LOG) 2>&1
-            echo "===== Deploy Backend $(date -u +%Y-%m-%dT%H:%M:%SZ) ====="
-            set -ex
-            cd /var/www/codecraft-backend
-            git pull origin main
-            chown -R codecraft:codecraft .
-            sudo -u codecraft -i bash -c 'cd /var/www/codecraft-backend/backend && npm ci'
-            sudo -u codecraft -i bash -c 'cd /var/www/codecraft-backend/backend && npm run build'
-            sudo -u codecraft -i bash -c 'pm2 restart codecraft-backend --update-env'
-            echo "Backend deploy concluido com sucesso."
+          # O script real vive em /usr/local/bin/deploy-codecraft-backend.sh na VPS.
+          # Chamamos via `bash` explicito (appleboy/ssh-action default e `sh` que nao
+          # suporta bashisms como `exec > >(tee...)` para redirect de log).
+          script: bash /usr/local/bin/deploy-codecraft-backend.sh
 
       - name: Notify Discord
         if: always()
