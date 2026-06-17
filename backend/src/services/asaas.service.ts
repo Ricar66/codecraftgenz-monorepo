@@ -104,7 +104,25 @@ export const asaasProvider = {
         'GET',
         `/customers?${query}&limit=1`,
       ).catch(() => null);
-      if (found?.data?.[0]?.id) return found.data[0].id;
+      const existingId = found?.data?.[0]?.id;
+      if (existingId) {
+        // Cliente já existe (casado por CPF/email). Atualiza o contato com os dados
+        // da compra ATUAL — assim email/nome/telefone refletem o que o cliente
+        // informou agora (evita NFSe/cadastro com email antigo de compra anterior,
+        // inclusive entre apps que compartilham a mesma conta Asaas).
+        // Não-fatal: se a atualização falhar, segue com o cliente existente.
+        await request('POST', `/customers/${existingId}`, {
+          name: input.name || undefined,
+          email: input.email || undefined,
+          mobilePhone: input.phone || undefined,
+        }).catch((e) =>
+          logger.warn(
+            { customerId: existingId, err: String(e) },
+            'Falha ao atualizar customer Asaas — seguindo com o cadastro existente',
+          ),
+        );
+        return existingId;
+      }
     }
 
     const created = await request<{ id: string }>('POST', '/customers', {
