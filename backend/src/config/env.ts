@@ -48,15 +48,13 @@ const envSchema = z.object({
   // Asaas — gateway padrão do ecossistema Craft (migração de Mercado Pago).
   // Mesma conta/CNPJ do CardCraft. NFSe também consolidada no Asaas.
   ASAAS_API_URL: z.string().default('https://api.asaas.com/v3'),
-  ASAAS_API_KEY: z.string().optional().refine(
-    (val) => process.env.NODE_ENV !== 'production' || (val !== undefined && val.length > 0),
-    { message: 'ASAAS_API_KEY é obrigatório em produção' },
-  ),
+  // NÃO-fatais no boot (de propósito): se ausentes, a API sobe normal e só os
+  // endpoints de pagamento retornam erro claro ("gateway não configurado") +
+  // o webhook é rejeitado. Config de gateway ausente NÃO deve derrubar a API
+  // inteira (login, apps, downloads). Aviso de ausência é logado em runtime.
+  ASAAS_API_KEY: z.string().optional(),
   // Token configurado no painel Asaas → enviado no header `asaas-access-token`.
-  ASAAS_WEBHOOK_TOKEN: z.string().optional().refine(
-    (val) => process.env.NODE_ENV !== 'production' || (val !== undefined && val.length > 0),
-    { message: 'ASAAS_WEBHOOK_TOKEN é obrigatório em produção' },
-  ),
+  ASAAS_WEBHOOK_TOKEN: z.string().optional(),
   // URLs de retorno do checkout hospedado (cliente volta após pagar/cancelar).
   ASAAS_SUCCESS_URL: z.string().optional(),
   ASAAS_FAILURE_URL: z.string().optional(),
@@ -181,3 +179,12 @@ export type Env = z.infer<typeof envSchema>;
 export const isProd = env.NODE_ENV === 'production';
 export const isDev = env.NODE_ENV === 'development';
 export const isTest = env.NODE_ENV === 'test';
+
+// Aviso (não-fatal) se o gateway Asaas não estiver configurado em produção.
+// A API sobe normalmente; pagamentos/webhook ficam indisponíveis até configurar.
+if (isProd && (!env.ASAAS_API_KEY || !env.ASAAS_WEBHOOK_TOKEN)) {
+  console.warn(
+    '⚠️  Asaas NÃO configurado (ASAAS_API_KEY/ASAAS_WEBHOOK_TOKEN ausentes). ' +
+      'API sobe normal, mas pagamentos e webhook ficarão indisponíveis até definir no .env.',
+  );
+}
