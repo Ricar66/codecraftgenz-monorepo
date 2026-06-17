@@ -8,25 +8,6 @@ import { licenseService } from '../services/license.service.js';
 import { sensitiveLimiter } from '../middlewares/rateLimiter.js';
 import { authenticate, authorizeAdmin } from '../middlewares/auth.js';
 
-// Mercado Pago SDK - importação condicional
-let MercadoPagoConfig: unknown;
-let Payment: unknown;
-let mpClient: unknown = null;
-
-(async () => {
-  try {
-    const mp = await import('mercadopago');
-    MercadoPagoConfig = mp.MercadoPagoConfig;
-    Payment = mp.Payment;
-    if (env.MP_ACCESS_TOKEN && MercadoPagoConfig) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mpClient = new (MercadoPagoConfig as any)({ accessToken: env.MP_ACCESS_TOKEN });
-    }
-  } catch {
-    // SDK não disponível
-  }
-})();
-
 const router = Router();
 
 /**
@@ -90,42 +71,41 @@ router.get('/live', (_req, res) => {
 });
 
 /**
- * GET /health/mercadopago
- * Mercado Pago health check
+ * GET /health/asaas
+ * Asaas health check — pinga /myAccount pra validar a API key.
  */
-router.get('/mercadopago', async (_req, res) => {
-  if (!mpClient || !Payment) {
-    sendError(res, 503, 'MP_NOT_CONFIGURED', 'Mercado Pago não está configurado');
+router.get('/asaas', async (_req, res) => {
+  if (!env.ASAAS_API_KEY) {
+    sendError(res, 503, 'ASAAS_NOT_CONFIGURED', 'Asaas não está configurado');
     return;
   }
 
   try {
-    // Testar conexão com Mercado Pago buscando um pagamento inexistente
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const paymentApi = new (Payment as any)(mpClient);
-    await paymentApi.get({ id: '1' }).catch(() => {
-      // Esperado falhar, só estamos testando a conectividade
+    const resp = await fetch(`${env.ASAAS_API_URL}/myAccount`, {
+      headers: { access_token: env.ASAAS_API_KEY, 'User-Agent': 'CodeCraft' },
     });
-
+    if (!resp.ok) {
+      sendError(res, 503, 'ASAAS_CONNECTION_ERROR', `Asaas respondeu HTTP ${resp.status}`);
+      return;
+    }
     sendSuccess(res, {
       status: 'ok',
-      provider: 'mercadopago',
+      provider: 'asaas',
       configured: true,
       timestamp: new Date().toISOString(),
     });
   } catch {
-    sendError(res, 503, 'MP_CONNECTION_ERROR', 'Erro ao conectar com Mercado Pago');
+    sendError(res, 503, 'ASAAS_CONNECTION_ERROR', 'Erro ao conectar com Asaas');
   }
 });
 
 /**
- * GET /health/mp-env
- * Mercado Pago environment variables check (redacted)
+ * GET /health/asaas-env
+ * Asaas environment variables check (redacted)
  */
-router.get('/mp-env', (_req, res) => {
-  const hasAccessToken = !!env.MP_ACCESS_TOKEN;
-  const hasPublicKey = !!env.MP_PUBLIC_KEY;
-  const hasWebhookUrl = !!env.MP_WEBHOOK_URL;
+router.get('/asaas-env', (_req, res) => {
+  const hasApiKey = !!env.ASAAS_API_KEY;
+  const hasWebhookToken = !!env.ASAAS_WEBHOOK_TOKEN;
 
   // Redact tokens for security
   const redactToken = (token: string | undefined) => {
@@ -135,18 +115,18 @@ router.get('/mp-env', (_req, res) => {
   };
 
   sendSuccess(res, {
-    configured: hasAccessToken,
+    configured: hasApiKey,
     environment: isProd ? 'production' : 'development',
-    access_token: redactToken(env.MP_ACCESS_TOKEN),
-    public_key: redactToken(env.MP_PUBLIC_KEY),
-    webhook_url: env.MP_WEBHOOK_URL || null,
-    success_url: env.MP_SUCCESS_URL || null,
-    failure_url: env.MP_FAILURE_URL || null,
-    pending_url: env.MP_PENDING_URL || null,
+    provider: 'asaas',
+    api_url: env.ASAAS_API_URL,
+    api_key: redactToken(env.ASAAS_API_KEY),
+    webhook_token: redactToken(env.ASAAS_WEBHOOK_TOKEN),
+    success_url: env.ASAAS_SUCCESS_URL || null,
+    failure_url: env.ASAAS_FAILURE_URL || null,
+    nfse_service_code: env.ASAAS_NFSE_SERVICE_CODE,
     checks: {
-      access_token: hasAccessToken,
-      public_key: hasPublicKey,
-      webhook_url: hasWebhookUrl,
+      api_key: hasApiKey,
+      webhook_token: hasWebhookToken,
     },
   });
 });

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-// Schema para compra padrão (preferência MP / Wallet)
-// Email é opcional pois no Wallet o usuário loga diretamente no Mercado Pago
+// Schema para compra (checkout hospedado Asaas)
+// Email é obrigatório no Asaas; CPF/endereço alimentam o customer p/ emissão de NFSe.
 export const purchaseSchema = z.object({
   params: z.object({
     id: z.string().transform(Number),
@@ -10,6 +10,12 @@ export const purchaseSchema = z.object({
     email: z.string().email('Email inválido').optional(),
     name: z.string().min(1).optional(),
     paymentMethod: z.string().optional(), // pix, credit_card, etc
+    payment_method_id: z.string().optional(), // compat front (credit_card)
+    // Dados do tomador — necessários p/ NFSe (CPF) e cadastro do customer Asaas
+    identification: z.string().optional(), // CPF/CNPJ (só dígitos)
+    phone: z.string().optional(),
+    zip: z.string().optional(),
+    streetName: z.string().optional(),
     quantity: z.number().int().min(1).max(10).optional().default(1), // Quantidade de licenças (1-10)
   }).optional().default({}),
 });

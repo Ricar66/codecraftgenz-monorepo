@@ -1,12 +1,10 @@
 import type { Request, Response } from 'express';
-import crypto, { timingSafeEqual } from 'crypto';
 import { paymentService } from '../services/payment.service.js';
+import { asaasProvider } from '../services/asaas.service.js';
 import { success, paginated, sendError } from '../utils/response.js';
 import { logger } from '../utils/logger.js';
 import { env } from '../config/env.js';
 import type { PurchaseInput, DirectPaymentInput, UpdatePaymentInput, SearchPaymentsQuery } from '../schemas/payment.schema.js';
-
-const MAX_WEBHOOK_AGE_MS = 5 * 60 * 1000;
 
 export const paymentController = {
   async search(req: Request, res: Response) {
@@ -53,94 +51,32 @@ export const paymentController = {
   },
 
   async webhook(req: Request, res: Response) {
-    // Validar assinatura do Mercado Pago (se configurado)
-    const webhookSecret = env.MP_WEBHOOK_SECRET;
-    if (webhookSecret) {
-      const xSignature = req.headers['x-signature'] as string;
-      const xRequestId = req.headers['x-request-id'] as string;
-
-      if (!xSignature || !xRequestId) {
-        logger.warn({ headers: Object.keys(req.headers) }, 'Webhook sem assinatura - rejeitado');
-        res.status(401).json({ error: 'Assinatura ausente' });
+    // Valida o token do webhook Asaas (header `asaas-access-token`), timing-safe.
+    if (env.ASAAS_WEBHOOK_TOKEN) {
+      const token = req.headers['asaas-access-token'] as string | undefined;
+      if (!asaasProvider.verifyWebhookToken(token)) {
+        logger.warn('Webhook Asaas com token inválido/ausente — rejeitado');
+        res.status(401).json({ error: 'Token inválido' });
         return;
       }
-
-      // Extrair ts e v1 do header x-signature
-      // Formato: ts=xxx,v1=xxx
-      const parts = xSignature.split(',');
-      const tsMatch = parts.find(p => p.startsWith('ts='));
-      const v1Match = parts.find(p => p.startsWith('v1='));
-
-      const ts = tsMatch?.split('=')[1];
-      const v1 = v1Match?.split('=')[1];
-
-      if (!ts || !v1) {
-        logger.warn({ xSignature }, 'Formato de assinatura inválido');
-        res.status(401).json({ error: 'Formato de assinatura inválido' });
-        return;
-      }
-
-      // Validar idade do webhook (proteção contra replay attacks)
-      const tsNum = Number(ts);
-      if (!Number.isFinite(tsNum) || tsNum <= 0) {
-        logger.warn({ ts }, 'Timestamp do webhook inválido');
-        res.status(401).json({ error: 'Timestamp inválido' });
-        return;
-      }
-      const webhookAgeMs = Date.now() - tsNum * 1000;
-      if (Math.abs(webhookAgeMs) > MAX_WEBHOOK_AGE_MS) {
-        logger.warn({ ts, age: webhookAgeMs }, 'Webhook timestamp expirado');
-        res.status(401).json({ error: 'Timestamp expirado' });
-        return;
-      }
-
-      // Montar template para verificação
-      // O template é: id:[data.id];request-id:[x-request-id];ts:[ts];
-      const dataId = req.body?.data?.id;
-      const template = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
-
-      // Gerar HMAC SHA256 com o webhook secret
-      const expectedSignature = crypto
-        .createHmac('sha256', webhookSecret)
-        .update(template)
-        .digest('hex');
-
-      // Comparação timing-safe — protege contra ataques de timing
-      let signatureValid = false;
-      try {
-        const expectedBuf = Buffer.from(expectedSignature, 'hex');
-        const receivedBuf = Buffer.from(v1, 'hex');
-        signatureValid =
-          expectedBuf.length === receivedBuf.length &&
-          expectedBuf.length > 0 &&
-          timingSafeEqual(expectedBuf, receivedBuf);
-      } catch {
-        signatureValid = false;
-      }
-      if (!signatureValid) {
-        logger.warn({ requestId: xRequestId }, 'Assinatura de webhook inválida');
-        res.status(401).json({ error: 'Assinatura inválida' });
-        return;
-      }
-
-      logger.info({ requestId: xRequestId }, 'Assinatura de webhook validada');
     } else if (process.env.NODE_ENV === 'production') {
-      logger.error('MP_WEBHOOK_SECRET não configurado em produção - webhook rejeitado');
-      res.status(500).json({ error: 'Webhook secret não configurado' });
+      logger.error('ASAAS_WEBHOOK_TOKEN não configurado em produção - webhook rejeitado');
+      res.status(500).json({ error: 'Webhook token não configurado' });
       return;
     } else {
-      logger.warn('MP_WEBHOOK_SECRET não configurado - webhook aceito sem validação (dev only)');
+      logger.warn('ASAAS_WEBHOOK_TOKEN não configurado - webhook aceito sem validação (dev only)');
     }
 
-    const { type, data } = req.body;
-    const dataId = data?.id ? String(data.id) : null;
+    // Corpo Asaas: { event: 'PAYMENT_CONFIRMED', payment: { id, status, externalReference, ... } }
+    const event = typeof req.body?.event === 'string' ? req.body.event : null;
+    const chargeId = req.body?.payment?.id ? String(req.body.payment.id) : null;
 
-    if (!dataId) {
+    if (!event || !chargeId) {
       res.status(200).json({ received: true, processed: false });
       return;
     }
 
-    const result = await paymentService.handleWebhook(type, dataId);
+    const result = await paymentService.handleWebhook(event, chargeId);
     res.status(200).json({ received: true, ...result });
   },
 

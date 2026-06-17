@@ -38,14 +38,38 @@ const envSchema = z.object({
   MERCADO_PAGO_PUBLIC_KEY: z.string().optional(),
   MP_PUBLIC_KEY: z.string().optional(),
   MP_ACCESS_TOKEN: z.string().optional(),
-  MP_WEBHOOK_SECRET: z.string().optional().refine(
-    (val) => process.env.NODE_ENV !== 'production' || (val !== undefined && val.length > 0),
-    { message: 'MP_WEBHOOK_SECRET é obrigatório em produção' }
-  ),
+  // MP_WEBHOOK_SECRET não é mais obrigatório — gateway migrado pro Asaas (ver ASAAS_WEBHOOK_TOKEN).
+  MP_WEBHOOK_SECRET: z.string().optional(),
   MP_SUCCESS_URL: z.string().optional(),
   MP_FAILURE_URL: z.string().optional(),
   MP_PENDING_URL: z.string().optional(),
   MP_WEBHOOK_URL: z.string().optional(),
+
+  // Asaas — gateway padrão do ecossistema Craft (migração de Mercado Pago).
+  // Mesma conta/CNPJ do CardCraft. NFSe também consolidada no Asaas.
+  ASAAS_API_URL: z.string().default('https://api.asaas.com/v3'),
+  ASAAS_API_KEY: z.string().optional().refine(
+    (val) => process.env.NODE_ENV !== 'production' || (val !== undefined && val.length > 0),
+    { message: 'ASAAS_API_KEY é obrigatório em produção' },
+  ),
+  // Token configurado no painel Asaas → enviado no header `asaas-access-token`.
+  ASAAS_WEBHOOK_TOKEN: z.string().optional().refine(
+    (val) => process.env.NODE_ENV !== 'production' || (val !== undefined && val.length > 0),
+    { message: 'ASAAS_WEBHOOK_TOKEN é obrigatório em produção' },
+  ),
+  // URLs de retorno do checkout hospedado (cliente volta após pagar/cancelar).
+  ASAAS_SUCCESS_URL: z.string().optional(),
+  ASAAS_FAILURE_URL: z.string().optional(),
+  // NFSe via Asaas (item LC 01.05 = licenciamento de software).
+  ASAAS_NFSE_SERVICE_CODE: z.string().default('01.05'),
+  ASAAS_NFSE_SERVICE_NAME: z
+    .string()
+    .default('Licenciamento ou cessão de direito de uso de programas de computação'),
+  ASAAS_NFSE_OBSERVATIONS: z
+    .string()
+    .default('NFSe emitida automaticamente. Optante pelo Simples Nacional ME EPP.'),
+  ASAAS_NFSE_ISS_RATE: z.coerce.number().default(2),
+  ASAAS_NFSE_DISABLED: z.string().optional(),
 
   // Downloads (disco persistente do Render: /var/downloads)
   DOWNLOADS_DIR: z.string().optional(),

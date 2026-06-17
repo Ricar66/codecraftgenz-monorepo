@@ -1,8 +1,8 @@
 import { paymentRepository } from '../repositories/payment.repository.js';
 import { licenseService } from './license.service.js';
-import { nfseService } from './nfse.service.js';
 import { userService } from './user.service.js';
 import { emailService } from './email.service.js';
+import { asaasProvider } from './asaas.service.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { maskEmail } from '../utils/crypto.js';
@@ -11,56 +11,11 @@ import type { PurchaseInput, DirectPaymentInput, SearchPaymentsQuery, UpdatePaym
 import { prisma } from '../db/prisma.js';
 import crypto from 'crypto';
 
-/**
- * Remove campos PII (CPF, BIN do cartão, dados de identificação) da resposta do
- * Mercado Pago antes de persistir no banco — conformidade LGPD / PCI-DSS.
- */
-function sanitizeMpResponse(response: unknown): unknown {
-  if (!response || typeof response !== 'object') return response;
-  const r = response as Record<string, unknown>;
-  const out: Record<string, unknown> = { ...r };
-
-  // Remover identificação do pagador (CPF/CNPJ)
-  if (out.payer && typeof out.payer === 'object') {
-    const payer = { ...(out.payer as Record<string, unknown>) };
-    delete payer.identification;
-    out.payer = payer;
-  }
-
-  // Remover dados sensíveis do cartão (BIN, dados do titular)
-  if (out.card && typeof out.card === 'object') {
-    const card = { ...(out.card as Record<string, unknown>) };
-    delete card.first_six_digits;
-    delete card.last_four_digits;
-    if (card.cardholder && typeof card.cardholder === 'object') {
-      const ch = { ...(card.cardholder as Record<string, unknown>) };
-      delete ch.identification;
-      card.cardholder = ch;
-    }
-    out.card = card;
-  }
-
-  return out;
+/** Vencimento padrão da cobrança Asaas: hoje + 1 dia (yyyy-MM-dd). */
+function defaultDueDate(): string {
+  return new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 }
 
-// Mercado Pago SDK - importação condicional
-let MercadoPagoConfig: unknown;
-let Preference: unknown;
-let Payment: unknown;
-
-try {
-  const mp = await import('mercadopago');
-  MercadoPagoConfig = mp.MercadoPagoConfig;
-  Preference = mp.Preference;
-  Payment = mp.Payment;
-} catch {
-  logger.warn('Mercado Pago SDK não disponível');
-}
-
-const mpClient = env.MP_ACCESS_TOKEN && MercadoPagoConfig
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ? new (MercadoPagoConfig as any)({ accessToken: env.MP_ACCESS_TOKEN })
-  : null;
 
 export const paymentService = {
   async search(query: SearchPaymentsQuery) {
@@ -104,16 +59,15 @@ export const paymentService = {
         }
       );
 
-      // NFS-e automatica (non-blocking)
+      // NFSe via Asaas (non-blocking) — vinculada à cobrança paga (preferenceId = pay_xxx).
       const app = await prisma.app.findUnique({ where: { id: payment.appId }, select: { name: true } });
-      nfseService.emitirAutomatica({
-        paymentId: payment.id,
-        appId: payment.appId,
-        appName: app?.name || 'App',
-        amount: Number(payment.amount),
-        payerEmail: payment.payerEmail || undefined,
-        payerName: payment.payerName || undefined,
-      });
+      if (Number(payment.amount) > 0 && payment.preferenceId) {
+        asaasProvider.scheduleInvoice({
+          chargeId: payment.preferenceId,
+          value: Number(payment.amount),
+          serviceDescription: `Licença de software - ${app?.name || 'App'}`,
+        });
+      }
     }
 
     return mapPayment(updated);
@@ -209,92 +163,65 @@ export const paymentService = {
       };
     }
 
-    // Criar preferência no Mercado Pago
-    if (!mpClient || !Preference) {
-      logger.error({
-        hasMpClient: !!mpClient,
-        hasPreference: !!Preference,
-        hasAccessToken: !!env.MP_ACCESS_TOKEN,
-      }, 'Mercado Pago não configurado para criar preferência');
-      throw AppError.internal('Mercado Pago não configurado');
+    // Checkout hospedado no Asaas — cliente escolhe PIX ou cartão na página do Asaas.
+    // Asaas exige um customer + email pra emitir a cobrança.
+    if (!data?.email) {
+      throw AppError.badRequest('Email é obrigatório para iniciar o checkout.');
+    }
+    if (!env.ASAAS_API_KEY) {
+      logger.error('Asaas não configurado para criar cobrança (ASAAS_API_KEY ausente)');
+      throw AppError.internal('Gateway de pagamento não configurado');
     }
 
     const paymentId = `PAY-${crypto.randomUUID()}`;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const preference = new (Preference as any)(mpClient);
+    const customerId = await asaasProvider.findOrCreateCustomer({
+      name: data.name,
+      email: data.email,
+      cpfCnpj: data.identification || undefined, // tomador da NFSe
+      phone: data.phone || undefined,
+    });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const preferenceData: Record<string, any> = {
-      items: [
-        {
-          id: String(app.id),
-          title: quantity > 1 ? `${app.name} (${quantity} licenças)` : app.name,
-          description: app.shortDescription || app.description?.substring(0, 200) || '',
-          quantity: quantity, // Quantidade de licenças
-          currency_id: 'BRL',
-          unit_price: unitPrice,
-        },
-      ],
-      back_urls: {
-        success: env.MP_SUCCESS_URL?.replace(':id', String(appId)),
-        failure: env.MP_FAILURE_URL?.replace(':id', String(appId)),
-        pending: env.MP_PENDING_URL?.replace(':id', String(appId)),
-      },
-      auto_return: 'approved',
-      external_reference: paymentId,
-      notification_url: env.MP_WEBHOOK_URL,
-      // Limita parcelamento a 4x
-      payment_methods: {
-        installments: 4, // Máximo de 4 parcelas
-      },
-    };
+    const charge = await asaasProvider.createCharge({
+      customerId,
+      billingType: 'UNDEFINED', // cliente escolhe PIX ou cartão na página hospedada
+      value: totalAmount,
+      dueDate: defaultDueDate(),
+      externalReference: paymentId,
+      description: quantity > 1 ? `${app.name} (${quantity} licenças)` : app.name,
+    });
 
-    // Adiciona payer somente se tiver email (opcional para Wallet)
-    if (data?.email) {
-      preferenceData.payer = {
-        email: data.email,
-        ...(data.name ? { name: data.name } : {}),
-      };
-    }
-
-    const mpResponse = await preference.create({ body: preferenceData });
-
-    logger.info({
-      appId,
-      paymentId,
-      quantity,
-      totalAmount,
-      preferenceId: mpResponse.id,
-      initPoint: mpResponse.init_point ? 'presente' : 'AUSENTE',
-      sandboxInitPoint: mpResponse.sandbox_init_point ? 'presente' : 'AUSENTE',
-    }, 'Preferência MP criada');
+    logger.info(
+      { appId, paymentId, quantity, totalAmount, chargeId: charge.id, hasInvoiceUrl: !!charge.invoiceUrl },
+      'Cobrança Asaas (checkout hospedado) criada',
+    );
 
     await paymentRepository.create({
       id: paymentId,
       appId,
       userId: resolvedUserId,
-      preferenceId: mpResponse.id,
-      status: 'pending',
+      preferenceId: charge.id, // pay_xxx do Asaas (reusa coluna; renomeada na limpeza)
+      status: asaasProvider.mapStatus(charge.status),
       amount: totalAmount,
       unitPrice,
       quantity,
-      installments: 1, // Será atualizado pelo webhook
+      installments: 1,
       currency: 'BRL',
-      payerEmail: data?.email || undefined,
+      payerEmail: data.email,
       payerName: data?.name || undefined,
-      mpResponseJson: JSON.stringify(sanitizeMpResponse(mpResponse)),
+      mpResponseJson: JSON.stringify({ id: charge.id, status: charge.status, invoiceUrl: charge.invoiceUrl }),
     });
 
     return {
       payment_id: paymentId,
-      preference_id: mpResponse.id,
+      preference_id: charge.id,
       status: 'pending',
       quantity,
       total_amount: totalAmount,
       unit_price: unitPrice,
-      init_point: mpResponse.init_point,
-      sandbox_init_point: mpResponse.sandbox_init_point,
+      // Frontend redireciona pra essa URL (página de pagamento hospedada do Asaas).
+      init_point: charge.invoiceUrl,
+      sandbox_init_point: charge.invoiceUrl,
     };
   },
 
@@ -397,33 +324,28 @@ export const paymentService = {
       logger.warn({ err, externalId }, 'Falha ao registrar webhook — seguindo adiante');
     }
 
-    if (type !== 'payment') {
-      return { processed: false, reason: 'Tipo não é payment' };
+    // Asaas: só eventos de pagamento processam. Aqui type=event, dataId=chargeId.
+    if (!type.startsWith('PAYMENT_')) {
+      return { processed: false, reason: 'Evento não é de pagamento' };
     }
 
-    if (!mpClient || !Payment) {
-      logger.warn('Mercado Pago não configurado para processar webhook');
-      return { processed: false, reason: 'MP não configurado' };
+    // Busca a cobrança no Asaas (não confia no corpo do webhook — fonte da verdade é a API).
+    const charge = await asaasProvider.getPayment(dataId);
+    if (!charge) {
+      logger.warn({ chargeId: dataId }, 'Cobrança não encontrada no Asaas');
+      return { processed: false, reason: 'Cobrança não encontrada no Asaas' };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const paymentApi = new (Payment as any)(mpClient);
-    const mpPayment = await paymentApi.get({ id: dataId });
-
-    if (!mpPayment) {
-      return { processed: false, reason: 'Pagamento não encontrado no MP' };
-    }
-
-    const externalRef = mpPayment.external_reference;
-    const payment = await paymentRepository.findById(externalRef);
+    const externalRef = charge.externalReference;
+    const payment = externalRef ? await paymentRepository.findById(externalRef) : null;
 
     if (!payment) {
-      logger.warn({ externalRef }, 'Pagamento não encontrado no banco');
+      logger.warn({ externalRef, chargeId: dataId }, 'Pagamento não encontrado no banco');
       return { processed: false, reason: 'Pagamento não encontrado' };
     }
 
     const oldStatus = payment.status;
-    const newStatus = mapMpStatus(mpPayment.status);
+    const newStatus = asaasProvider.mapStatus(charge.status);
 
     if (oldStatus === newStatus) {
       return { processed: true, reason: 'Status já atualizado' };
@@ -432,14 +354,14 @@ export const paymentService = {
     await paymentRepository.updateStatus(
       payment.id,
       newStatus,
-      JSON.stringify(sanitizeMpResponse(mpPayment))
+      JSON.stringify({ id: charge.id, status: charge.status }),
     );
 
     // Provisionar licença se aprovado (com proteção contra duplicação e erro)
     if (newStatus === 'approved' && oldStatus !== 'approved') {
       let licenseKey: string | undefined;
       try {
-        // Verificar se licença já existe (pode ter sido criada pelo pagamento direto)
+        // Verificar se licença já existe (idempotência)
         const existingLicense = await licenseService.getLicenseKeyByEmail(payment.appId, payment.payerEmail!);
         if (!existingLicense) {
           await licenseService.provisionLicense(
@@ -453,9 +375,9 @@ export const paymentService = {
               sendEmail: false, // Email enviado separadamente abaixo
             }
           );
-          logger.info({ paymentId: payment.id }, 'Licença provisionada via webhook');
+          logger.info({ paymentId: payment.id }, 'Licença provisionada via webhook Asaas');
         } else {
-          logger.info({ paymentId: payment.id }, 'Licença já existe (provisionada pelo pagamento direto)');
+          logger.info({ paymentId: payment.id }, 'Licença já existe — não reprovisiona');
         }
         // Obter chave de licença para o email
         licenseKey = await licenseService.getLicenseKeyByEmail(payment.appId, payment.payerEmail!) || undefined;
@@ -483,26 +405,21 @@ export const paymentService = {
           });
         }
 
-        // NFS-e automatica (non-blocking)
-        const payerDoc = mpPayment?.payer?.identification?.number;
-        const payerDocType = mpPayment?.payer?.identification?.type;
-        nfseService.emitirAutomatica({
-          paymentId: payment.id,
-          appId: payment.appId,
-          appName: app?.name || 'App',
-          amount: Number(payment.amount),
-          payerEmail: payment.payerEmail || undefined,
-          payerName: payment.payerName || undefined,
-          payerDocument: payerDoc || undefined,
-          payerDocumentType: payerDocType || undefined,
-        });
+        // NFSe via Asaas (non-blocking) — consolida emissão no painel Asaas (item LC 01.05).
+        // Vinculada à cobrança paga; Asaas emite e disponibiliza PDF/XML automaticamente.
+        if (Number(payment.amount) > 0) {
+          asaasProvider.scheduleInvoice({
+            chargeId: charge.id,
+            value: Number(payment.amount),
+            serviceDescription: `Licença de software - ${app?.name || 'App'}`,
+          });
+        }
       } catch (emailError) {
         logger.error({ error: emailError, paymentId: payment.id }, 'Erro ao enviar email via webhook');
       }
     }
 
-    // Registro de processamento já foi criado no início (lock otimista) —
-    // não precisamos do upsert aqui.
+    // Registro de processamento já foi criado no início (lock otimista).
 
     return {
       processed: true,
@@ -673,214 +590,80 @@ export const paymentService = {
       };
     }
 
-    // Verificar configuração do Mercado Pago
-    if (!env.MP_ACCESS_TOKEN) {
-      throw AppError.internal('Mercado Pago não configurado');
+    // Asaas: PIX gera QR inline; cartão vai pro checkout hospedado (redirect).
+    // Cobrança one-shot começa 'pending'; provisionamento de licença/email/NFSe
+    // acontece no webhook PAYMENT_CONFIRMED/RECEIVED (não há aprovação síncrona).
+    if (!env.ASAAS_API_KEY) {
+      throw AppError.internal('Gateway de pagamento não configurado');
     }
+    void options; // idempotencyKey/deviceId/trackingId eram do MP — não usados no Asaas
 
     const paymentId = `DIRECT-${crypto.randomUUID()}`;
-    const idempotencyKey = options?.idempotencyKey || `app-${appId}-user-${resolvedUserId || 'anon'}-${Date.now()}`;
+    const isPix = data.payment_method_id === 'pix';
+    const cpfCnpj = data.payer.identification?.number;
 
-    // Determinar processing mode
-    const processingMode = (process.env.MERCADO_PAGO_PROCESSING_MODE || 'aggregator').toLowerCase();
-    const finalProcessingMode = ['aggregator', 'gateway'].includes(processingMode) ? processingMode : 'aggregator';
+    const customerId = await asaasProvider.findOrCreateCustomer({
+      name: payerName,
+      email: payerEmail,
+      cpfCnpj,
+    });
 
-    // Montar items para additional_info
-    const items = [
-      {
-        id: `APP-${appId}`,
-        title: quantity > 1 ? `${app.name} (${quantity} licenças)` : app.name,
-        description: app.shortDescription || app.description?.substring(0, 200) || 'Aplicativo CodeCraft',
-        picture_url: app.thumbUrl || undefined,
-        category_id: 'software',
-        quantity: quantity,
-        unit_price: unitPrice,
-        type: 'software',
-      },
-    ];
-
-    // Montar payload de pagamento
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload: Record<string, any> = {
-      description: data.description || `Pagamento do app ${app.name}${quantity > 1 ? ` (${quantity} licenças)` : ''}`,
-      external_reference: String(paymentId),
-      transaction_amount: totalAmount,
-      payment_method_id: data.payment_method_id,
-      installments: installments,
-      ...(data.issuer_id ? { issuer_id: data.issuer_id } : {}),
-      ...(data.token ? { token: data.token } : {}),
-      payer: {
-        email: payerEmail,
-        ...(data.payer.first_name ? { first_name: data.payer.first_name } : {}),
-        ...(data.payer.last_name ? { last_name: data.payer.last_name } : {}),
-        ...(data.payer.identification?.type && data.payer.identification?.number
-          ? { identification: data.payer.identification }
-          : {}),
-      },
-      additional_info: {
-        ...(data.additional_info || {}),
-        items,
-        payer: {
-          first_name: data.payer.first_name,
-          last_name: data.payer.last_name,
-        },
-        ip_address: options?.ip || '',
-      },
-      binary_mode: data.binary_mode ?? false,
-      processing_mode: finalProcessingMode,
-      capture: data.capture ?? true,
-      metadata: { source: 'codecraft', ...(data.metadata || {}) },
-      notification_url: env.MP_WEBHOOK_URL,
-    };
-
-    // PIX: adicionar expiração (padrão 24h) para geração correta do QR Code
-    if (data.payment_method_id === 'pix') {
-      payload.date_of_expiration = data.date_of_expiration || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    }
-
-    // Chamar API de pagamentos do Mercado Pago
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${env.MP_ACCESS_TOKEN}`,
-      'Content-Type': 'application/json',
-      'X-Idempotency-Key': idempotencyKey,
-    };
-
-    if (options?.deviceId) {
-      headers['X-Device-Id'] = options.deviceId;
-    }
-    if (options?.trackingId) {
-      headers['X-Tracking-Id'] = options.trackingId;
-    }
-
-    let mpResponse;
+    let charge;
     try {
-      const resp = await fetch('https://api.mercadopago.com/v1/payments', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
+      charge = await asaasProvider.createCharge({
+        customerId,
+        billingType: isPix ? 'PIX' : 'CREDIT_CARD',
+        value: totalAmount,
+        dueDate: defaultDueDate(),
+        externalReference: paymentId,
+        description: data.description || `${app.name}${quantity > 1 ? ` (${quantity} licenças)` : ''}`,
       });
-
-      const text = await resp.text();
-      try {
-        mpResponse = JSON.parse(text);
-      } catch {
-        mpResponse = { raw: text };
-      }
-
-      if (!resp.ok) {
-        logger.warn({ status: resp.status, error: mpResponse }, 'Falha ao criar pagamento direto');
-        throw AppError.badRequest(
-          mpResponse?.message || 'Falha ao processar pagamento',
-          { mp_status: resp.status, details: mpResponse }
-        );
-      }
     } catch (error) {
       if (error instanceof AppError) throw error;
-      logger.error({ error }, 'Erro de rede ao criar pagamento direto');
-      throw AppError.internal('Falha de rede ao processar pagamento');
+      logger.error({ error }, 'Erro ao criar cobrança Asaas (pagamento direto)');
+      throw AppError.internal('Falha ao processar pagamento');
     }
 
-    // Extrair dados principais
-    const mpPaymentId = String(mpResponse.id || mpResponse.payment_id || paymentId);
-    const status = mpResponse.status || 'pending';
-    const statusDetail = mpResponse.status_detail || null;
+    const internalStatus = asaasProvider.mapStatus(charge.status);
 
-    // Persistir no banco
+    // PIX: busca QR (copia-e-cola + imagem base64)
+    let pix: { qr_code?: string; qr_code_base64?: string } | undefined;
+    if (isPix) {
+      const qr = await asaasProvider.getPixQrCode(charge.id);
+      if (qr) pix = { qr_code: qr.payload, qr_code_base64: qr.encodedImage };
+    }
+
     await paymentRepository.create({
       id: paymentId,
       appId,
       userId: resolvedUserId,
-      preferenceId: mpPaymentId,
-      status: mapMpStatus(status),
+      preferenceId: charge.id,
+      status: internalStatus,
       amount: totalAmount,
       unitPrice,
       quantity,
       installments,
-      currency: mpResponse.currency_id || 'BRL',
+      currency: 'BRL',
       payerEmail,
       payerName,
-      mpResponseJson: JSON.stringify(sanitizeMpResponse(mpResponse)),
+      mpResponseJson: JSON.stringify({ id: charge.id, status: charge.status, invoiceUrl: charge.invoiceUrl }),
     });
 
-    // Se aprovado, provisionar licenças e enviar email
-    let licenseKey: string | undefined;
-    if (status === 'approved') {
-      try {
-        // Provisiona múltiplas licenças conforme quantity (email enviado separadamente)
-        for (let i = 0; i < quantity; i++) {
-          await licenseService.provisionLicense(appId, payerEmail, resolvedUserId, {
-            customerName: payerName,
-            paymentId,
-            price: unitPrice,
-            sendEmail: false, // Email enviado separadamente abaixo
-          });
-        }
-        logger.info({ paymentId, appId, email: maskEmail(payerEmail), quantity }, 'Licenças provisionadas via pagamento direto');
+    logger.info({ paymentId, appId, email: maskEmail(payerEmail), isPix }, 'Cobrança Asaas (direta) criada');
 
-        // Obter chave de licença para o email
-        licenseKey = await licenseService.getLicenseKeyByEmail(appId, payerEmail) || undefined;
-      } catch (licenseError) {
-        // Log erro mas não falha o pagamento - webhook pode tentar novamente
-        logger.error({ error: licenseError, paymentId, appId }, 'Erro ao provisionar licença (pagamento direto)');
-      }
-
-      // Enviar email de confirmação (pagamento direto aprovado) - ÚNICO email enviado
-      sendPurchaseEmail({
-        appId,
-        appName: app.name,
-        appVersion: app.version,
-        paymentId,
-        payerEmail,
-        payerName,
-        price: totalAmount,
-        licenseKey,
-      });
-
-      // NFS-e automatica (non-blocking)
-      const payerDoc = mpResponse?.payer?.identification?.number;
-      const payerDocType = mpResponse?.payer?.identification?.type;
-      nfseService.emitirAutomatica({
-        paymentId,
-        appId,
-        appName: app.name,
-        amount: totalAmount,
-        payerEmail,
-        payerName,
-        payerDocument: payerDoc || undefined,
-        payerDocumentType: payerDocType || undefined,
-      });
-    }
-
-    // Whitelist de campos do PIX que podem ser expostos ao cliente
-    // (NUNCA retornar mpResponse completo — contém CPF, BIN, last4, etc)
-    const pixData = data.payment_method_id === 'pix'
-      ? {
-          qr_code: mpResponse.point_of_interaction?.transaction_data?.qr_code,
-          qr_code_base64: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64,
-          ticket_url: mpResponse.point_of_interaction?.transaction_data?.ticket_url,
-        }
-      : undefined;
-
-    // Retornar APENAS campos permitidos (whitelist) — sem dados sensíveis do MP
+    // Retorno (whitelist): PIX → QR inline; cartão → URL hospedada pra redirect.
     return {
       success: true,
       payment_id: paymentId,
-      mp_payment_id: mpPaymentId,
-      status,
-      status_detail: statusDetail,
+      mp_payment_id: charge.id,
+      status: internalStatus === 'approved' ? 'approved' : 'pending',
       quantity,
       installments,
       total_amount: totalAmount,
       unit_price: unitPrice,
-      // Dados para PIX (apenas QR/ticket — sem dados pessoais)
-      ...(pixData
-        ? {
-            point_of_interaction: { transaction_data: pixData },
-            qr_code: pixData.qr_code,
-            qr_code_base64: pixData.qr_code_base64,
-            ticket_url: pixData.ticket_url,
-          }
-        : {}),
+      ...(isPix
+        ? { qr_code: pix?.qr_code, qr_code_base64: pix?.qr_code_base64 }
+        : { init_point: charge.invoiceUrl, redirect_url: charge.invoiceUrl }),
     };
   },
 };
@@ -920,21 +703,6 @@ function mapPayment(payment: {
     created_at: payment.createdAt,
     updated_at: payment.updatedAt,
   };
-}
-
-function mapMpStatus(mpStatus: string): string {
-  const statusMap: Record<string, string> = {
-    approved: 'approved',
-    pending: 'pending',
-    authorized: 'pending',
-    in_process: 'pending',
-    in_mediation: 'pending',
-    rejected: 'rejected',
-    cancelled: 'cancelled',
-    refunded: 'refunded',
-    charged_back: 'refunded',
-  };
-  return statusMap[mpStatus] || 'pending';
 }
 
 /**
