@@ -128,6 +128,7 @@ export const asaasProvider = {
     dueDate: string; // yyyy-MM-dd
     externalReference: string; // nosso paymentId interno
     description?: string;
+    callbackUrl?: string; // pra onde o cliente volta após pagar no checkout hospedado
   }): Promise<AsaasCharge> {
     const charge = await request<AsaasCharge>('POST', '/payments', {
       customer: input.customerId,
@@ -136,6 +137,10 @@ export const asaasProvider = {
       dueDate: input.dueDate,
       externalReference: input.externalReference,
       description: input.description,
+      // Retorna o cliente ao site após o pagamento (cartão/checkout hospedado).
+      ...(input.callbackUrl
+        ? { callback: { successUrl: input.callbackUrl, autoRedirect: true } }
+        : {}),
     });
     logger.info(
       { chargeId: charge.id, billingType: input.billingType, ref: input.externalReference },

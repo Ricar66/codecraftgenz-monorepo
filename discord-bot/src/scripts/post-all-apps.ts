@@ -38,7 +38,7 @@ client.once('clientReady', async () => {
       '> Todos os apps abaixo foram desenvolvidos por devs brasileiros e estão disponíveis no marketplace.\n\n' +
       '**Como funciona:**\n' +
       '🔹 Acesse [codecraftgenz.com.br/aplicativos](https://codecraftgenz.com.br/aplicativos)\n' +
-      '🔹 Escolha seu app e pague via **Mercado Pago** (Pix ou cartão)\n' +
+      '🔹 Escolha seu app e pague via **Pix ou cartão**\n' +
       '🔹 Receba o link de download por email instantaneamente\n' +
       '🔹 Todos os apps funcionam **100% offline** após o download\n\n' +
       '📦 **' + APPS.length + ' apps disponíveis** | 💡 Novos apps são postados aqui automaticamente'

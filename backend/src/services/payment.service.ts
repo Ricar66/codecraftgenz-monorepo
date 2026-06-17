@@ -189,6 +189,7 @@ export const paymentService = {
       dueDate: defaultDueDate(),
       externalReference: paymentId,
       description: quantity > 1 ? `${app.name} (${quantity} licenças)` : app.name,
+      callbackUrl: `${env.FRONTEND_URL}/apps/${appId}/sucesso?payment_id=${paymentId}`,
     });
 
     logger.info(
@@ -617,6 +618,8 @@ export const paymentService = {
         dueDate: defaultDueDate(),
         externalReference: paymentId,
         description: data.description || `${app.name}${quantity > 1 ? ` (${quantity} licenças)` : ''}`,
+        // Cartão (checkout hospedado) volta pro site após pagar; PIX é QR inline.
+        callbackUrl: isPix ? undefined : `${env.FRONTEND_URL}/apps/${appId}/sucesso?payment_id=${paymentId}`,
       });
     } catch (error) {
       if (error instanceof AppError) throw error;
