@@ -58,11 +58,14 @@ const envSchema = z.object({
   // URLs de retorno do checkout hospedado (cliente volta após pagar/cancelar).
   ASAAS_SUCCESS_URL: z.string().optional(),
   ASAAS_FAILURE_URL: z.string().optional(),
-  // NFSe via Asaas (item LC 01.05 = licenciamento de software).
-  ASAAS_NFSE_SERVICE_CODE: z.string().default('01.05'),
+  // NFSe via Asaas — PADRONIZADO em 1.04 (Elaboração de programas) para TODOS os apps Craft
+  // (QrCraft/CardCraft/NutriPro/CodeCraft): MESMO CNPJ/conta Asaas, MESMA sequência de RPS,
+  // MESMO serviço. String idêntica à do CardCraft p/ o Asaas reusar o mesmo serviço (não
+  // duplicar no painel). Decisão 2026-06-20.
+  ASAAS_NFSE_SERVICE_CODE: z.string().default('1.04'),
   ASAAS_NFSE_SERVICE_NAME: z
     .string()
-    .default('Licenciamento ou cessão de direito de uso de programas de computação'),
+    .default('Elaboração de programas de computadores, inclusive de jogos eletrônicos'),
   ASAAS_NFSE_OBSERVATIONS: z
     .string()
     .default('NFSe emitida automaticamente. Optante pelo Simples Nacional ME EPP.'),
