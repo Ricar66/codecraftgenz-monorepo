@@ -223,7 +223,8 @@ export const asaasProvider = {
     serviceDescription: string;
   }): Promise<AsaasInvoiceResponse | null> {
     if (env.ASAAS_NFSE_DISABLED === '1') return null;
-    const today = new Date().toISOString().split('T')[0];
+    // Data de Brasília (não UTC) — à noite o UTC vira o dia seguinte e a nota agenda pro dia errado.
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
     try {
       const result = await request<AsaasInvoiceResponse>('POST', '/invoices', {
         payment: input.chargeId,
