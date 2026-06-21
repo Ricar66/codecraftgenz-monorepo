@@ -92,7 +92,21 @@ export const asaasProvider = {
     email?: string;
     cpfCnpj?: string;
     phone?: string;
+    postalCode?: string;
+    address?: string;
+    addressNumber?: string;
+    province?: string;
+    complement?: string;
   }): Promise<string> {
+    // Endereço do tomador — só inclui campos presentes (não sobrescreve com vazio).
+    // A prefeitura exige CEP + logradouro + número + bairro p/ emitir a NFSe.
+    const addr = {
+      ...(input.postalCode ? { postalCode: input.postalCode } : {}),
+      ...(input.address ? { address: input.address } : {}),
+      ...(input.addressNumber ? { addressNumber: input.addressNumber } : {}),
+      ...(input.province ? { province: input.province } : {}),
+      ...(input.complement ? { complement: input.complement } : {}),
+    };
     // Tenta achar por cpfCnpj (mais confiável) ou email.
     const query = input.cpfCnpj
       ? `cpfCnpj=${encodeURIComponent(input.cpfCnpj)}`
@@ -115,6 +129,7 @@ export const asaasProvider = {
           name: input.name || undefined,
           email: input.email || undefined,
           mobilePhone: input.phone || undefined,
+          ...addr,
         }).catch((e) =>
           logger.warn(
             { customerId: existingId, err: String(e) },
@@ -130,6 +145,7 @@ export const asaasProvider = {
       email: input.email,
       cpfCnpj: input.cpfCnpj,
       mobilePhone: input.phone,
+      ...addr,
     });
     return created.id;
   },

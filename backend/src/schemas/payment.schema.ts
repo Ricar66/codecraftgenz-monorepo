@@ -16,6 +16,11 @@ export const purchaseSchema = z.object({
     phone: z.string().optional(),
     zip: z.string().optional(),
     streetName: z.string().optional(),
+    // Endereço completo do tomador — exigido pela prefeitura p/ emitir a NFSe.
+    addressNumber: z.string().optional(),
+    neighborhood: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
     quantity: z.number().int().min(1).max(10).optional().default(1), // Quantidade de licenças (1-10)
   }).optional().default({}),
 });
@@ -46,6 +51,15 @@ export const directPaymentSchema = z.object({
       identification: z.object({
         type: z.enum(['CPF', 'CNPJ']).optional(),
         number: z.string().optional(),
+      }).optional(),
+      // Endereço do tomador — exigido pela prefeitura p/ emitir a NFSe.
+      address: z.object({
+        zip_code: z.string().optional(),
+        street_name: z.string().optional(),
+        number: z.string().optional(),
+        neighborhood: z.string().optional(),
+        city: z.string().optional(),
+        state: z.string().optional(),
       }).optional(),
     }),
 

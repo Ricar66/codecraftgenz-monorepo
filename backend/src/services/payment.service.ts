@@ -232,6 +232,11 @@ export const paymentService = {
       email: data.email,
       cpfCnpj: data.identification || undefined, // tomador da NFSe
       phone: data.phone || undefined,
+      // Endereço do tomador — exigido pela prefeitura p/ a NFSe.
+      postalCode: data.zip || undefined,
+      address: data.streetName || undefined,
+      addressNumber: data.addressNumber || undefined,
+      province: data.neighborhood || undefined,
     });
 
     const charge = await asaasProvider.createCharge({
@@ -666,6 +671,11 @@ export const paymentService = {
       name: payerName,
       email: payerEmail,
       cpfCnpj,
+      // Endereço do tomador (PIX/cartão direto) — exigido pela prefeitura p/ a NFSe.
+      postalCode: data.payer.address?.zip_code || undefined,
+      address: data.payer.address?.street_name || undefined,
+      addressNumber: data.payer.address?.number || undefined,
+      province: data.payer.address?.neighborhood || undefined,
     });
 
     let charge;
