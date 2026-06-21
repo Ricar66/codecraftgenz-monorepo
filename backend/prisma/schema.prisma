@@ -1041,3 +1041,27 @@ model PanelTaskAttachment {
   @@index([taskId])
   @@map("panel_task_attachments")
 }
+
+// =============================================
+// SITE REVIEWS (avaliações públicas do site)
+// =============================================
+// Coletadas via /avaliacao (campanhas WhatsApp, etc).
+// Postam no Discord (canal admin) via webhook ao serem criadas.
+
+model SiteReview {
+  id        Int      @id @default(autoincrement())
+  nome      String?  @db.VarChar(120)
+  email     String?  @db.VarChar(180)
+  tipo      String   @db.VarChar(24)   // elogio | sugestao | reclamacao | duvida
+  nota      Int                          // 1..5
+  mensagem  String   @db.Text
+  ref       String?  @db.VarChar(40)   // wpp, ig, direto, etc
+  ip        String?  @db.VarChar(64)
+  userAgent String?  @db.VarChar(255)
+  lida      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([lida])
+  @@map("site_reviews")
+}

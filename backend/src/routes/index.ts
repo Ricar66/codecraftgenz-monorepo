@@ -34,6 +34,7 @@ import backupRoutes from './backup.js';
 import notificationRoutes from './notifications.js';
 import updatesRoutes from './updates.js';
 import panelRoutes from './panel/index.js';
+import siteReviewRoutes from './siteReviews.js';
 
 const router = Router();
 
@@ -76,5 +77,6 @@ router.use('/api/backup', backupRoutes); // Backup status (admin only)
 router.use('/api/notifications', notificationRoutes); // Push Notifications (PWA)
 router.use('/api/updates', updatesRoutes); // Auto-update manifest universal para apps Tauri/WPF
 router.use('/api/panel', panelRoutes); // Painel interno de tarefas/delegação (auth isolada)
+router.use('/api/avaliacoes', siteReviewRoutes); // Avaliações públicas do site (com Discord webhook admin)
 
 export default router;
