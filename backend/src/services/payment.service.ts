@@ -41,6 +41,31 @@ async function emitNfseOnce(chargeId: string, value: number, serviceDescription:
   await asaasProvider.scheduleInvoice({ chargeId, value, serviceDescription });
 }
 
+/**
+ * Processa eventos INVOICE_* do Asaas. Se a nota falhou na prefeitura (status ERROR),
+ * loga e ALERTA o time por email — antes a emissão era fire-and-forget e a nota travava
+ * em ERROR sem ninguém saber. Requer os eventos INVOICE_* habilitados no webhook do Asaas.
+ */
+async function handleInvoiceEvent(invoiceId: string): Promise<void> {
+  try {
+    const inv = await asaasProvider.getInvoice(invoiceId);
+    if (!inv) return;
+    if (String(inv.status).toUpperCase() !== 'ERROR') return;
+    const rps = [
+      (inv as { rpsSerie?: string }).rpsSerie,
+      (inv as { rpsNumber?: number }).rpsNumber,
+    ]
+      .filter((v) => v !== undefined && v !== null)
+      .join('/');
+    const description = (inv as { statusDescription?: string }).statusDescription;
+    const chargeId = (inv as { payment?: string }).payment || '—';
+    logger.error({ invoiceId, chargeId, rps, description }, '🚨 NFSe em ERRO na prefeitura');
+    await emailService.sendNfseErrorAlert({ chargeId, invoiceId, rps, description });
+  } catch (e) {
+    logger.warn({ invoiceId, err: String(e) }, 'handleInvoiceEvent falhou');
+  }
+}
+
 
 export const paymentService = {
   async search(query: SearchPaymentsQuery) {
@@ -350,6 +375,12 @@ export const paymentService = {
         return { processed: true, reason: 'Webhook duplicado — ignorado', duplicate: true };
       }
       logger.warn({ err, externalId }, 'Falha ao registrar webhook — seguindo adiante');
+    }
+
+    // NFSe: eventos de nota fiscal -> alerta quando a nota erra na prefeitura (antes silencioso).
+    if (type.startsWith('INVOICE_')) {
+      await handleInvoiceEvent(dataId);
+      return { processed: true, reason: 'Evento de nota fiscal processado' };
     }
 
     // Asaas: só eventos de pagamento processam. Aqui type=event, dataId=chargeId.

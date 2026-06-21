@@ -70,6 +70,10 @@ const envSchema = z.object({
     .string()
     .default('NFSe emitida automaticamente. Optante pelo Simples Nacional ME EPP.'),
   ASAAS_NFSE_ISS_RATE: z.coerce.number().default(2),
+  // ID do serviço municipal no Asaas. RP retorna lista de serviços -> a doc do Asaas manda
+  // enviar municipalServiceId (não o code), senão a nota pode sair errada e cria serviço
+  // duplicado no painel. 267581 = "10400 | 1.04 | 6201501" (serviço Padrão). Vazio = usa o code.
+  ASAAS_NFSE_SERVICE_ID: z.string().default('267581'),
   ASAAS_NFSE_DISABLED: z.string().optional(),
 
   // Downloads (disco persistente do Render: /var/downloads)

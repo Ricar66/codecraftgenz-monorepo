@@ -233,7 +233,11 @@ export const asaasProvider = {
         value: input.value,
         deductions: 0,
         effectiveDate: today,
-        municipalServiceCode: env.ASAAS_NFSE_SERVICE_CODE,
+        // RP retorna lista de serviços -> enviar municipalServiceId (doc Asaas), não o code.
+        // Evita nota errada e a criação de serviço duplicado no painel. Code = fallback.
+        ...(env.ASAAS_NFSE_SERVICE_ID
+          ? { municipalServiceId: env.ASAAS_NFSE_SERVICE_ID, municipalServiceCode: null }
+          : { municipalServiceCode: env.ASAAS_NFSE_SERVICE_CODE }),
         municipalServiceName: env.ASAAS_NFSE_SERVICE_NAME,
         taxes: {
           retainIss: false,
@@ -262,6 +266,16 @@ export const asaasProvider = {
       );
     } catch (e) {
       logger.error({ invoiceId, err: String(e) }, 'cancelInvoice Asaas falhou');
+      return null;
+    }
+  },
+
+  /** Consulta uma NFSe (status, número, rps, descrição do erro). Usado p/ alertar quando a nota erra. */
+  async getInvoice(invoiceId: string): Promise<AsaasInvoiceResponse | null> {
+    try {
+      return await request<AsaasInvoiceResponse>('GET', `/invoices/${invoiceId}`);
+    } catch (e) {
+      logger.warn({ invoiceId, err: String(e) }, 'getInvoice Asaas falhou');
       return null;
     }
   },

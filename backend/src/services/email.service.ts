@@ -547,6 +547,43 @@ export const emailService = {
   },
 
   /**
+   * Alerta o time quando uma NFSe falha na prefeitura. Antes a emissão era fire-and-forget
+   * e a nota travava em ERROR sem ninguém perceber — este alerta corrige isso.
+   */
+  async sendNfseErrorAlert(data: {
+    chargeId: string;
+    invoiceId: string;
+    rps?: string;
+    description?: string;
+  }): Promise<boolean> {
+    const transporter = createTeamTransporter();
+    if (!transporter) {
+      logger.warn({ chargeId: data.chargeId }, 'Alerta de NFSe não enviado - credenciais de email ausentes');
+      return false;
+    }
+    try {
+      const teamEmail = env.EMAIL_TEAM_USER || env.EMAIL_USER;
+      const info = await transporter.sendMail({
+        from: `"CodeCraft Gen-Z" <${teamEmail}>`,
+        to: teamEmail,
+        subject: `🚨 NFSe com ERRO na prefeitura — cobrança ${data.chargeId}`,
+        text:
+          `Uma nota fiscal de serviço falhou na prefeitura e precisa de atenção.\n\n` +
+          `Cobrança: ${data.chargeId}\n` +
+          `Invoice (Asaas): ${data.invoiceId}\n` +
+          `RPS: ${data.rps || '—'}\n` +
+          `Motivo: ${data.description || '—'}\n\n` +
+          `Verifique no painel do Asaas. NÃO fique reemitindo manualmente (risco de queimar RPS).`,
+      });
+      logger.info({ messageId: info.messageId, chargeId: data.chargeId }, 'Alerta de NFSe com erro enviado');
+      return true;
+    } catch (error) {
+      logger.error({ error, chargeId: data.chargeId }, 'Falha ao enviar alerta de NFSe com erro');
+      return false;
+    }
+  },
+
+  /**
    * Envia email de boas-vindas ao parceiro
    */
   async sendPartnerWelcomeEmail(data: { to: string; nome: string; empresa?: string }): Promise<boolean> {
