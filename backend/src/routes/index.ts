@@ -21,7 +21,6 @@ import downloadRoutes from './downloads.js';
 import uploadRoutes from './uploads.js';
 import integrationRoutes from './integrations.js';
 import hubRoutes from './hub.js';
-import nfseRoutes from './nfse.js';
 import leadRoutes from './leads.js';
 import analyticsRoutes from './analytics.js';
 import ideiasRoutes from './ideias.js';
@@ -63,7 +62,6 @@ router.use('/api/feedbacks', feedbackRoutes);
 router.use('/api/downloads', downloadRoutes);
 router.use('/api/uploads', uploadRoutes);
 router.use('/api/hub', hubRoutes); // CodeCraft Hub (desktop launcher)
-router.use('/api/nfse', nfseRoutes); // NFS-e (Nota Fiscal de Servico Eletronica)
 router.use('/api/leads', leadRoutes);         // Leads Engine
 router.use('/api/analytics', analyticsRoutes); // Analytics Events
 router.use('/api/ideias', ideiasRoutes); // Ideas / Voting System

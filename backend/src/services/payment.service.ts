@@ -16,6 +16,31 @@ function defaultDueDate(): string {
   return new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 }
 
+/**
+ * Emite NFSe via Asaas garantindo UMA ÚNICA nota por cobrança (idempotência por chargeId).
+ *
+ * Trava otimista em ProcessedWebhook com chave `NFSE:<chargeId>`. Como os eventos Asaas
+ * (PAYMENT_CONFIRMED depois PAYMENT_RECEIVED), as 4 réplicas e o caminho de ativação manual
+ * (updateStatus) compartilham a MESMA chave por cobrança, apenas o primeiro emite — os demais
+ * caem no P2002 e param. Sem isso, dois `POST /v3/invoices` para a mesma cobrança geram dois
+ * números de RPS e a prefeitura rejeita o segundo com "RPS já utilizado". Non-blocking.
+ */
+async function emitNfseOnce(chargeId: string, value: number, serviceDescription: string): Promise<void> {
+  const nfseKey = `NFSE:${chargeId}`;
+  try {
+    await prisma.processedWebhook.create({ data: { externalId: nfseKey, action: 'NFSE_EMIT' } });
+  } catch (err: unknown) {
+    const code = (err as { code?: string })?.code;
+    if (code === 'P2002') {
+      logger.info({ chargeId }, 'NFSe já emitida/em emissão para esta cobrança — ignorando (idempotência)');
+    } else {
+      logger.warn({ err, chargeId }, 'Falha ao travar emissão de NFSe — abortando para evitar nota duplicada');
+    }
+    return; // fail-safe: se não venceu a trava, NÃO emite (evita duplicidade de RPS)
+  }
+  await asaasProvider.scheduleInvoice({ chargeId, value, serviceDescription });
+}
+
 
 export const paymentService = {
   async search(query: SearchPaymentsQuery) {
@@ -60,13 +85,15 @@ export const paymentService = {
       );
 
       // NFSe via Asaas (non-blocking) — vinculada à cobrança paga (preferenceId = pay_xxx).
+      // Idempotente por cobrança (emitNfseOnce): evita nota dupla mesmo combinando este
+      // caminho (ativação manual do admin) com o webhook.
       const app = await prisma.app.findUnique({ where: { id: payment.appId }, select: { name: true } });
       if (Number(payment.amount) > 0 && payment.preferenceId) {
-        asaasProvider.scheduleInvoice({
-          chargeId: payment.preferenceId,
-          value: Number(payment.amount),
-          serviceDescription: `Licença de software - ${app?.name || 'App'}`,
-        });
+        void emitNfseOnce(
+          payment.preferenceId,
+          Number(payment.amount),
+          `Licença de software - ${app?.name || 'App'}`,
+        );
       }
     }
 
@@ -406,14 +433,15 @@ export const paymentService = {
           });
         }
 
-        // NFSe via Asaas (non-blocking) — consolida emissão no painel Asaas (item LC 01.05).
-        // Vinculada à cobrança paga; Asaas emite e disponibiliza PDF/XML automaticamente.
+        // NFSe via Asaas (non-blocking) — consolida emissão no painel Asaas.
+        // Idempotente por cobrança (emitNfseOnce): só UMA nota por chargeId, mesmo com
+        // eventos Asaas distintos (PAYMENT_CONFIRMED depois PAYMENT_RECEIVED) ou 4 réplicas.
         if (Number(payment.amount) > 0) {
-          asaasProvider.scheduleInvoice({
-            chargeId: charge.id,
-            value: Number(payment.amount),
-            serviceDescription: `Licença de software - ${app?.name || 'App'}`,
-          });
+          void emitNfseOnce(
+            charge.id,
+            Number(payment.amount),
+            `Licença de software - ${app?.name || 'App'}`,
+          );
         }
       } catch (emailError) {
         logger.error({ error: emailError, paymentId: payment.id }, 'Erro ao enviar email via webhook');
