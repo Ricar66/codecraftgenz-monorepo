@@ -107,6 +107,16 @@ export const asaasProvider = {
       ...(input.province ? { province: input.province } : {}),
       ...(input.complement ? { complement: input.complement } : {}),
     };
+    // Heurística: NUNCA usar email como nome do cliente — ele vira "Razão Social"
+    // na NFSe. Se input.name vier preenchido e não for um email, usa. Caso contrário,
+    // fallback pro prefixo do email (algo melhor que o email cru).
+    const sanitizedName = (() => {
+      const candidate = (input.name || '').trim();
+      if (candidate && !candidate.includes('@')) return candidate;
+      const prefix = (input.email || '').split('@')[0];
+      return prefix ? prefix.charAt(0).toUpperCase() + prefix.slice(1) : 'Cliente CodeCraft';
+    })();
+
     // Tenta achar por cpfCnpj (mais confiável) ou email.
     const query = input.cpfCnpj
       ? `cpfCnpj=${encodeURIComponent(input.cpfCnpj)}`
@@ -114,34 +124,40 @@ export const asaasProvider = {
         ? `email=${encodeURIComponent(input.email)}`
         : '';
     if (query) {
-      const found = await request<{ data?: Array<{ id: string }> }>(
+      const found = await request<{ data?: Array<{ id: string; name?: string }> }>(
         'GET',
         `/customers?${query}&limit=1`,
       ).catch(() => null);
-      const existingId = found?.data?.[0]?.id;
-      if (existingId) {
+      const existing = found?.data?.[0];
+      if (existing?.id) {
         // Cliente já existe (casado por CPF/email). Atualiza o contato com os dados
         // da compra ATUAL — assim email/nome/telefone refletem o que o cliente
         // informou agora (evita NFSe/cadastro com email antigo de compra anterior,
         // inclusive entre apps que compartilham a mesma conta Asaas).
-        // Não-fatal: se a atualização falhar, segue com o cliente existente.
-        await request('POST', `/customers/${existingId}`, {
-          name: input.name || undefined,
+        //
+        // OVERRIDE FORÇADO de nome: se o cadastro antigo tem email como name (bug
+        // de versões anteriores que faziam `name || email`), corrige sempre que a
+        // compra atual traz um nome real. Asaas usa customer.name como Razão Social
+        // na NFSe — sem essa correção a nota sai com o email como razão social.
+        const currentLooksLikeEmail = (existing.name || '').includes('@');
+        const shouldForceName = currentLooksLikeEmail || !!input.name?.trim();
+        await request('POST', `/customers/${existing.id}`, {
+          ...(shouldForceName ? { name: sanitizedName } : {}),
           email: input.email || undefined,
           mobilePhone: input.phone || undefined,
           ...addr,
         }).catch((e) =>
           logger.warn(
-            { customerId: existingId, err: String(e) },
+            { customerId: existing.id, err: String(e) },
             'Falha ao atualizar customer Asaas — seguindo com o cadastro existente',
           ),
         );
-        return existingId;
+        return existing.id;
       }
     }
 
     const created = await request<{ id: string }>('POST', '/customers', {
-      name: input.name || input.email || 'Cliente CodeCraft',
+      name: sanitizedName,
       email: input.email,
       cpfCnpj: input.cpfCnpj,
       mobilePhone: input.phone,
