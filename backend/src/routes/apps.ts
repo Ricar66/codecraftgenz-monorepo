@@ -4,7 +4,7 @@ import { prisma } from '../db/prisma.js';
 import { appController } from '../controllers/app.controller.js';
 import { paymentController } from '../controllers/payment.controller.js';
 import { licenseController } from '../controllers/license.controller.js';
-import { authenticate, authorizeAdmin } from '../middlewares/auth.js';
+import { authenticate, authorizeAdmin, optionalAuth } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validate.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
 import {
@@ -118,10 +118,11 @@ router.get('/webhook', appController.webhookVerify);
 // ROTAS DE PAGAMENTO (compatibilidade com server.js)
 // =============================================
 
-// Compra via preferência MP (redireciona para checkout)
+// Compra (checkout hospedado Asaas). Público: visitante anônimo precisa conseguir comprar.
+// optionalAuth = se logado, vincula a compra ao usuário; se anônimo, segue com dados do form.
 router.post(
   '/:id/purchase',
-  authenticate,
+  optionalAuth,
   rateLimiter.sensitive,
   validate(purchaseSchema),
   paymentController.purchase
@@ -137,10 +138,10 @@ router.get(
 // Último pagamento do app (admin only — expõe dados de payment)
 router.get('/:id/payment/last', authenticate, authorizeAdmin, paymentController.getLastByApp);
 
-// Pagamento direto (cartão, PIX, boleto - sem redirecionamento)
+// Pagamento direto (cartão, PIX, boleto - sem redirecionamento). Público (compra anônima).
 router.post(
   '/:id/payment/direct',
-  authenticate,
+  optionalAuth,
   rateLimiter.sensitive,
   validate(directPaymentSchema),
   paymentController.directPayment
