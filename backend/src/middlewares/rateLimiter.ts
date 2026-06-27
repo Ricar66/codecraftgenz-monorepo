@@ -17,19 +17,29 @@ export const defaultLimiter = rateLimit({
 
 /**
  * Strict rate limiter for authentication routes
- * 10 requests per 15 minutes
+ * 30 tentativas FALHAS por (IP + email) em 15min.
+ *
+ * Por que 30 (e não 10):
+ * - Empresas geralmente estão atrás de um único IP NAT (escritório compartilhado),
+ *   e o login do site é multi-pessoa. Limite muito baixo bloqueia o time inteiro
+ *   quando uma pessoa erra a senha 2-3 vezes.
+ * - skipSuccessfulRequests: true → logins corretos NÃO consomem quota.
+ *   Brute-force real só ganha bloqueio se errar. 30 erros em 15min ainda é
+ *   forte proteção contra ataque automatizado.
+ * - Email normalizado (lowercase + trim) evita criar buckets duplicados por
+ *   variação de capitalização.
  */
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
   handler: (_req, res) => {
     sendError(res, 429, 'TOO_MANY_REQUESTS', 'Muitas tentativas de login, tente novamente em 15 minutos');
   },
   keyGenerator: (req) => {
-    // Use IP + email for login attempts
-    const email = req.body?.email || '';
+    const email = String(req.body?.email || '').trim().toLowerCase();
     return `${req.ip}-${email}`;
   },
 });
