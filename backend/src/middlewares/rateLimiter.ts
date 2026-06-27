@@ -31,7 +31,7 @@ export const defaultLimiter = rateLimit({
  */
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 30,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
