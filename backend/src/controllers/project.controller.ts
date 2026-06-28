@@ -39,11 +39,4 @@ export const projectController = {
     await projectService.delete(id);
     res.status(204).send();
   },
-
-  async assignMentor(req: Request, res: Response) {
-    const projectId = Number(req.params.id);
-    const { mentor_id } = req.validated?.body as { mentor_id: number };
-    const project = await projectService.assignMentor(projectId, mentor_id);
-    res.json(success(project));
-  },
 };

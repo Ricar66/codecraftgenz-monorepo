@@ -219,18 +219,6 @@ export const authService = {
         onboardingCompleted: true,
         interestsJson: true,
         createdAt: true,
-        crafter: {
-          select: {
-            id: true,
-            nome: true,
-            bio: true,
-            skillsJson: true,
-            pontos: true,
-            githubUrl: true,
-            linkedinUrl: true,
-            active: true,
-          },
-        },
       },
     });
 
@@ -238,28 +226,9 @@ export const authService = {
       throw AppError.notFound('Usuário');
     }
 
-    // Parse interests and crafter skills
     let interests: { area?: string; skills?: string[] } = {};
     if (user.interestsJson) {
       try { interests = JSON.parse(user.interestsJson); } catch { interests = {}; }
-    }
-
-    let crafterProfile = null;
-    if (user.crafter) {
-      let skills: string[] = [];
-      if (user.crafter.skillsJson) {
-        try { skills = JSON.parse(user.crafter.skillsJson); } catch { skills = []; }
-      }
-      crafterProfile = {
-        id: user.crafter.id,
-        nome: user.crafter.nome,
-        bio: user.crafter.bio,
-        skills,
-        pontos: user.crafter.pontos,
-        github_url: user.crafter.githubUrl,
-        linkedin_url: user.crafter.linkedinUrl,
-        active: user.crafter.active,
-      };
     }
 
     return {
@@ -271,7 +240,6 @@ export const authService = {
       mfaEnabled: user.mfaEnabled,
       onboardingCompleted: user.onboardingCompleted,
       interests,
-      crafter: crafterProfile,
       createdAt: user.createdAt,
     };
   },
@@ -458,8 +426,6 @@ export const authService = {
         payments: true,
         licenses: true,
         feedbacks: true,
-        crafter: true,
-        challengeSubmissions: true,
         discordLink: true,
         emailDrips: true,
         pushSubscriptions: true,

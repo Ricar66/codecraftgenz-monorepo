@@ -131,21 +131,13 @@ export async function handleCallback(code: string, state: string) {
     },
   });
 
-  // Verificar se usuário é Crafter e notificar o bot
-  const crafter = await prisma.crafter.findFirst({ where: { userId } });
-  if (crafter) {
-    await notifyBot('/hook/crafter-role', { discordId: discordUser.id }).catch(e =>
-      logger.warn({ err: (e as Error).message }, 'Falha ao notificar bot para cargo Crafter')
-    );
-  }
-
   return { discordUsername: discordUser.username, discordId: discordUser.id };
 }
 
 export async function getStatus(userId: number) {
   const link = await prisma.discordLink.findUnique({
     where: { userId },
-    select: { discordUsername: true, discordAvatar: true, discordId: true, crafterRoleAssigned: true, linkedAt: true },
+    select: { discordUsername: true, discordAvatar: true, discordId: true, linkedAt: true },
   });
   return link;
 }
@@ -176,8 +168,3 @@ export async function notifyBot(path: string, payload: Record<string, unknown>) 
   return res.json();
 }
 
-export async function triggerCrafterRole(userId: number) {
-  const link = await prisma.discordLink.findUnique({ where: { userId } });
-  if (!link || link.crafterRoleAssigned) return;
-  await notifyBot('/hook/crafter-role', { discordId: link.discordId });
-}

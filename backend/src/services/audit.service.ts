@@ -14,14 +14,13 @@ function methodToAction(method: string): string {
 }
 
 const ENTITY_MAP: Record<string, string> = {
-  apps: 'App', projetos: 'Project', desafios: 'Challenge',
+  apps: 'App', projetos: 'Project',
   auth: 'Auth', users: 'User', feedbacks: 'Feedback',
   proposals: 'Proposal', uploads: 'Upload', payments: 'Payment',
-  licenses: 'License', inscricoes: 'Inscricao', crafters: 'Crafter',
-  equipes: 'Equipe', mentores: 'Mentor', ranking: 'Ranking',
+  licenses: 'License',
   financas: 'Finance', config: 'Config', nfse: 'NFSe',
   leads: 'Lead', dashboard: 'Dashboard', downloads: 'Download',
-  hub: 'Hub',
+  hub: 'Hub', avaliacoes: 'SiteReview', parcerias: 'Parceria',
 };
 
 function extractEntity(path: string): string {

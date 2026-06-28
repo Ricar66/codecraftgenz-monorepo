@@ -3,17 +3,12 @@ import crypto from 'crypto';
 import { TextChannel } from 'discord.js';
 import { client } from '../client';
 import { env } from '../config/env';
-import { assignCrafterRole } from '../services/discord-roles.service';
-import { challengeEmbed, appEmbed } from '../services/embeds.service';
+import { appEmbed } from '../services/embeds.service';
 import { prisma } from '../db/prisma';
 import { logger } from '../utils/logger';
 import { runNewsJob } from '../jobs/news.job';
 import { runVagasJob } from '../jobs/vagas.job';
-import { runRankingJob } from '../jobs/ranking.job';
-import { runPromotionJob } from '../jobs/promotion.job';
-import { runDesafioSemanalJob } from '../jobs/desafio-semanal.job';
 import { runEnqueteJob } from '../jobs/enquete.job';
-import { runWeeklySnapshotJob } from '../jobs/snapshot.job';
 
 export function createHookApp() {
   const app = express();
@@ -42,37 +37,6 @@ export function createHookApp() {
     res.json({ status: 'ok', uptime: process.uptime(), ping: client.ws.ping });
   });
 
-  // Atribuir cargo Crafter
-  app.post('/hook/crafter-role', async (req, res) => {
-    const { discordId } = req.body;
-    if (!discordId) return res.status(400).json({ error: 'discordId required' });
-    const ok = await assignCrafterRole(discordId);
-    res.json({ success: ok });
-  });
-
-  // Novo desafio
-  app.post('/hook/new-challenge', async (req, res) => {
-    try {
-      const channelId = env.DISCORD_CHANNEL_DESAFIOS;
-      if (!channelId) return res.json({ success: false, reason: 'channel not configured' });
-
-      const channel = client.channels.cache.get(channelId) as TextChannel | undefined;
-      if (!channel) return res.json({ success: false, reason: 'channel not found' });
-
-      const embed = challengeEmbed(req.body);
-      const msg = await channel.send({ embeds: [embed] });
-
-      await prisma.botLog.create({
-        data: { action: 'challenge_posted', status: 'ok', channelId, messageId: msg.id, details: JSON.stringify(req.body) },
-      });
-
-      res.json({ success: true });
-    } catch (err: any) {
-      logger.error({ err }, 'Erro ao postar desafio');
-      res.status(500).json({ error: err.message });
-    }
-  });
-
   // Novo app
   app.post('/hook/new-app', async (req, res) => {
     try {
@@ -96,7 +60,7 @@ export function createHookApp() {
     }
   });
 
-  // Triggers manuais
+  // Triggers manuais (jobs ativos)
   app.post('/hook/trigger/news', async (_req, res) => {
     runNewsJob().catch(e => logger.error(e));
     res.json({ success: true, message: 'Job de notícias iniciado' });
@@ -107,29 +71,9 @@ export function createHookApp() {
     res.json({ success: true, message: 'Job de vagas iniciado' });
   });
 
-  app.post('/hook/trigger/ranking', async (_req, res) => {
-    runRankingJob().catch(e => logger.error(e));
-    res.json({ success: true, message: 'Job de ranking iniciado' });
-  });
-
-  app.post('/hook/trigger/promotion', async (_req, res) => {
-    runPromotionJob().catch(e => logger.error(e));
-    res.json({ success: true, message: 'Job de promoção iniciado' });
-  });
-
-  app.post('/hook/trigger/desafio-semanal', async (_req, res) => {
-    runDesafioSemanalJob().catch(e => logger.error(e));
-    res.json({ success: true, message: 'Job de desafio semanal iniciado' });
-  });
-
   app.post('/hook/trigger/enquete', async (_req, res) => {
     runEnqueteJob().catch(e => logger.error(e));
     res.json({ success: true, message: 'Job de enquete iniciado' });
-  });
-
-  app.post('/hook/trigger/snapshot', async (_req, res) => {
-    runWeeklySnapshotJob().catch(e => logger.error(e));
-    res.json({ success: true, message: 'Job de snapshot iniciado' });
   });
 
   return app;

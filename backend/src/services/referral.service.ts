@@ -105,19 +105,16 @@ export const referralService = {
     if (existing) return { ok: false, reason: 'already_referred' };
 
     try {
-      await prisma.$transaction([
-        prisma.referral.create({
-          data: {
-            referrerId: referrer.id,
-            referredId: newUserId,
-            points: REFERRAL_POINTS,
-          },
-        }),
-        prisma.user.update({
-          where: { id: referrer.id },
-          data: { points: { increment: REFERRAL_POINTS } },
-        }),
-      ]);
+      await prisma.referral.create({
+        data: {
+          referrerId: referrer.id,
+          referredId: newUserId,
+          points: REFERRAL_POINTS,
+        },
+      });
+      // NOTA: User.points foi removido junto com a vertical Crafter (2026-06-27).
+      // Pontos por indicação ainda são gravados na tabela Referral para histórico
+      // — quando reativar gamificação, restaurar o User.update com increment.
 
       logger.info(
         { referrerId: referrer.id, referredId: newUserId, points: REFERRAL_POINTS },

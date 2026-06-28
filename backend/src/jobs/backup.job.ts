@@ -44,7 +44,7 @@ export async function runBackupJob(): Promise<void> {
   try {
     ensureBackupsDir();
 
-    const [users, apps, desafios, memberScores, botConfigs] = await Promise.all([
+    const [users, apps, memberScores, botConfigs] = await Promise.all([
       prisma.user.findMany({
         select: {
           id: true,
@@ -59,7 +59,6 @@ export async function runBackupJob(): Promise<void> {
         },
       }),
       prisma.app.findMany(),
-      prisma.desafio.findMany(),
       prisma.memberScore.findMany(),
       prisma.botConfig.findMany(),
     ]);
@@ -69,7 +68,6 @@ export async function runBackupJob(): Promise<void> {
       tables: {
         users,
         apps,
-        desafios,
         memberScores,
         botConfigs,
       },
@@ -87,7 +85,6 @@ export async function runBackupJob(): Promise<void> {
         counts: {
           users: users.length,
           apps: apps.length,
-          desafios: desafios.length,
           memberScores: memberScores.length,
           botConfigs: botConfigs.length,
         },

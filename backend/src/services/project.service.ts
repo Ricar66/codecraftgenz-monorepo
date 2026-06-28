@@ -44,16 +44,6 @@ export const projectService = {
 
     await projectRepository.delete(id);
   },
-
-  async assignMentor(projectId: number, mentorId: number) {
-    const exists = await projectRepository.exists(projectId);
-    if (!exists) {
-      throw AppError.notFound('Projeto');
-    }
-
-    const project = await projectRepository.assignMentor(projectId, mentorId);
-    return mapProject(project);
-  },
 };
 
 function mapProject(project: {
@@ -67,12 +57,9 @@ function mapProject(project: {
   dataInicio: string | null;
   thumbUrl: string | null;
   tagsJson?: string | null;
-  mentorId: number | null;
   createdAt: Date;
   updatedAt: Date;
-  mentor?: { id: number; nome: string; especialidade?: string | null; bio?: string | null } | null;
 }) {
-  // Parse tecnologias do JSON
   let tecnologias: string[] = [];
   if (project.tagsJson) {
     try {
@@ -92,16 +79,7 @@ function mapProject(project: {
     progresso: project.progresso,
     data_inicio: project.dataInicio,
     thumb_url: project.thumbUrl,
-    tecnologias: tecnologias,
-    mentor_id: project.mentorId,
-    mentor: project.mentor
-      ? {
-          id: project.mentor.id,
-          nome: project.mentor.nome,
-          especialidade: project.mentor.especialidade,
-          bio: project.mentor.bio,
-        }
-      : null,
+    tecnologias,
     created_at: project.createdAt,
     updated_at: project.updatedAt,
   };

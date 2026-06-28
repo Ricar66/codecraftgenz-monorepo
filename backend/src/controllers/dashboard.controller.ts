@@ -24,7 +24,6 @@ export const getStats = async (req: Request, res: Response) => {
       pendingPayments,
       paymentsCount,
       usersCount,
-      craftersCount,
       projectsCount,
       appsCount,
     ] = await Promise.all([
@@ -79,8 +78,6 @@ export const getStats = async (req: Request, res: Response) => {
       }),
       // Users count
       prisma.user.count(),
-      // Crafters count
-      prisma.crafter.count(),
       // Projects count
       prisma.project.count(),
       // Apps count
@@ -188,7 +185,6 @@ export const getStats = async (req: Request, res: Response) => {
         },
         users: {
           total: usersCount,
-          crafters: craftersCount,
         },
         projects: {
           total: projectsCount,

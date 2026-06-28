@@ -15,21 +15,16 @@ async function sendOnboardingDM(member: GuildMember) {
       .setColor(CYAN_COLOR)
       .setTitle('👋 Bem-vindo(a) à CodeCraft Gen-Z!')
       .setDescription(
-        'Aqui está como começar e ganhar seus primeiros pontos:\n\n' +
-        '📋 **PASSO 1 — Se apresente**\n' +
-        '→ Poste em **#apresentações** e ganhe **+3 pts**\n\n' +
-        '💬 **PASSO 2 — Participe da comunidade**\n' +
-        '→ Converse em **#geral** (+1 pt por mensagem)\n' +
-        '→ Ajude em **#code-review** e **#tire-suas-duvidas** (+3 pts cada)\n\n' +
-        '🏆 **PASSO 3 — Resolva desafios**\n' +
-        '→ Acesse **codecraftgenz.com.br/desafios**\n\n' +
-        '🚀 **PASSO 4 — Acesse a plataforma**\n' +
-        '→ Crie sua conta em **codecraftgenz.com.br**\n' +
-        '→ Conecte seu Discord no perfil para vincular pontuação\n\n' +
-        '🎯 **META**: 100 pts = cargo **Crafter** | 500 pts = **Crafter Elite**\n\n' +
-        'Use `/meu-rank` para ver sua posição a qualquer momento!'
+        'Que bom ter você por aqui! Aproveite o servidor:\n\n' +
+        '📋 **Se apresente** em **#apresentações**\n' +
+        '💬 **Converse** em **#geral**\n' +
+        '🆘 **Tire dúvidas** em **#tire-suas-duvidas**\n' +
+        '🔍 **Code review** em **#code-review**\n' +
+        '📰 **Acompanhe novidades** em **#noticias-tech**\n' +
+        '💼 **Vagas e freelas** em **#vagas-e-freelas**\n\n' +
+        '🌐 Conheça também nosso site: **codecraftgenz.com.br**'
       )
-      .setFooter({ text: 'CodeCraft Gen-Z • Devs que evoluem juntos' })
+      .setFooter({ text: 'CodeCraft Gen-Z • Software de verdade, do briefing ao deploy' })
       .setTimestamp();
 
     await member.send({ embeds: [embed] });

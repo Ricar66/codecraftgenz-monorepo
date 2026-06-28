@@ -4,11 +4,6 @@ import type { CreateProjectInput, UpdateProjectInput } from '../schemas/project.
 export const projectRepository = {
   async findAll() {
     return prisma.project.findMany({
-      include: {
-        mentor: {
-          select: { id: true, nome: true, especialidade: true },
-        },
-      },
       orderBy: { createdAt: 'desc' },
     });
   },
@@ -16,22 +11,12 @@ export const projectRepository = {
   async findById(id: number) {
     return prisma.project.findUnique({
       where: { id },
-      include: {
-        mentor: {
-          select: { id: true, nome: true, especialidade: true, bio: true },
-        },
-      },
     });
   },
 
   async findByStatus(status: string) {
     return prisma.project.findMany({
       where: { status },
-      include: {
-        mentor: {
-          select: { id: true, nome: true },
-        },
-      },
       orderBy: { createdAt: 'desc' },
     });
   },
@@ -48,7 +33,6 @@ export const projectRepository = {
         dataInicio: data.data_inicio,
         thumbUrl: data.thumb_url,
         tagsJson: data.tecnologias ? JSON.stringify(data.tecnologias) : null,
-        mentorId: data.mentor_id,
       },
     });
   },
@@ -66,7 +50,6 @@ export const projectRepository = {
         dataInicio: data.data_inicio,
         thumbUrl: data.thumb_url,
         tagsJson: data.tecnologias ? JSON.stringify(data.tecnologias) : undefined,
-        mentorId: data.mentor_id,
       },
     });
   },
@@ -74,13 +57,6 @@ export const projectRepository = {
   async delete(id: number) {
     return prisma.project.delete({
       where: { id },
-    });
-  },
-
-  async assignMentor(projectId: number, mentorId: number) {
-    return prisma.project.update({
-      where: { id: projectId },
-      data: { mentorId },
     });
   },
 

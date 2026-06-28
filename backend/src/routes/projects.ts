@@ -7,7 +7,6 @@ import {
   createProjectSchema,
   updateProjectSchema,
   projectIdSchema,
-  assignMentorSchema,
 } from '../schemas/project.schema.js';
 
 const router = Router();
@@ -40,14 +39,6 @@ router.delete(
   authorizeAdmin,
   validate(projectIdSchema),
   projectController.delete
-);
-
-router.post(
-  '/:id/mentor',
-  authenticate,
-  authorizeAdmin,
-  validate(assignMentorSchema),
-  projectController.assignMentor
 );
 
 export default router;
