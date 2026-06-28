@@ -12,22 +12,27 @@ import { onVoiceStateUpdate } from './events/onVoiceStateUpdate';
 import { createHookApp } from './hooks/webhook';
 import { runNewsJob } from './jobs/news.job';
 import { runVagasJob } from './jobs/vagas.job';
-import { runRankingJob } from './jobs/ranking.job';
-import { runPromotionJob } from './jobs/promotion.job';
-import { runDesafioSemanalJob } from './jobs/desafio-semanal.job';
 import { runEnqueteJob } from './jobs/enquete.job';
-import { runWeeklySnapshotJob } from './jobs/snapshot.job';
 import { runTutorialJob } from './jobs/tutorial.job';
-import * as rankCommand from './commands/rank';
-import * as desafiosCommand from './commands/desafios';
-import * as meuRankCommand from './commands/meu-rank';
 import * as vagasCmdCommand from './commands/vagas-cmd';
 
+// CRAFTERS · arquivado em 2026-06-27 (docs/CRAFTERS-ARCHIVE.md)
+// Os arquivos abaixo ficam no repo para reativação futura.
+// Pra reativar: descomentar imports + registros de commands + cron.schedule.
+// import { runRankingJob } from './jobs/ranking.job';
+// import { runPromotionJob } from './jobs/promotion.job';
+// import { runDesafioSemanalJob } from './jobs/desafio-semanal.job';
+// import { runWeeklySnapshotJob } from './jobs/snapshot.job';
+// import * as rankCommand from './commands/rank';
+// import * as desafiosCommand from './commands/desafios';
+// import * as meuRankCommand from './commands/meu-rank';
+
 // Registrar comandos no client
-(client as any).commands.set(rankCommand.data.name, rankCommand);
-(client as any).commands.set(desafiosCommand.data.name, desafiosCommand);
-(client as any).commands.set(meuRankCommand.data.name, meuRankCommand);
 (client as any).commands.set(vagasCmdCommand.data.name, vagasCmdCommand);
+// CRAFTERS: comandos arquivados
+// (client as any).commands.set(rankCommand.data.name, rankCommand);
+// (client as any).commands.set(desafiosCommand.data.name, desafiosCommand);
+// (client as any).commands.set(meuRankCommand.data.name, meuRankCommand);
 
 // Eventos do Discord
 client.once('ready', () => onReady(client));
@@ -37,7 +42,7 @@ client.on('messageCreate', onMessageCreate);
 client.on('messageReactionAdd', onMessageReactionAdd);
 client.on('voiceStateUpdate', onVoiceStateUpdate);
 
-// Cron jobs
+// Cron jobs ativos
 // Notícias: 9h e 18h todos os dias
 cron.schedule('0 9,18 * * *', () => {
   logger.info('Executando job de notícias...');
@@ -50,34 +55,10 @@ cron.schedule('0 10 * * *', () => {
   runVagasJob();
 });
 
-// Ranking: segunda-feira 12h
-cron.schedule('0 12 * * 1', () => {
-  logger.info('Executando job de ranking semanal...');
-  runRankingJob();
-});
-
-// Promoção automática: meia-noite todos os dias
-cron.schedule('0 0 * * *', () => {
-  logger.info('Executando job de promoção...');
-  runPromotionJob();
-});
-
-// Desafio da semana: segunda-feira 9h
-cron.schedule('0 9 * * 1', () => {
-  logger.info('Executando job de desafio semanal...');
-  runDesafioSemanalJob();
-});
-
 // Enquete semanal: quarta-feira 14h
 cron.schedule('0 14 * * 3', () => {
   logger.info('Executando job de enquete semanal...');
   runEnqueteJob();
-});
-
-// Snapshot semanal: domingo 23h50
-cron.schedule('50 23 * * 0', () => {
-  logger.info('Executando job de snapshot semanal...');
-  runWeeklySnapshotJob();
 });
 
 // Tutorial diário: 9h todos os dias
@@ -85,6 +66,12 @@ cron.schedule('0 9 * * *', () => {
   logger.info('Executando job de tutorial diário...');
   runTutorialJob();
 });
+
+// CRAFTERS · cron jobs arquivados (descomentar para reativar)
+// cron.schedule('0 12 * * 1', () => { logger.info('Ranking semanal'); runRankingJob(); });
+// cron.schedule('0 0 * * *',  () => { logger.info('Promoção');       runPromotionJob(); });
+// cron.schedule('0 9 * * 1',  () => { logger.info('Desafio semanal'); runDesafioSemanalJob(); });
+// cron.schedule('50 23 * * 0', () => { logger.info('Snapshot semanal'); runWeeklySnapshotJob(); });
 
 // Webhook server interno (localhost only)
 const hookApp = createHookApp();
@@ -110,6 +97,3 @@ async function shutdown(signal: string) {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
-// CI test 18:48:11
-// CI trigger bot 19:26:55
-// CI final 19:29:02

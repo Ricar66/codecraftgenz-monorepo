@@ -7,11 +7,6 @@ import projectRoutes from './projects.js';
 import appRoutes from './apps.js';
 import paymentRoutes from './payments.js';
 import licenseRoutes from './licenses.js';
-import challengeRoutes from './challenges.js';
-import crafterRoutes from './crafters.js';
-import teamRoutes from './teams.js';
-import mentorRoutes from './mentors.js';
-import inscricaoRoutes from './inscricoes.js';
 import financeRoutes from './finances.js';
 import configRoutes from './config.js';
 import dashboardRoutes from './dashboard.js';
@@ -23,7 +18,6 @@ import integrationRoutes from './integrations.js';
 import hubRoutes from './hub.js';
 import leadRoutes from './leads.js';
 import analyticsRoutes from './analytics.js';
-import ideiasRoutes from './ideias.js';
 import parceriaRoutes from './parcerias.js';
 import noticiasRoutes from './noticias.js';
 import metaRoutes from './meta.routes.js';
@@ -48,13 +42,6 @@ router.use('/api/projetos', projectRoutes);
 router.use('/api/apps', appRoutes);
 router.use('/api/payments', paymentRoutes);
 router.use('/api', licenseRoutes); // Licenses has custom paths
-router.use('/api/desafios', challengeRoutes);
-router.use('/api/challenges', challengeRoutes); // Alias para submissões (nomenclatura EN)
-router.use('/api/crafters', crafterRoutes);
-router.use('/api/ranking', crafterRoutes); // Alias para ranking
-router.use('/api/equipes', teamRoutes);
-router.use('/api/mentores', mentorRoutes);
-router.use('/api/inscricoes', inscricaoRoutes);
 router.use('/api/financas', financeRoutes);
 router.use('/api/config', configRoutes);
 router.use('/api/dashboard', dashboardRoutes);
@@ -65,7 +52,6 @@ router.use('/api/uploads', uploadRoutes);
 router.use('/api/hub', hubRoutes); // CodeCraft Hub (desktop launcher)
 router.use('/api/leads', leadRoutes);         // Leads Engine
 router.use('/api/analytics', analyticsRoutes); // Analytics Events
-router.use('/api/ideias', ideiasRoutes); // Ideas / Voting System
 router.use('/api/parcerias', parceriaRoutes); // Partnerships
 router.use('/api/noticias', noticiasRoutes); // News (RSS feeds)
 router.use('/api/metas', metaRoutes); // Metas / Goals team calendar

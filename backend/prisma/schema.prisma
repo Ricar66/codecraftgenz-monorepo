@@ -18,40 +18,37 @@ datasource db {
 // =============================================
 
 model User {
-  id            Int       @id @default(autoincrement())
-  email         String    @unique
-  name          String
-  passwordHash  String
-  role          String    @default("viewer")
-  status        String    @default("ativo")
-  isGuest       Boolean   @default(false)
-  mfaEnabled    Boolean   @default(false)
-  mfaSecret     String?
-  onboardingCompleted Boolean @default(false)
-  interestsJson String?   @db.Text  // area + skills from onboarding (not a Crafter profile)
-  referralCode  String?   @unique
-  points        Int       @default(0)
+  id                  Int       @id @default(autoincrement())
+  email               String    @unique
+  name                String
+  passwordHash        String
+  role                String    @default("viewer")
+  status              String    @default("ativo")
+  isGuest             Boolean   @default(false)
+  mfaEnabled          Boolean   @default(false)
+  mfaSecret           String?
+  onboardingCompleted Boolean   @default(false)
+  interestsJson       String?   @db.Text // area + skills genéricos do cadastro
+  referralCode        String?   @unique
   // LGPD - aceite de termos
-  termsAcceptedAt   DateTime?
-  privacyVersion    String?   @db.VarChar(20)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  termsAcceptedAt     DateTime?
+  privacyVersion      String?   @db.VarChar(20)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   // Relations
-  apps          App[]
-  payments      Payment[]
-  licenses      License[]
-  passwordResets PasswordReset[]
-  feedbacks     Feedback[]
-  crafter       Crafter?
-  challengeSubmissions ChallengeSubmission[]
-  metasAuthored MetaObservation[] @relation("ObservationAuthor")
-  metasCreated  Meta[]            @relation("MetaAuthor")
-  metaAssignees MetaAssignee[]
-  discordLink   DiscordLink?
-  emailDrips    EmailDrip[]
-  referralsMade    Referral[] @relation("ReferralsMade")
-  referralReceived Referral?  @relation("ReferralReceived")
+  apps              App[]
+  payments          Payment[]
+  licenses          License[]
+  passwordResets    PasswordReset[]
+  feedbacks         Feedback[]
+  metasAuthored     MetaObservation[]  @relation("ObservationAuthor")
+  metasCreated      Meta[]             @relation("MetaAuthor")
+  metaAssignees     MetaAssignee[]
+  discordLink       DiscordLink?
+  emailDrips        EmailDrip[]
+  referralsMade     Referral[]         @relation("ReferralsMade")
+  referralReceived  Referral?          @relation("ReferralReceived")
   pushSubscriptions PushSubscription[]
 
   @@map("users")
@@ -64,11 +61,11 @@ model User {
 model EmailDrip {
   id           String    @id @default(cuid())
   userId       Int
-  step         Int       // 1, 2, 3
+  step         Int // 1, 2, 3
   sentAt       DateTime?
   scheduledFor DateTime
 
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, step])
   @@index([scheduledFor, sentAt])
@@ -86,8 +83,8 @@ model Referral {
   points     Int      @default(50)
   createdAt  DateTime @default(now())
 
-  referrer   User     @relation("ReferralsMade", fields: [referrerId], references: [id])
-  referred   User     @relation("ReferralReceived", fields: [referredId], references: [id])
+  referrer User @relation("ReferralsMade", fields: [referrerId], references: [id])
+  referred User @relation("ReferralReceived", fields: [referredId], references: [id])
 
   @@index([referrerId])
   @@map("referrals")
@@ -96,13 +93,13 @@ model Referral {
 model PasswordReset {
   id        Int       @id @default(autoincrement())
   userId    Int
-  email     String    
-  tokenHash String    @unique 
+  email     String
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("password_resets")
 }
@@ -112,24 +109,21 @@ model PasswordReset {
 // =============================================
 
 model Project {
-  id          Int       @id @default(autoincrement())
-  nome        String
-  owner       String?
-  descricao   String?   @db.Text
-  status      String    @default("ativo")
-  preco       Decimal   @default(0) @db.Decimal(10, 2)
-  progresso   Int       @default(0)
-  dataInicio  String?
-  thumbUrl    String?
-  tagsJson    String?   // Tecnologias do projeto em formato JSON
-  mentorId    Int?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         Int      @id @default(autoincrement())
+  nome       String
+  owner      String?
+  descricao  String?  @db.Text
+  status     String   @default("ativo")
+  preco      Decimal  @default(0) @db.Decimal(10, 2)
+  progresso  Int      @default(0)
+  dataInicio String?
+  thumbUrl   String?
+  tagsJson   String? // Tecnologias do projeto em formato JSON
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  mentor      Mentor?   @relation(fields: [mentorId], references: [id], onDelete: SetNull)
-  apps        App[]
-  inscricoes  Inscricao[]
-  finances    Finance[]
+  apps     App[]
+  finances Finance[]
 
   @@map("projetos")
 }
@@ -139,38 +133,38 @@ model Project {
 // =============================================
 
 model App {
-  id              Int       @id @default(autoincrement())
-  name            String    
-  description     String?   @db.Text
-  shortDescription String?  @db.Text
-  price           Decimal   @default(0) @db.Decimal(10, 2)
-  originalPrice   Decimal?  @db.Decimal(10, 2) // "preço de" antes do desconto (exibido riscado). Opcional.
-  category        String?   
-  tags            String?   
-  thumbUrl        String?   
-  screenshots     String?   
-  executableUrl   String?
-  platforms       String?   @default("windows") // JSON: ["windows","macos","linux"]
-  version         String    @default("1.0.0")
-  status          String    @default("draft")
-  featured        Boolean   @default(false)
-  licenseType     String    @default("vitalicia")
-  downloadCount   Int       @default(0)
-  slug            String?   @unique @db.VarChar(64)
-  changelog       String?   @db.Text
-  signature       String?   @db.Text
-  releaseDate     DateTime?
+  id               Int       @id @default(autoincrement())
+  name             String
+  description      String?   @db.Text
+  shortDescription String?   @db.Text
+  price            Decimal   @default(0) @db.Decimal(10, 2)
+  originalPrice    Decimal?  @db.Decimal(10, 2) // "preço de" antes do desconto (exibido riscado). Opcional.
+  category         String?
+  tags             String?
+  thumbUrl         String?
+  screenshots      String?
+  executableUrl    String?
+  platforms        String?   @default("windows") // JSON: ["windows","macos","linux"]
+  version          String    @default("1.0.0")
+  status           String    @default("draft")
+  featured         Boolean   @default(false)
+  licenseType      String    @default("vitalicia")
+  downloadCount    Int       @default(0)
+  slug             String?   @unique @db.VarChar(64)
+  changelog        String?   @db.Text
+  signature        String?   @db.Text
+  releaseDate      DateTime?
 
-  creatorId       Int
-  projectId       Int?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  creatorId Int
+  projectId Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  creator         User      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  project         Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  purchases       Payment[]
-  licenses        License[]
-  feedbacks       Feedback[]
+  creator   User       @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  project   Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  purchases Payment[]
+  licenses  License[]
+  feedbacks Feedback[]
 
   @@map("apps")
 }
@@ -180,24 +174,24 @@ model App {
 // =============================================
 
 model Payment {
-  id              String    @id
-  appId           Int
-  userId          Int?
-  preferenceId    String?
-  status          String    @default("pending")
-  amount          Decimal   @db.Decimal(10, 2)
-  unitPrice       Decimal?  @db.Decimal(10, 2)  // Preço unitário por licença
-  quantity        Int       @default(1)          // Quantidade de licenças (1-10)
-  installments    Int       @default(1)          // Número de parcelas (1-4)
-  currency        String    @default("BRL")
-  payerEmail      String?
-  payerName       String?
-  mpResponseJson  String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             String   @id
+  appId          Int
+  userId         Int?
+  preferenceId   String?
+  status         String   @default("pending")
+  amount         Decimal  @db.Decimal(10, 2)
+  unitPrice      Decimal? @db.Decimal(10, 2) // Preço unitário por licença
+  quantity       Int      @default(1) // Quantidade de licenças (1-10)
+  installments   Int      @default(1) // Número de parcelas (1-4)
+  currency       String   @default("BRL")
+  payerEmail     String?
+  payerName      String?
+  mpResponseJson String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  app             App       @relation(fields: [appId], references: [id], onDelete: Cascade)
-  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  app  App   @relation(fields: [appId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([appId, status])
   @@index([payerEmail])
@@ -209,20 +203,20 @@ model Payment {
 // =============================================
 
 model License {
-  id              Int       @id @default(autoincrement())
-  appId           Int
-  userId          Int?
-  email           String    
-  hardwareId      String?   
-  licenseKey      String?   
-  appName         String?   
-  activatedAt     DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id          Int       @id @default(autoincrement())
+  appId       Int
+  userId      Int?
+  email       String
+  hardwareId  String?
+  licenseKey  String?
+  appName     String?
+  activatedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  app             App       @relation(fields: [appId], references: [id], onDelete: Cascade)
-  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  activations     LicenseActivation[]
+  app         App                 @relation(fields: [appId], references: [id], onDelete: Cascade)
+  user        User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  activations LicenseActivation[]
 
   @@index([appId, email])
   @@index([appId, email, hardwareId])
@@ -230,19 +224,19 @@ model License {
 }
 
 model LicenseActivation {
-  id          Int       @id @default(autoincrement())
-  appId       Int
-  email       String?   
-  hardwareId  String?   
-  licenseId   Int?
-  action      String    
-  status      String    
-  message     String?   
-  ip          String?   
-  userAgent   String?   
-  createdAt   DateTime  @default(now())
+  id         Int      @id @default(autoincrement())
+  appId      Int
+  email      String?
+  hardwareId String?
+  licenseId  Int?
+  action     String
+  status     String
+  message    String?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 
-  license     License?  @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+  license License? @relation(fields: [licenseId], references: [id], onDelete: SetNull)
 
   @@index([appId, email])
   @@index([hardwareId])
@@ -250,198 +244,21 @@ model LicenseActivation {
 }
 
 // =============================================
-// CRAFTERS & TEAMS
-// =============================================
-
-model Crafter {
-  id          Int       @id @default(autoincrement())
-  nome        String
-  email       String?
-  bio         String?   @db.Text
-  avatarUrl   String?   @db.Text  // Allows Base64 data URLs
-  githubUrl   String?
-  linkedinUrl String?
-  skillsJson  String?   @db.Text
-  pontos      Int       @default(0)
-  active      Boolean   @default(true)
-  equipeId    Int?
-  userId      Int?      @unique
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  equipe      Equipe?   @relation(fields: [equipeId], references: [id], onDelete: SetNull)
-  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  rankingTop3 RankingTop3[]
-
-  @@map("crafters")
-}
-
-model Equipe {
-  id          Int       @id @default(autoincrement())
-  nome        String    
-  descricao   String?   @db.Text
-  logoUrl     String?   
-  status      String    @default("ativo") 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  membros     Crafter[]
-
-  @@map("equipes")
-}
-
-model RankingTop3 {
-  id          Int       @id @default(autoincrement())
-  crafterId   Int
-  position    Int
-  createdAt   DateTime  @default(now())
-
-  crafter     Crafter   @relation(fields: [crafterId], references: [id], onDelete: Cascade)
-
-  @@map("ranking_top3")
-}
-
-model RankingAudit {
-  id          Int       @id @default(autoincrement())
-  action      String
-  crafterId   Int?
-  userId      Int?
-  oldValue    String?
-  newValue    String?
-  details     String?
-  createdAt   DateTime  @default(now())
-
-  @@map("ranking_audit")
-}
-
-model RankingSettings {
-  id          Int       @id @default(autoincrement())
-  filtersJson String?
-  settingsJson String?
-  updatedAt   DateTime  @updatedAt
-
-  @@map("ranking_settings")
-}
-
-// =============================================
-// MENTORS
-// =============================================
-
-model Mentor {
-  id          Int       @id @default(autoincrement())
-  nome        String
-  email       String?
-  telefone    String?
-  bio         String?   @db.Text
-  especialidade String?
-  avatarUrl   String?   @db.Text  // Allows Base64 data URLs
-  linkedinUrl String?
-  githubUrl   String?
-  disponivel  Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  projetos    Project[]
-
-  @@map("mentores")
-}
-
-// =============================================
-// INSCRIPTIONS
-// =============================================
-
-model Inscricao {
-  id              Int       @id @default(autoincrement())
-  nome            String
-  email           String
-  telefone        String?
-  redeSocial      String?   @map("rede_social")
-  cep             String?
-  cidade          String?
-  estado          String?
-  areaInteresse   String?   @map("area_interesse")
-  mensagem        String?
-  projetoId       Int?
-  tipo            String    @default("geral")
-  status          String    @default("pendente")
-  notas           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  projeto         Project?  @relation(fields: [projetoId], references: [id], onDelete: SetNull)
-
-  @@map("inscricoes")
-}
-
-// =============================================
-// CHALLENGES
-// =============================================
-
-model Desafio {
-  id          Int       @id @default(autoincrement())
-  name        String    
-  objective   String?   
-  description String?   @db.Text
-  difficulty  String    @default("medio") 
-  deadline    DateTime?
-  reward      Decimal?  @db.Decimal(10, 2)
-  basePoints  Int       @default(100)
-  tagsJson    String?   
-  deliveryType String   @default("link") 
-  thumbUrl    String?   
-  status      String    @default("active") 
-  visible     Boolean   @default(true)
-  createdBy   Int?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  submissions ChallengeSubmission[]
-
-  @@map("desafios")
-}
-
-model ChallengeSubmission {
-  id             Int       @id @default(autoincrement())
-  desafioId      Int
-  userId         Int
-  repoUrl        String?
-  description    String?   @db.Text
-  deliveryUrl    String?
-  deliveryText   String?
-  notes          String?
-  status         String    @default("pending") // pending | approved | rejected | subscribed | submitted
-  score          Int?
-  points         Int       @default(0)
-  feedback       String?   @db.Text
-  reviewFeedback String?
-  submittedAt    DateTime? @default(now())
-  reviewedAt     DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  desafio        Desafio   @relation(fields: [desafioId], references: [id], onDelete: Cascade)
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([desafioId, userId])
-  @@map("challenge_submissions")
-}
-
-// =============================================
 // FINANCE
 // =============================================
 
 model Finance {
-  id          Int       @id @default(autoincrement())
-  item        String
-  valor       Decimal   @db.Decimal(10, 2)
-  status      String?   @default("pending")
-  type        String?   @default("other")
-  projectId   Int?
-  progress    Int?      @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  item      String
+  valor     Decimal  @db.Decimal(10, 2)
+  status    String?  @default("pending")
+  type      String?  @default("other")
+  projectId Int?
+  progress  Int?     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@map("financas")
 }
@@ -451,16 +268,16 @@ model Finance {
 // =============================================
 
 model Feedback {
-  id          Int       @id @default(autoincrement())
-  userId      Int?
-  appId       Int?
-  rating      Int
-  comment     String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  appId     Int?
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  app         App?      @relation(fields: [appId], references: [id], onDelete: SetNull)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  app  App?  @relation(fields: [appId], references: [id], onDelete: SetNull)
 
   @@map("feedbacks")
 }
@@ -470,22 +287,22 @@ model Feedback {
 // =============================================
 
 model Invoice {
-  id                  String    @id @default(uuid())
-  vendaId             String?   @unique
-  paymentId           String?
-  rpsNumero           Int?
-  rpsSerie            String?   @default("1")
-  nfseNumero          String?
-  codigoVerificacao   String?
-  status              String    @default("pending")
+  id                String  @id @default(uuid())
+  vendaId           String? @unique
+  paymentId         String?
+  rpsNumero         Int?
+  rpsSerie          String? @default("1")
+  nfseNumero        String?
+  codigoVerificacao String?
+  status            String  @default("pending")
 
-  dataEmissao         DateTime
-  competencia         DateTime
+  dataEmissao DateTime
+  competencia DateTime
 
-  prestadorCnpj       String
-  prestadorIm         String
+  prestadorCnpj String
+  prestadorIm   String
 
-  tomadorTipo         String    @default("PJ")
+  tomadorTipo         String  @default("PJ")
   tomadorDocumento    String
   tomadorRazaoSocial  String?
   tomadorEmail        String?
@@ -496,26 +313,26 @@ model Invoice {
   tomadorUf           String?
   tomadorCep          String?
 
-  descricaoServico    String    @db.Text
-  itemListaServico    String
-  codTributacao       String?
-  valorServicos       Decimal   @db.Decimal(10, 2)
-  aliquotaIss         Decimal?  @db.Decimal(5, 2)
-  valorIss            Decimal?  @db.Decimal(10, 2)
-  issRetido           Boolean   @default(false)
+  descricaoServico String   @db.Text
+  itemListaServico String
+  codTributacao    String?
+  valorServicos    Decimal  @db.Decimal(10, 2)
+  aliquotaIss      Decimal? @db.Decimal(5, 2)
+  valorIss         Decimal? @db.Decimal(10, 2)
+  issRetido        Boolean  @default(false)
 
-  simplesNacional     Boolean   @default(true)
-  incentivoFiscal     Boolean   @default(false)
-  naturezaOperacao    Int       @default(1)
+  simplesNacional  Boolean @default(true)
+  incentivoFiscal  Boolean @default(false)
+  naturezaOperacao Int     @default(1)
 
-  protocolo           String?
-  xmlEnvio            String?   @db.LongText
-  xmlRetorno          String?   @db.LongText
-  mensagemErro        String?   @db.Text
-  pdfUrl              String?
+  protocolo    String?
+  xmlEnvio     String? @db.LongText
+  xmlRetorno   String? @db.LongText
+  mensagemErro String? @db.Text
+  pdfUrl       String?
 
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([vendaId])
@@ -529,18 +346,18 @@ model Invoice {
 // =============================================
 
 model Proposal {
-  id            String    @id @default(uuid())
-  companyName   String
-  contactName   String
-  email         String
-  phone         String?
-  projectType   String    @default("custom")
-  budgetRange   String?
-  description   String?   @db.Text
-  status        String    @default("new")
-  notes         String?   @db.Text
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String   @id @default(uuid())
+  companyName String
+  contactName String
+  email       String
+  phone       String?
+  projectType String   @default("custom")
+  budgetRange String?
+  description String?  @db.Text
+  status      String   @default("new")
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([status])
   @@index([email])
@@ -552,19 +369,19 @@ model Proposal {
 // =============================================
 
 model Partnership {
-  id             String   @id @default(uuid())
-  nomeContato    String
-  email          String
-  telefone       String?
-  empresa        String
-  cargo          String?
-  site           String?
-  tipoParceria   String   @default("tecnologia")
-  mensagem       String?  @db.Text
-  status         String   @default("novo")
-  notas          String?  @db.Text
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id           String   @id @default(uuid())
+  nomeContato  String
+  email        String
+  telefone     String?
+  empresa      String
+  cargo        String?
+  site         String?
+  tipoParceria String   @default("tecnologia")
+  mensagem     String?  @db.Text
+  status       String   @default("novo")
+  notas        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([status])
   @@index([email])
@@ -654,23 +471,23 @@ model Lead {
 // =============================================
 
 model Meta {
-  id              Int       @id @default(autoincrement())
-  title           String    @db.VarChar(256)
-  description     String?   @db.Text
-  startDate       DateTime
-  endDate         DateTime?
-  status          String    @default("pending") @db.VarChar(32)  // pending, in_progress, done
-  type            String    @default("goal") @db.VarChar(32)     // goal, meeting, deadline, milestone
-  callLink        String?   @db.VarChar(1024)
-  googleEventId   String?   @db.VarChar(256)
-  color           String    @default("#D12BF2") @db.VarChar(16)
-  authorId        Int
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id            Int       @id @default(autoincrement())
+  title         String    @db.VarChar(256)
+  description   String?   @db.Text
+  startDate     DateTime
+  endDate       DateTime?
+  status        String    @default("pending") @db.VarChar(32) // pending, in_progress, done
+  type          String    @default("goal") @db.VarChar(32) // goal, meeting, deadline, milestone
+  callLink      String?   @db.VarChar(1024)
+  googleEventId String?   @db.VarChar(256)
+  color         String    @default("#D12BF2") @db.VarChar(16)
+  authorId      Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  author          User            @relation("MetaAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  assignees       MetaAssignee[]
-  observations    MetaObservation[]
+  author       User              @relation("MetaAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  assignees    MetaAssignee[]
+  observations MetaObservation[]
 
   @@index([startDate])
   @@index([status])
@@ -685,18 +502,18 @@ model MetaObservation {
   content   String   @db.Text
   createdAt DateTime @default(now())
 
-  meta      Meta     @relation(fields: [metaId], references: [id], onDelete: Cascade)
-  author    User     @relation("ObservationAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  meta   Meta @relation(fields: [metaId], references: [id], onDelete: Cascade)
+  author User @relation("ObservationAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([metaId])
   @@map("meta_observations")
 }
 
 model MetaAssignee {
-  metaId    Int
-  userId    Int
-  meta      Meta @relation(fields: [metaId], references: [id], onDelete: Cascade)
-  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metaId Int
+  userId Int
+  meta   Meta @relation(fields: [metaId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([metaId, userId])
   @@map("meta_assignees")
@@ -716,21 +533,21 @@ model SystemConfig {
 // =============================================
 
 model AnalyticsEvent {
-  id             String    @id @default(cuid())
-  eventName      String    @db.VarChar(128) @map("event_name")
-  eventCategory  String    @db.VarChar(64)  @map("event_category")
-  sessionId      String    @db.VarChar(128) @map("session_id")
-  pageUrl        String?   @db.VarChar(1024) @map("page_url")
-  pagePath       String?   @db.VarChar(512)  @map("page_path")
-  referrer       String?   @db.VarChar(1024)
-  deviceType     String?   @db.VarChar(32)   @map("device_type")
-  utmSource      String?   @db.VarChar(256)  @map("utm_source")
-  utmMedium      String?   @db.VarChar(256)  @map("utm_medium")
-  utmCampaign    String?   @db.VarChar(256)  @map("utm_campaign")
-  utmTerm        String?   @db.VarChar(256)  @map("utm_term")
-  utmContent     String?   @db.VarChar(256)  @map("utm_content")
-  properties     String?   @db.Text
-  timestamp      DateTime  @default(now())
+  id            String   @id @default(cuid())
+  eventName     String   @map("event_name") @db.VarChar(128)
+  eventCategory String   @map("event_category") @db.VarChar(64)
+  sessionId     String   @map("session_id") @db.VarChar(128)
+  pageUrl       String?  @map("page_url") @db.VarChar(1024)
+  pagePath      String?  @map("page_path") @db.VarChar(512)
+  referrer      String?  @db.VarChar(1024)
+  deviceType    String?  @map("device_type") @db.VarChar(32)
+  utmSource     String?  @map("utm_source") @db.VarChar(256)
+  utmMedium     String?  @map("utm_medium") @db.VarChar(256)
+  utmCampaign   String?  @map("utm_campaign") @db.VarChar(256)
+  utmTerm       String?  @map("utm_term") @db.VarChar(256)
+  utmContent    String?  @map("utm_content") @db.VarChar(256)
+  properties    String?  @db.Text
+  timestamp     DateTime @default(now())
 
   @@index([eventCategory, eventName])
   @@index([sessionId])
@@ -739,55 +556,20 @@ model AnalyticsEvent {
 }
 
 // =============================================
-// IDEAS / VOTING SYSTEM
-// =============================================
-
-model Ideia {
-  id          Int               @id @default(autoincrement())
-  titulo      String            @db.VarChar(256)
-  descricao   String            @db.Text
-  autorId     Int?
-  autorNome   String?           @db.VarChar(256)
-  votos       Int               @default(0)
-  status      String            @default("active") @db.VarChar(32)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  comentarios IdeiaComentario[]
-
-  @@index([autorId])
-  @@index([createdAt])
-  @@map("ideias")
-}
-
-model IdeiaComentario {
-  id        Int      @id @default(autoincrement())
-  ideiaId   Int
-  autorId   Int?
-  autorNome String?  @db.VarChar(256)
-  texto     String   @db.Text
-  createdAt DateTime @default(now())
-  ideia     Ideia    @relation(fields: [ideiaId], references: [id], onDelete: Cascade)
-
-  @@index([ideiaId])
-  @@map("ideia_comentarios")
-}
-
-// =============================================
 // DISCORD BOT
 // =============================================
 
 model DiscordLink {
-  id                  Int       @id @default(autoincrement())
-  userId              Int       @unique
-  discordId           String    @unique
-  discordUsername     String
-  discordAvatar       String?
-  accessToken         String?   @db.Text
-  refreshToken        String?   @db.Text
-  tokenExpiresAt      DateTime?
-  crafterRoleAssigned Boolean   @default(false)
-  linkedAt            DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id              Int       @id @default(autoincrement())
+  userId          Int       @unique
+  discordId       String    @unique
+  discordUsername String
+  discordAvatar   String?
+  accessToken     String?   @db.Text
+  refreshToken    String?   @db.Text
+  tokenExpiresAt  DateTime?
+  linkedAt        DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -834,24 +616,24 @@ model JobState {
 }
 
 model MemberScore {
-  id                  Int      @id @default(autoincrement())
-  discordId           String   @unique @db.VarChar(32)
-  username            String   @db.VarChar(100)
-  displayName         String?  @db.VarChar(100)
-  score               Int      @default(0)
-  messagesTotal       Int      @default(0)
-  messagesTech        Int      @default(0)
-  reactionsReceived   Int      @default(0)
-  threadReplies       Int      @default(0)
-  voiceMinutes        Int      @default(0)
-  currentRole         String   @default("novato") @db.VarChar(20)
+  id                  Int       @id @default(autoincrement())
+  discordId           String    @unique @db.VarChar(32)
+  username            String    @db.VarChar(100)
+  displayName         String?   @db.VarChar(100)
+  score               Int       @default(0)
+  messagesTotal       Int       @default(0)
+  messagesTech        Int       @default(0)
+  reactionsReceived   Int       @default(0)
+  threadReplies       Int       @default(0)
+  voiceMinutes        Int       @default(0)
+  currentRole         String    @default("novato") @db.VarChar(20)
   promotedAt          DateTime?
-  streakDays          Int      @default(0)
+  streakDays          Int       @default(0)
   streakLastDate      DateTime?
-  weeklyScoreSnapshot Int      @default(0)
-  lastSeen            DateTime @default(now())
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  weeklyScoreSnapshot Int       @default(0)
+  lastSeen            DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([score])
   @@index([currentRole])
@@ -883,7 +665,7 @@ model PushSubscription {
   auth      String
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([endpoint(length: 500)])
   @@index([userId])
@@ -895,9 +677,9 @@ model PushSubscription {
 // =============================================
 
 model TutorialPostLog {
-  id        Int      @id @default(autoincrement())
-  slug      String   @unique
-  sentAt    DateTime @default(now())
+  id     Int      @id @default(autoincrement())
+  slug   String   @unique
+  sentAt DateTime @default(now())
 
   @@map("tutorial_post_logs")
 }
@@ -931,7 +713,7 @@ model PanelUser {
   updatedAt    DateTime  @updatedAt
 
   sessions     PanelSession[]
-  tasksCreated PanelTask[]    @relation("PanelTaskCreator")
+  tasksCreated PanelTask[]           @relation("PanelTaskCreator")
   comments     PanelTaskComment[]
   attachments  PanelTaskAttachment[]
 
@@ -939,16 +721,16 @@ model PanelUser {
 }
 
 model PanelSession {
-  id         String   @id @default(cuid())
-  userId     Int
-  tokenHash  String   @unique @db.VarChar(255)
-  ip         String?  @db.VarChar(45)
-  userAgent  String?  @db.VarChar(255)
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  createdAt  DateTime @default(now())
+  id        String    @id @default(cuid())
+  userId    Int
+  tokenHash String    @unique @db.VarChar(255)
+  ip        String?   @db.VarChar(45)
+  userAgent String?   @db.VarChar(255)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
 
-  user       PanelUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user PanelUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
@@ -956,25 +738,25 @@ model PanelSession {
 }
 
 model PanelTask {
-  id           Int               @id @default(autoincrement())
-  title        String            @db.VarChar(200)
-  description  String?           @db.Text
+  id            Int               @id @default(autoincrement())
+  title         String            @db.VarChar(200)
+  description   String?           @db.Text
   delegatedById Int
-  delegatedAt  DateTime          @default(now())
-  dueDate      DateTime?
-  priority     PanelTaskPriority @default(MEDIUM)
-  tags         String?           @db.VarChar(500)
-  status       PanelTaskStatus   @default(PENDING)
-  completedAt  DateTime?
-  completedBy  String?           @db.VarChar(120)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  delegatedAt   DateTime          @default(now())
+  dueDate       DateTime?
+  priority      PanelTaskPriority @default(MEDIUM)
+  tags          String?           @db.VarChar(500)
+  status        PanelTaskStatus   @default(PENDING)
+  completedAt   DateTime?
+  completedBy   String?           @db.VarChar(120)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
-  delegatedBy  PanelUser              @relation("PanelTaskCreator", fields: [delegatedById], references: [id])
-  assignees    PanelTaskAssignee[]
-  checklist    PanelTaskChecklistItem[]
-  comments     PanelTaskComment[]
-  attachments  PanelTaskAttachment[]
+  delegatedBy PanelUser                @relation("PanelTaskCreator", fields: [delegatedById], references: [id])
+  assignees   PanelTaskAssignee[]
+  checklist   PanelTaskChecklistItem[]
+  comments    PanelTaskComment[]
+  attachments PanelTaskAttachment[]
 
   @@index([status, priority])
   @@index([delegatedById])
@@ -987,7 +769,7 @@ model PanelTaskAssignee {
   email     String   @db.VarChar(190)
   createdAt DateTime @default(now())
 
-  task      PanelTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task PanelTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, email])
   @@index([email])
@@ -1005,7 +787,7 @@ model PanelTaskChecklistItem {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  task      PanelTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task PanelTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId, position])
   @@map("panel_task_checklist_items")
@@ -1018,25 +800,25 @@ model PanelTaskComment {
   content   String   @db.Text
   createdAt DateTime @default(now())
 
-  task      PanelTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  author    PanelUser @relation(fields: [authorId], references: [id])
+  task   PanelTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author PanelUser @relation(fields: [authorId], references: [id])
 
   @@index([taskId])
   @@map("panel_task_comments")
 }
 
 model PanelTaskAttachment {
-  id          Int      @id @default(autoincrement())
-  taskId      Int
-  uploaderId  Int
-  filename    String   @db.VarChar(255) // nome original sanitizado (display)
-  storedAs    String   @unique @db.VarChar(255) // UUID + ext no storage
-  mimetype    String   @db.VarChar(120)
-  size        Int
-  createdAt   DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  taskId     Int
+  uploaderId Int
+  filename   String   @db.VarChar(255) // nome original sanitizado (display)
+  storedAs   String   @unique @db.VarChar(255) // UUID + ext no storage
+  mimetype   String   @db.VarChar(120)
+  size       Int
+  createdAt  DateTime @default(now())
 
-  task        PanelTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  uploader    PanelUser @relation(fields: [uploaderId], references: [id])
+  task     PanelTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploader PanelUser @relation(fields: [uploaderId], references: [id])
 
   @@index([taskId])
   @@map("panel_task_attachments")
@@ -1052,10 +834,10 @@ model SiteReview {
   id        Int      @id @default(autoincrement())
   nome      String?  @db.VarChar(120)
   email     String?  @db.VarChar(180)
-  tipo      String   @db.VarChar(24)   // elogio | sugestao | reclamacao | duvida
-  nota      Int                          // 1..5
+  tipo      String   @db.VarChar(24) // elogio | sugestao | reclamacao | duvida
+  nota      Int // 1..5
   mensagem  String   @db.Text
-  ref       String?  @db.VarChar(40)   // wpp, ig, direto, etc
+  ref       String?  @db.VarChar(40) // wpp, ig, direto, etc
   ip        String?  @db.VarChar(64)
   userAgent String?  @db.VarChar(255)
   lida      Boolean  @default(false)
