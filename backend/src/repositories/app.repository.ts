@@ -21,7 +21,7 @@ export const appRepository = {
     const skip = (page - 1) * take;
     const [items, total] = await Promise.all([
       prisma.app.findMany({
-        where: { status: { in: ['published', 'available', 'finalizado', 'ready'] } },
+        where: { status: 'publicar' },
         include: {
           creator: { select: { id: true, name: true } },
           _count: { select: { purchases: true, feedbacks: true } },
@@ -31,7 +31,7 @@ export const appRepository = {
         skip,
       }),
       prisma.app.count({
-        where: { status: { in: ['published', 'available', 'finalizado', 'ready'] } },
+        where: { status: 'publicar' },
       }),
     ]);
     return { items, total, page, limit: take, pages: Math.ceil(total / take) };
@@ -96,7 +96,7 @@ export const appRepository = {
         executableUrl: data.executable_url,
         platforms: data.platforms ? JSON.stringify(data.platforms) : 'windows',
         version: data.version ?? '1.0.0',
-        status: data.status ?? 'draft',
+        status: data.status ?? 'revisar',
         featured: data.featured ?? false,
         licenseType: data.license_type ?? 'vitalicia',
         creatorId: data.creatorId,

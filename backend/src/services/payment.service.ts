@@ -134,7 +134,7 @@ export const paymentService = {
       throw AppError.notFound('App');
     }
 
-    if (app.status !== 'published') {
+    if (app.status !== 'publicar') {
       throw AppError.badRequest('Este app não está disponível para compra');
     }
 
@@ -589,7 +589,7 @@ export const paymentService = {
       throw AppError.notFound('App');
     }
 
-    if (app.status !== 'published') {
+    if (app.status !== 'publicar') {
       throw AppError.badRequest('Este app não está disponível para compra');
     }
 

@@ -69,7 +69,7 @@ export const appService = {
         description: project.descricao,
         thumbUrl: project.thumbUrl,
         price: options.price ?? (Number(project.preco) || 0),
-        status: options.status ?? 'draft',
+        status: options.status ?? 'revisar',
         creatorId,
         version: '1.0.0',
       },
@@ -94,7 +94,7 @@ export const appService = {
     const app = await appRepository.update(id, data);
 
     // Notifica Discord bot quando app é publicado
-    if (data.status === 'published' || data.status === 'available') {
+    if (data.status === 'publicar') {
       notifyBot('/hook/new-app', {
         nome: app.name,
         categoria: app.category,
@@ -148,7 +148,7 @@ export const appService = {
 
   async getHistory() {
     const apps = await prisma.app.findMany({
-      where: { status: { in: ['published', 'available', 'finalizado', 'ready'] } },
+      where: { status: 'publicar' },
       select: {
         id: true,
         name: true,
@@ -257,7 +257,7 @@ export const appService = {
         screenshots: data.screenshots ? JSON.stringify(data.screenshots) : null,
         executableUrl: data.executableUrl ? String(data.executableUrl) : null,
         version: String(data.version || '1.0.0'),
-        status: String(data.status || 'draft'),
+        status: String(data.status || 'revisar'),
         featured: Boolean(data.featured),
         creatorId,
       },

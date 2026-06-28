@@ -19,7 +19,7 @@ export const hubService = {
     // Buscar todos os apps publicados/disponíveis (exclui o próprio Hub)
     const apps = await prisma.app.findMany({
       where: {
-        status: { in: ['published', 'available'] },
+        status: 'publicar',
         name: { not: 'CodeCraft Hub' },
       },
       orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],

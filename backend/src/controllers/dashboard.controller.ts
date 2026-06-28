@@ -105,10 +105,10 @@ export const getStats = async (req: Request, res: Response) => {
     // Projects by status
     const [projectsAtivos, projectsFinalizados] = await Promise.all([
       prisma.project.count({
-        where: { status: { in: ['ativo', 'ongoing', 'em_andamento'] } },
+        where: { status: 'em_andamento' },
       }),
       prisma.project.count({
-        where: { status: { in: ['concluido', 'finalizado', 'completed'] } },
+        where: { status: 'finalizado' },
       }),
     ]);
 
@@ -153,7 +153,7 @@ export const getStats = async (req: Request, res: Response) => {
 
     // Fetch ALL published apps so we always show them in the dashboard
     const allApps = await prisma.app.findMany({
-      where: { status: { not: 'draft' } },
+      where: { status: 'publicar' },
       select: { id: true, name: true, thumbUrl: true, price: true },
       orderBy: { name: 'asc' },
     });

@@ -27,7 +27,7 @@ export const projectRepository = {
         nome: data.nome || data.titulo || '',
         owner: data.owner,
         descricao: data.descricao,
-        status: data.status ?? 'ativo',
+        status: data.status ?? 'aguardando_start',
         preco: data.preco ?? 0,
         progresso: data.progresso ?? 0,
         dataInicio: data.data_inicio,

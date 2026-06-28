@@ -18,22 +18,16 @@ const urlOrDataUri = z.string().refine(
   { message: 'URL ou data URI inválido' }
 );
 
-// Status aceitos (português e inglês)
+// Status de App (definitivo): apenas "revisar" (interno) ou "publicar" (Loja).
+// Normaliza valores legados (draft/published/available/ready/finalizado/archived) para
+// que dados antigos continuem aceitos enquanto a migration roda.
 const appStatus = z.string().transform((val) => {
-  const statusMap: Record<string, string> = {
-    'disponível': 'published',
-    'disponivel': 'published',
-    'published': 'published',
-    'publicado': 'published',
-    'rascunho': 'draft',
-    'draft': 'draft',
-    'arquivado': 'archived',
-    'archived': 'archived',
-    'available': 'published',
-    'ready': 'published',
-    'finalizado': 'published',
-  };
-  return statusMap[val.toLowerCase()] || val;
+  const v = String(val).toLowerCase();
+  const PUBLICAR = ['publicar', 'published', 'publicado', 'available', 'disponivel', 'disponível', 'ready', 'finalizado'];
+  const REVISAR  = ['revisar', 'draft', 'rascunho', 'archived', 'arquivado'];
+  if (PUBLICAR.includes(v)) return 'publicar';
+  if (REVISAR.includes(v))  return 'revisar';
+  return 'revisar'; // fallback seguro: não publica nada sem intenção
 });
 
 export const createAppSchema = z.object({
@@ -54,7 +48,7 @@ export const createAppSchema = z.object({
     executable_url: z.string().optional().nullable(),
     platforms: z.union([z.array(z.string()), z.string()]).optional().nullable(),
     version: z.string().max(32).default('1.0.0'),
-    status: appStatus.default('draft'),
+    status: appStatus.default('revisar'),
     featured: z.union([z.boolean(), z.string().transform((v) => v === 'true' || v === '1')]).default(false),
     license_type: z.string().max(32).optional(),
   }),
@@ -128,7 +122,7 @@ export const createFromProjectSchema = z.object({
   }),
   body: z.object({
     price: z.number().min(0).optional(),
-    status: z.enum(['draft', 'published']).default('draft'),
+    status: z.enum(['revisar', 'publicar']).default('revisar'),
   }),
 });
 
