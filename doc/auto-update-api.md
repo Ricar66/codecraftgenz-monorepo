@@ -70,7 +70,7 @@ Configure a variável de ambiente antes do build:
 
 ```powershell
 # Windows PowerShell
-$env:TAURI_SIGNING_PRIVATE_KEY = "<conteúdo do arquivo D:\tauri-codecraft.key>"
+$env:TAURI_SIGNING_PRIVATE_KEY = "<conteúdo do arquivo E:\tauri-codecraft.key>"
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""  # sem senha
 
 cd D:\CraftApps\ReflexCraft
@@ -111,13 +111,13 @@ curl -X POST https://api.codecraftgenz.com.br/api/apps/{APP_ID}/release \
 
 ## Configuração de ambiente para build Tauri
 
-A chave privada fica em `D:\tauri-codecraft.key` (não commitada no git).
+A chave privada fica em `E:\tauri-codecraft.key` (não commitada no git).
 
 Configure no seu ambiente de build:
 
 | Variável                             | Valor                                           |
 |--------------------------------------|-------------------------------------------------|
-| `TAURI_SIGNING_PRIVATE_KEY`          | Conteúdo do arquivo `D:\tauri-codecraft.key`   |
+| `TAURI_SIGNING_PRIVATE_KEY`          | Conteúdo do arquivo `E:\tauri-codecraft.key`   |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | (vazio — chave sem senha)                       |
 
 **Para CI/CD (GitHub Actions):**
@@ -129,7 +129,7 @@ Configure no seu ambiente de build:
   run: npm run tauri build
 ```
 
-Adicione o conteúdo de `D:\tauri-codecraft.key` como secret `TAURI_SIGNING_PRIVATE_KEY` no GitHub.
+Adicione o conteúdo de `E:\tauri-codecraft.key` como secret `TAURI_SIGNING_PRIVATE_KEY` no GitHub.
 
 ---
 
