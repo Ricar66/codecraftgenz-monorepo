@@ -79,8 +79,8 @@ export const appService = {
   },
 
   async update(id: number, data: UpdateAppInput) {
-    const exists = await appRepository.exists(id);
-    if (!exists) {
+    const before = await appRepository.findById(id);
+    if (!before) {
       throw AppError.notFound('App');
     }
 
@@ -99,6 +99,32 @@ export const appService = {
         nome: app.name,
         categoria: app.category,
       }).catch(() => {});
+    }
+
+    // Regra de negócio: App em 'publicar' volta para 'revisar' (rejeição em QA) →
+    // Projeto vinculado volta para 'em_andamento' (mais trabalho pra fazer).
+    if (
+      before.status === 'publicar' &&
+      data.status === 'revisar' &&
+      before.projectId
+    ) {
+      await prisma.project
+        .update({
+          where: { id: before.projectId },
+          data: { status: 'em_andamento' },
+        })
+        .then(() => {
+          logger.info(
+            { appId: id, projectId: before.projectId },
+            'Projeto revertido p/ em_andamento por rejeição do App',
+          );
+        })
+        .catch((err) => {
+          logger.warn(
+            { err, appId: id, projectId: before.projectId },
+            'Falha ao reverter Projeto p/ em_andamento — App atualizado mesmo assim',
+          );
+        });
     }
 
     return mapApp(app);

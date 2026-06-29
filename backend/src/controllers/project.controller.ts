@@ -30,7 +30,7 @@ export const projectController = {
   async update(req: Request, res: Response) {
     const id = Number(req.params.id);
     const data = req.validated?.body as UpdateProjectInput;
-    const project = await projectService.update(id, data);
+    const project = await projectService.update(id, data, req.user?.id);
     res.json(success(project));
   },
 
