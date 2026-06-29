@@ -8,6 +8,7 @@ import type {
   PasswordResetRequestInput,
   PasswordResetConfirmInput,
   ChangePasswordInput,
+  SetPasswordInput,
   OnboardingInput,
 } from '../schemas/auth.schema.js';
 
@@ -137,6 +138,21 @@ export const authController = {
       await authService.changePassword(req.user!.id, currentPassword, newPassword);
 
       sendSuccess(res, { message: 'Senha alterada com sucesso' });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * POST /api/v1/auth/set-password
+   * Define a primeira senha (ou redefine) para usuário autenticado.
+   * Não exige senha atual — usado por quem entrou via Google.
+   */
+  async setPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { password } = req.validated!.body as SetPasswordInput;
+      await authService.setPassword(req.user!.id, password);
+      sendSuccess(res, { message: 'Senha definida com sucesso' });
     } catch (error) {
       next(error);
     }

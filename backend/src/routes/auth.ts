@@ -9,6 +9,7 @@ import {
   passwordResetRequestSchema,
   passwordResetConfirmSchema,
   changePasswordSchema,
+  setPasswordSchema,
   onboardingSchema,
 } from '../schemas/auth.schema.js';
 
@@ -80,6 +81,19 @@ router.post(
   sensitiveLimiter,
   validate(changePasswordSchema),
   authController.changePassword
+);
+
+/**
+ * POST /api/v1/auth/set-password
+ * Define a primeira senha (ou redefine) sem exigir a antiga — autenticado.
+ * Para quem entrou via Google e quer tambem usar email/senha.
+ */
+router.post(
+  '/set-password',
+  authenticate,
+  sensitiveLimiter,
+  validate(setPasswordSchema),
+  authController.setPassword
 );
 
 /**

@@ -61,6 +61,20 @@ export const changePasswordSchema = {
 };
 
 /**
+ * Set password schema — define a primeira senha (ou redefine) sem exigir senha atual.
+ * Para uso autenticado: o usuário já provou identidade via cookie de sessão.
+ * Pensado para quem entrou via Google e ainda não tem senha real (hash é random).
+ */
+export const setPasswordSchema = {
+  body: z.object({
+    password: z
+      .string()
+      .min(8, 'Senha deve ter pelo menos 8 caracteres')
+      .regex(/\d/, 'Senha deve conter pelo menos 1 número'),
+  }),
+};
+
+/**
  * Onboarding schema
  */
 export const onboardingSchema = {
@@ -77,4 +91,5 @@ export type RegisterInput = z.infer<typeof registerSchema.body>;
 export type PasswordResetRequestInput = z.infer<typeof passwordResetRequestSchema.body>;
 export type PasswordResetConfirmInput = z.infer<typeof passwordResetConfirmSchema.body>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema.body>;
+export type SetPasswordInput = z.infer<typeof setPasswordSchema.body>;
 export type OnboardingInput = z.infer<typeof onboardingSchema.body>;

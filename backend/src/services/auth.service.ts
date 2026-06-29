@@ -362,6 +362,42 @@ export const authService = {
   },
 
   /**
+   * Set password — define a senha do usuário sem exigir a antiga.
+   * Cenário principal: conta criada via Google (passwordHash é random bytes,
+   * usuário nunca consegue logar com email/senha). Aqui ele define a primeira senha
+   * e passa a poder usar os 2 caminhos: email/senha OU Google.
+   *
+   * Segurança:
+   *  - Exige autenticação (cookie de sessão válido — middleware no controller)
+   *  - Rate limited (sensitive)
+   *  - Notifica por email que a senha foi definida/alterada — alerta cedo se for fraude
+   */
+  async setPassword(userId: number, newPassword: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw AppError.notFound('Usuário');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: hashedPassword },
+    });
+
+    logger.info({ userId }, 'Password set/updated via set-password endpoint');
+
+    // Notifica fire-and-forget — se falhar, não impede o set
+    void emailService.sendPasswordReset({
+      to: user.email,
+      name: user.name || 'Usuário',
+      resetLink: `${env.FRONTEND_URL}/login`,
+    }).catch((e) => {
+      logger.warn({ error: e, userId }, 'Failed to send password-changed notice');
+    });
+  },
+
+  /**
    * Complete onboarding — marks user as onboarded and saves interests (area/skills).
    * Does NOT create a Crafter record — that happens only through the "Ser Crafter" flow
    * (via inscription) or manually by an admin.
