@@ -314,6 +314,7 @@ function mapApp(app: {
   licenseType?: string;
   downloadCount: number;
   creatorId: number;
+  projectId?: number | null;
   createdAt: Date;
   updatedAt: Date;
   creator?: { id: number; name: string; email?: string } | null;
@@ -338,6 +339,7 @@ function mapApp(app: {
     license_type: app.licenseType ?? 'vitalicia',
     download_count: app.downloadCount,
     creator_id: app.creatorId,
+    project_id: app.projectId ?? null,
     creator: app.creator
       ? { id: app.creator.id, name: app.creator.name }
       : null,
